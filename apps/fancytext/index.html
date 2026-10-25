@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Fancy Text</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#db2777}.r2{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}.r2 small{width:110px;color:var(--mut)}.r2 .out{flex:1;min-height:0;padding:7px 10px;font-size:18px;font-family:inherit;white-space:pre-wrap}</style>
+<div class="wrap"><h1>Fancy Text</h1><p class="sub">Restyle plain text with Unicode lookalike alphabets — works anywhere text can be pasted.</p>
+<div class="card"><input id="t" value="Hello World 2024" style="font-size:20px" data-keep></div><div class="card" id="rows"></div></div>
+<script>
+const A='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',D='0123456789';
+// Mathematical alphanumeric blocks sit at fixed code-point offsets, so a style is just a base per case (and digits).
+const blk=(up,lo,dg)=>t=>[...t].map(c=>{const i=A.indexOf(c);if(i>=0)return String.fromCodePoint(i<26?up+i:lo+i-26);const d=D.indexOf(c);return d>=0&&dg?String.fromCodePoint(dg+d):c}).join('');
+const map=(from,to)=>t=>[...t].map(c=>{const i=from.indexOf(c);return i>=0?[...to][i]:c}).join('');
+const ST=[['Bold',blk(0x1D400,0x1D41A,0x1D7CE)],['Italic',t=>blk(0x1D434,0x1D44E)(t).replace(/\u{1D455}/gu,'ℎ')],['Bold italic',blk(0x1D468,0x1D482)],['Script',t=>blk(0x1D49C,0x1D4B6)(t).replace(/\u{1D49D}/gu,'ℬ').replace(/\u{1D4C4}/gu,'ℴ')],['Fraktur',blk(0x1D504,0x1D51E)],['Double-struck',blk(0x1D538,0x1D552,0x1D7D8)],['Sans bold',blk(0x1D5D4,0x1D5EE,0x1D7EC)],['Monospace',blk(0x1D670,0x1D68A,0x1D7F6)],
+['Circled',t=>[...t].map(c=>{const i=A.indexOf(c);return i<0?c:String.fromCodePoint(i<26?0x24B6+i:0x24D0+i-26)}).join('')],['Small caps',map(A.slice(26),'ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀsᴛᴜᴠᴡxʏᴢ')],['Upside down',t=>[...t.toLowerCase()].reverse().map(c=>({a:'ɐ',b:'q',c:'ɔ',d:'p',e:'ǝ',f:'ɟ',g:'ƃ',h:'ɥ',i:'ᴉ',j:'ɾ',k:'ʞ',l:'l',m:'ɯ',n:'u',o:'o',p:'d',q:'b',r:'ɹ',s:'s',t:'ʇ',u:'n',v:'ʌ',w:'ʍ',x:'x',y:'ʎ',z:'z','1':'Ɩ','2':'ᄅ','3':'Ɛ','4':'ㄣ','5':'ϛ','6':'9','7':'ㄥ','8':'8','9':'6','0':'0','.':'˙',',':"'",'?':'¿','!':'¡','(':')',')':'('})[c]||c).join('')],
+['Strikethrough',t=>[...t].map(c=>c+'̶').join('')],['Underline',t=>[...t].map(c=>c+'̲').join('')],['Wide',t=>[...t].map(c=>c===' '?'　':c.charCodeAt(0)>32&&c.charCodeAt(0)<127?String.fromCharCode(c.charCodeAt(0)+0xFEE0):c).join('')],['Bubble spaced',t=>[...t].join(' ')]];
+function run(){const t=$('#t').value;$('#rows').innerHTML=ST.map(([n,f],i)=>`<div class="r2"><small>${n}</small><div class="out">${esc(f(t))}</div><button class="x" data-i="${i}">Copy</button></div>`).join('')}
+$('#rows').onclick=e=>{const i=e.target.dataset.i;if(i!==undefined)copy(ST[i][1]($('#t').value),e.target)};$('#t').oninput=run;remember().then(run);
+</script>

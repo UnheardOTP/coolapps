@@ -1,0 +1,49 @@
+<!doctype html><meta charset="utf-8"><title>Windowsill</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(#bfe3f5, #eaf6fb 60%, #f6efe0); color: #3d4a3a; font-family: 'Avenir Next', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; }
+  header { text-align: center; padding: 28px 0 0; } h1 { margin: 0; font-weight: 300; font-size: 36px; letter-spacing: .08em; } .sub { color: #6c8a68; margin: 4px 0; }
+  .sill { position: relative; width: 980px; margin-top: 16px; } .row { display: flex; flex-wrap: wrap; align-items: flex-end; align-content: flex-end; justify-content: space-around; min-height: 400px; }
+  .plant { position: relative; flex: 0 0 150px; width: 150px; text-align: center; cursor: pointer; } .plant svg { display: block; margin: 0 auto; overflow: visible; }
+  .plant .name { font-weight: 600; margin-top: 8px; } .plant small { display: block; color: #6c8a68; } .plant .x { position: absolute; top: 0; right: 4px; color: #aab; font-size: 12px; opacity: 0; } .plant:hover .x { opacity: 1; }
+  .drop { position: absolute; left: 50%; width: 10px; height: 14px; background: #5ab0e6; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; animation: fall 1s ease-in forwards; } @keyframes fall { from { top: 60px; opacity: 1 } to { top: 230px; opacity: 0 } }
+  .board { height: 26px; background: linear-gradient(#a9784a, #86593a); border-radius: 4px; box-shadow: 0 10px 20px #0003; }
+  form { display: flex; gap: 8px; margin: 30px 0; } input, select { font: inherit; padding: 10px 14px; border: 1px solid #c6d8c1; border-radius: 22px; outline: none; background: #fffc; } button { font: inherit; padding: 10px 22px; border: none; border-radius: 22px; background: #5b8c5a; color: #fff; cursor: pointer; }
+</style>
+<header><h1>Windowsill</h1><p class="sub">Click a plant to water it. Neglected plants droop.</p></header>
+<div class="sill"><div class="row" id="row"></div><div class="board"></div></div>
+<form id="f"><input id="name" placeholder="Name your plant" required maxlength="16"><select id="kind"><option value="succulent">Succulent</option><option value="fern">Fern</option><option value="cactus">Cactus</option><option value="flower">Flower</option></select><button>Plant it</button></form>
+<script>
+let plants = [];
+const HOUR = 36e5;
+// Growth 0→1 over 14 days since planting; thirst 0→1 over the days since the last watering (cacti last longer).
+const growth = p => Math.min(1, .12 + (Date.now() - p.createdAt) / (14 * 24 * HOUR));
+const thirst = p => Math.min(1, (Date.now() - (p.watered || p.createdAt)) / ((p.kind === 'cactus' ? 6 : 2) * 24 * HOUR));
+const GREEN = ['#4f9d4c', '#6bb868', '#3f8a5a'];
+// Generate a plant as SVG from its species, growth and thirst.
+function art(p) {
+  const g = growth(p), t = thirst(p), droop = t * 28, h = 40 + g * 130, pot = `<path d="M40 190 L110 190 L102 238 L48 238Z" fill="#c9764f"/><rect x="36" y="182" width="78" height="14" rx="3" fill="#d98a62"/>`;
+  let s = '';
+  if (p.kind === 'cactus') s = `<rect x="${65}" y="${190 - h * .8}" width="20" height="${h * .8}" rx="10" fill="#4f9d6a"/><rect x="${44}" y="${190 - h * .5}" width="14" height="${h * .3}" rx="7" fill="#4f9d6a" transform="rotate(${-droop * .3} 51 ${190 - h * .3})"/><rect x="${92}" y="${190 - h * .6}" width="14" height="${h * .3}" rx="7" fill="#4f9d6a"/>${g > .6 ? `<circle cx="75" cy="${190 - h * .8}" r="6" fill="#f08cb0"/>` : ''}`;
+  else if (p.kind === 'succulent') { const nl = Math.round(5 + g * 6); s = Array.from({ length: nl }, (_, i) => { const an = (i / nl - .5) * 2.4 + (i % 2 ? .1 : -.1); return `<ellipse cx="75" cy="${186 - h * .25}" rx="9" ry="${14 + g * 22}" fill="${GREEN[i % 3]}" transform="rotate(${an * 60 + droop * (an > 0 ? 1.4 : -1.4)} 75 186) translate(0 ${-g * 16})"/>`; }).join(''); }
+  else if (p.kind === 'fern') { const nf = Math.round(4 + g * 7); s = Array.from({ length: nf }, (_, i) => { const an = (i / (nf - 1) - .5) * 110, len = h * .85 * (.7 + (i % 3) * .15); return `<path d="M75 190 Q ${75 + an * 1.1} ${190 - len * .7} ${75 + an * 1.6 + droop * Math.sign(an || 1)} ${190 - len + droop * 1.5}" stroke="${GREEN[i % 3]}" stroke-width="5" fill="none" stroke-linecap="round"/>`; }).join(''); }
+  else s = `<path d="M75 190 Q ${75 + droop} ${190 - h * .5} ${75 + droop * 1.8} ${190 - h}" stroke="#4f9d4c" stroke-width="6" fill="none"/><ellipse cx="62" cy="${190 - h * .35}" rx="18" ry="8" fill="#6bb868" transform="rotate(-25 62 ${190 - h * .35})"/>` +
+    (g > .35 ? `<g transform="translate(${75 + droop * 1.8} ${190 - h}) rotate(${droop})">${Array.from({ length: 8 }, (_, i) => `<ellipse cx="0" cy="-15" rx="8" ry="${12 + g * 6}" fill="${t > .7 ? '#c9b6a0' : '#ffb347'}" transform="rotate(${i * 45})"/>`).join('')}<circle r="9" fill="#7a4b2a"/></g>` : '');
+  return `<svg width="150" height="250" viewBox="0 0 150 250">${s}${pot}</svg>`;
+}
+function render() {
+  $('#row').innerHTML = plants.map(p => {
+    const t = thirst(p), age = Math.floor((Date.now() - p.createdAt) / (24 * HOUR));
+    return `<div class="plant" data-id="${p.id}">${art(p)}<div class="name">${esc(p.name)}</div><small>${t > .75 ? 'thirsty!' : t > .4 ? 'getting dry' : 'happy'} · ${age}d old</small><span class="x" data-del>remove</span></div>`;
+  }).join('') || '<p class="sub">Your sill is empty. Plant something below.</p>';
+}
+$('#row').onclick = async e => {
+  const el = e.target.closest('.plant'); if (!el) return; const p = plants.find(x => x.id === el.dataset.id);
+  if (e.target.hasAttribute('data-del')) { await api.del(p.id); plants = plants.filter(x => x !== p); return render(); }
+  const d = document.createElement('div'); d.className = 'drop'; el.append(d); setTimeout(() => d.remove(), 1000);
+  p.watered = Date.now(); api.upd(p.id, { watered: p.watered }); setTimeout(render, 700);
+};
+$('#f').onsubmit = async e => { e.preventDefault(); plants.push(await api.add({ name: $('#name').value, kind: $('#kind').value, watered: Date.now() })); $('#name').value = ''; render(); };
+api.list().then(d => { plants = d.sort((a, b) => a.createdAt - b.createdAt); render(); }); setInterval(render, 60000);
+</script>

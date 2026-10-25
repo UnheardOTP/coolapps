@@ -1,0 +1,53 @@
+<!doctype html><meta charset="utf-8"><title>Recipe Box</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #c9a77c url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6"><rect width="6" height="6" fill="%23c9a77c"/><rect width="1" height="1" fill="%23b8956a"/></svg>'); color: #3a2a1c; font-family: 'Palatino Linotype', Georgia, serif; display: flex; gap: 32px; justify-content: center; padding: 40px 24px; }
+  aside { width: 260px; } h1 { margin: 0 0 14px; font-size: 34px; color: #fff8e8; text-shadow: 0 2px 0 #0004; }
+  .tab { display: block; width: 100%; text-align: left; background: #f9f1de; border: none; border-left: 6px solid #b3322a; padding: 10px 12px; margin-bottom: 8px; font: 17px Georgia, serif; cursor: pointer; box-shadow: 0 2px 4px #0003; } .tab.on { background: #fffdf6; transform: translateX(8px); } .tab small { display: block; color: #8a7456; font-size: 12px; }
+  .card { width: 620px; background: #fffdf6; background-image: repeating-linear-gradient(transparent 0 33px, #a9c4de66 33px 34px); padding: 30px 40px 30px 64px; box-shadow: 0 10px 30px #0004; position: relative; min-height: 520px; } .card::before { content: ''; position: absolute; left: 44px; top: 0; bottom: 0; width: 2px; background: #e8a0a0; }
+  .card h2 { margin: 0 0 6px; font-size: 32px; line-height: 34px; } .serv { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; color: #8a7456; } .serv button { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid #b3322a; background: none; color: #b3322a; font-size: 18px; cursor: pointer; } .serv b { color: #3a2a1c; font-size: 22px; }
+  h3 { margin: 18px 0 0; font-size: 13px; letter-spacing: .2em; text-transform: uppercase; color: #b3322a; line-height: 34px; } ul { list-style: none; padding: 0; margin: 0; } li { line-height: 34px; } li b { display: inline-block; min-width: 90px; color: #b3322a; } ol { margin: 0; padding-left: 20px; } ol li { cursor: pointer; } ol li.done { text-decoration: line-through; color: #aaa; }
+  form { display: flex; flex-direction: column; gap: 8px; } form input, form textarea { font: 16px Georgia, serif; padding: 8px 10px; border: 1px solid #c9b79a; background: #fffdf6; outline: none; } form button { align-self: flex-start; font: inherit; background: #b3322a; color: #fff; border: none; padding: 10px 22px; cursor: pointer; } .del { float: right; font-size: 13px; color: #a99; cursor: pointer; }
+</style>
+<aside><h1>Recipe Box</h1><div id="tabs"></div><button class="tab" id="new" style="background:#b3322a;color:#fff;border-color:#7a1e18">+ New recipe</button></aside>
+<div class="card" id="card"></div>
+<script>
+let recipes = [], cur = null, servings = 4;
+const FR = [[.125, '⅛'], [.25, '¼'], [.333, '⅓'], [.5, '½'], [.667, '⅔'], [.75, '¾']];
+// Format a scaled amount as a nice mixed fraction (1½, ¾) when close, otherwise a rounded decimal.
+function nice(x) {
+  if (!x) return ''; const w = Math.floor(x + .02), f = x - w; if (f < .06 && w > 0) return '' + w; if (f > .94) return '' + (w + 1);
+  const hit = FR.find(([v]) => Math.abs(v - f) < .04); return hit ? (w ? w : '') + hit[1] : '' + Math.round(x * 10) / 10;
+}
+// "1 1/2 cups flour" → { amt: 1.5, rest: "cups flour" }.  Handles whole, fraction and mixed numbers.
+function parse(line) {
+  const m = line.trim().match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d*\.?\d+)?\s*(.*)$/), t = m[1] || '';
+  const amt = t ? t.split(/\s+/).reduce((n, p) => n + (p.includes('/') ? p.split('/')[0] / p.split('/')[1] : +p), 0) : 0;
+  return { amt, rest: m[2] };
+}
+function show() {
+  const r = recipes.find(x => x.id === cur); $('#tabs').innerHTML = recipes.map(x => `<button class="tab ${x.id === cur ? 'on' : ''}" data-id="${x.id}">${esc(x.title)}<small>serves ${x.servings}</small></button>`).join('');
+  if (!r) return $('#card').innerHTML = '<h2>Welcome</h2><p>Pick a recipe on the left, or add a new one.</p>';
+  const k = servings / r.servings;
+  $('#card').innerHTML = `<span class="del" data-del>delete</span><h2>${esc(r.title)}</h2><div class="serv">Servings <button data-s="-1">−</button><b>${servings}</b><button data-s="1">+</button><span>${k !== 1 ? `(×${nice(k) || k.toFixed(2)})` : ''}</span></div>
+    <h3>Ingredients</h3><ul>${r.ingredients.map(l => { const p = parse(l); return `<li><b>${nice(p.amt * k)}</b>${esc(p.rest)}</li>`; }).join('')}</ul>
+    <h3>Method <small style="text-transform:none;letter-spacing:0;color:#aaa">(click to tick off)</small></h3><ol>${r.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`;
+}
+function form() {
+  $('#card').innerHTML = `<h2>New recipe</h2><form id="f"><input id="t" placeholder="Title" required><input id="sv" type="number" min="1" value="4" placeholder="Servings"><textarea id="ing" rows="6" placeholder="One ingredient per line, e.g.&#10;2 cups flour&#10;1/2 tsp salt&#10;1 1/2 cups milk"></textarea><textarea id="st" rows="5" placeholder="One step per line"></textarea><button>Save recipe</button></form>`;
+  $('#f').onsubmit = async e => {
+    e.preventDefault(); const lines = s => s.split('\n').map(x => x.trim()).filter(Boolean);
+    const r = await api.add({ title: $('#t').value, servings: +$('#sv').value || 4, ingredients: lines($('#ing').value), steps: lines($('#st').value) });
+    recipes.unshift(r); cur = r.id; servings = r.servings; show();
+  };
+}
+$('#tabs').onclick = e => { const t = e.target.closest('.tab'); if (t) { cur = t.dataset.id; servings = recipes.find(x => x.id === cur).servings; show(); } };
+$('#new').onclick = form;
+$('#card').onclick = async e => {
+  if (e.target.dataset.s) { servings = Math.max(1, servings + +e.target.dataset.s); show(); }
+  if (e.target.hasAttribute('data-del')) { await api.del(cur); recipes = recipes.filter(r => r.id !== cur); cur = recipes[0]?.id; servings = recipes[0]?.servings || 4; show(); }
+  if (e.target.matches('ol li')) e.target.classList.toggle('done');
+};
+api.list().then(d => { recipes = d; cur = d[0]?.id; servings = d[0]?.servings || 4; show(); });
+</script>

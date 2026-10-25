@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><title>Minifier</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0ea5e9;--w:1050px}</style>
+<div class="wrap"><h1>Minifier</h1><p class="sub">Shrink CSS, HTML, JSON and SVG safely, or strip comments and whitespace from JavaScript. See exactly how many bytes you save.</p>
+<div class="card"><div class="tabs" id="tabs"></div><div class="g2"><div><label>Input</label><textarea id="in" style="min-height:300px" data-keep></textarea></div><div><label>Output</label><textarea id="out" style="min-height:300px" readonly></textarea></div></div>
+<div class="row gap"><div class="kpi"><small>Before</small><b id="b0">0</b></div><div class="kpi"><small>After</small><b id="b1">0</b></div><div class="kpi"><small>Saved</small><b id="sv" class="ok">0%</b></div><button class="s right" id="cp">Copy output</button></div><div class="err" id="er"></div></div></div>
+<script>
+let mode='CSS';
+// JS-aware scanner: copies string/template literals verbatim and drops comments; whitespace runs collapse to a space (or a newline if they contained one, which keeps ASI-sensitive code safe).
+function minJS(s){let o='',i=0;const n=s.length,ws=()=>{let nl=false,j=i;while(j<n&&/\s/.test(s[j])){if(s[j]==='\n')nl=true;j++}i=j;return nl};
+  while(i<n){const c=s[i],d=s[i+1];if(c==='/'&&d==='/'){while(i<n&&s[i]!=='\n')i++}else if(c==='/'&&d==='*'){i=s.indexOf('*/',i+2);i=i<0?n:i+2}
+    else if(c==="'"||c==='"'||c==='`'){let j=i+1;while(j<n&&s[j]!==c){if(s[j]==='\\')j++;j++}o+=s.slice(i,j+1);i=j+1}
+    else if(/\s/.test(c)){const nl=ws(),p=o.at(-1),q=s[i];if(p&&q&&((/[\w$]/.test(p)&&/[\w$]/.test(q))||(nl&&!/[;{},(\[]$/.test(p)&&!/^[;}),\].]/.test(q))))o+=nl?'\n':' '}else{o+=c;i++}}return o.trim()}
+const M={CSS:s=>s.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\s+/g,' ').replace(/\s*([{};:,>+~])\s*/g,'$1').replace(/;}/g,'}').replace(/(^|[^\d.])0(px|em|rem|%|pt)\b/g,'$10').trim(),
+ HTML:s=>s.replace(/<!--(?!\[if)[\s\S]*?-->/g,'').replace(/>\s+</g,'><').replace(/\s{2,}/g,' ').replace(/\s+(\/?>)/g,'$1').trim(),
+ JSON:s=>JSON.stringify(JSON.parse(s)),SVG:s=>s.replace(/<\?xml[\s\S]*?\?>/,'').replace(/<!--[\s\S]*?-->/g,'').replace(/>\s+</g,'><').replace(/\s{2,}/g,' ').replace(/\s+(\/?>)/g,'$1').trim(),
+ JavaScript:minJS};
+const size=s=>new Blob([s]).size;
+function run(){$('#er').textContent='';$('#tabs').innerHTML=Object.keys(M).map(k=>`<button data-m="${k}" class="${k===mode?'on':''}">${k}</button>`).join('');let o='';try{o=$('#in').value.trim()?M[mode]($('#in').value):''}catch(e){$('#er').textContent=e.message}
+  $('#out').value=o;const a=size($('#in').value),b=size(o);$('#b0').textContent=a.toLocaleString()+' B';$('#b1').textContent=b.toLocaleString()+' B';$('#sv').textContent=a?fmt((a-b)/a*100,1)+'%':'0%'}
+$('#tabs').onclick=e=>{if(e.target.dataset.m){mode=e.target.dataset.m;run()}};$('#in').oninput=run;$('#cp').onclick=e=>copy($('#out').value,e.target);remember().then(run);
+</script>

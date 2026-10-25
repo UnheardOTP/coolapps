@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Text Diff</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#22c55e;--w:1100px}.ln{display:flex;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all}.ln b{flex:none;width:44px;text-align:right;padding-right:10px;color:var(--mut);font-weight:400;user-select:none}.ln.add{background:color-mix(in srgb,#22c55e 18%,transparent)}.ln.del{background:color-mix(in srgb,#ef4444 18%,transparent)}</style>
+<div class="wrap"><h1>Text Diff</h1><p class="sub">Compare two blocks of text line by line.</p>
+<div class="card"><div class="g2"><div><label>Original</label><textarea id="a" style="min-height:200px" data-keep></textarea></div><div><label>Changed</label><textarea id="b" style="min-height:200px" data-keep></textarea></div></div>
+<div class="row gap"><label style="margin:0"><input type="checkbox" id="ws" data-keep> Ignore whitespace</label><label style="margin:0"><input type="checkbox" id="ci" data-keep> Ignore case</label><button class="s right" id="sw">Swap</button></div></div>
+<div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0" id="st">Differences</h2></div><div id="out"></div></div></div>
+<script>
+// Longest-common-subsequence table over lines; walking it backwards yields the minimal add/remove script.
+function diff(A,B,norm){const n=A.length,m=B.length,L=Array.from({length:n+1},()=>new Uint32Array(m+1)),a=A.map(norm),b=B.map(norm);
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=a[i]===b[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+  const out=[];let i=0,j=0;while(i<n&&j<m){if(a[i]===b[j]){out.push(['=',A[i],i+1,j+1]);i++;j++}else if(L[i+1][j]>=L[i][j+1])out.push(['-',A[i++],i,null]);else out.push(['+',B[j++],null,j])}
+  while(i<n)out.push(['-',A[i++],i,null]);while(j<m)out.push(['+',B[j++],null,j]);return out}
+function run(){const A=$('#a').value.split('\n'),B=$('#b').value.split('\n');const norm=s=>{if($('#ws').checked)s=s.replace(/\s+/g,' ').trim();if($('#ci').checked)s=s.toLowerCase();return s};
+  if(A.length*B.length>4e6){$('#out').innerHTML='<div class="err">Inputs are too large to diff in the browser (over ~2000 lines each).</div>';return}
+  const d=diff(A,B,norm),add=d.filter(x=>x[0]==='+').length,del=d.filter(x=>x[0]==='-').length;$('#st').innerHTML=add||del?`<span class="ok">+${add}</span> &nbsp; <span class="bad">−${del}</span>`:'No differences';
+  $('#out').innerHTML=d.map(([t,s,x,y])=>`<div class="ln ${t==='+'?'add':t==='-'?'del':''}"><b>${x??''}</b><b>${y??''}</b>${t==='='?'  ':t}  ${esc(s)}</div>`).join('')}
+['#a','#b','#ws','#ci'].forEach(s=>$(s).oninput=run);$('#sw').onclick=()=>{[$('#a').value,$('#b').value]=[$('#b').value,$('#a').value];run();$('#a').dispatchEvent(new Event('input',{bubbles:true}))};remember().then(run);
+</script>

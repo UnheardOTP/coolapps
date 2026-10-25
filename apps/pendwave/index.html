@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>Pendulum Wave</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#0e1116;color:#cfe;font-family:system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center}canvas{background:linear-gradient(#141a24,#0b0e14);border-radius:12px}
+.bar{display:flex;gap:20px;align-items:center;margin-top:16px;font-size:14px}input[type=range]{accent-color:#ffb347}button{font:inherit;background:none;border:1px solid #ffb347;color:#ffb347;padding:7px 16px;border-radius:6px;cursor:pointer}.chip{padding:3px 10px;border:1px solid #556;border-radius:14px;cursor:pointer;margin-left:6px}h1{margin:0 0 12px;font-weight:200;letter-spacing:.4em}</style>
+<h1>PENDULUM WAVE</h1><canvas id="c" width="900" height="460"></canvas>
+<div class="bar"><label>Pendulums <b id="vn">15</b> <input type="range" id="n" min="6" max="32" value="15"></label><label>Speed <b id="vs">1.0</b>× <input type="range" id="s" min="2" max="30" value="10"></label><button id="rs">Restart in sync</button><button id="sv">Save</button><span id="chips"></span></div>
+<script>
+const cv=$('#c'),g=cv.getContext('2d'),W=900,H=460;let t=0,saved=[],last=performance.now();
+// Pendulum i completes (N0 + i) swings per cycle, so they drift out of phase into travelling waves and snap back into line at the end of each cycle.
+function frame(now){const dt=(now-last)/1000;last=now;t+=dt*$('#s').value/10;const n=+$('#n').value,CYC=60;
+  g.clearRect(0,0,W,H);g.fillStyle='#2a3344';g.fillRect(60,28,W-120,8);
+  for(let i=0;i<n;i++){const x=90+i*(W-180)/(n-1),L=360-i*(150/n)*1.2,freq=(30+i)/CYC,a=Math.sin(2*Math.PI*freq*t)*.55,bx=x+Math.sin(a)*L*.5,by=36+Math.cos(a)*L;
+    const hue=i/n*300;g.strokeStyle=`hsla(${hue},80%,70%,.5)`;g.lineWidth=1.5;g.beginPath();g.moveTo(x,36);g.lineTo(bx,by);g.stroke();g.fillStyle=`hsl(${hue},85%,62%)`;g.shadowColor=g.fillStyle;g.shadowBlur=14;g.beginPath();g.arc(bx,by,11,0,7);g.fill();g.shadowBlur=0}
+  requestAnimationFrame(frame)}requestAnimationFrame(frame);
+$('#n').oninput=()=>$('#vn').textContent=$('#n').value;$('#s').oninput=()=>$('#vs').textContent=($('#s').value/10).toFixed(1);$('#rs').onclick=()=>t=0;
+$('#sv').onclick=async()=>{saved.unshift(await api.add({n:+$('#n').value,s:+$('#s').value}));chips()};
+const chips=()=>$('#chips').innerHTML=saved.map(s=>`<span class="chip" data-id="${s.id}">${s.n}·${(s.s/10).toFixed(1)}×<i data-del style="font-style:normal;margin-left:6px;opacity:.5">×</i></span>`).join('');
+$('#chips').onclick=async e=>{const c=e.target.closest('.chip');if(!c)return;const s=saved.find(x=>x.id===c.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(s.id);saved=saved.filter(x=>x!==s)}else{$('#n').value=s.n;$('#s').value=s.s;$('#n').oninput();$('#s').oninput()}chips()};
+api.list().then(d=>{saved=d;chips()});
+</script>

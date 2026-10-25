@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Classic Ciphers</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#4f46e5;--w:960px}</style>
+<div class="wrap"><h1>Classic Ciphers</h1><p class="sub">Caesar, ROT13, Atbash, Vigenère and A1Z26 — for puzzles, escape rooms and learning. These are not secure encryption.</p>
+<div class="card"><div class="tabs" id="tabs"></div><div class="row"><div class="col" id="kw"><label id="kl">Shift</label><input id="k" value="3" data-keep></div><div class="col"><label>Direction</label><select id="d" data-keep><option value="e">Encode</option><option value="d">Decode</option></select></div></div>
+<div class="g2 gap"><div><label>Input</label><textarea id="in" style="min-height:160px" data-keep>Meet me at the old bridge at midnight.</textarea></div><div><div class="row" style="margin-bottom:5px"><label style="margin:0">Output</label><button class="x right" id="cp">Copy</button></div><textarea id="out" style="min-height:160px" readonly></textarea></div></div><div class="err" id="er"></div></div>
+<div class="card hide" id="bf"><h2>Brute force: every Caesar shift</h2><div id="bt" style="max-height:340px;overflow:auto"></div></div></div>
+<script>
+let cur='Caesar';const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const map=(t,f)=>[...t].map((c,i)=>{const u=c.toUpperCase(),x=A.indexOf(u);if(x<0)return c;const r=A[f(x,i)],low=c!==u;return low?r.toLowerCase():r}).join('');
+const mod=(n,m)=>((n%m)+m)%m;
+const CI={Caesar:{k:'Shift (1–25)',enc:(t,k)=>map(t,x=>mod(x+k,26)),dec:(t,k)=>map(t,x=>mod(x-k,26)),key:'n'},ROT13:{k:null,enc:t=>map(t,x=>(x+13)%26),dec:t=>map(t,x=>(x+13)%26)},Atbash:{k:null,enc:t=>map(t,x=>25-x),dec:t=>map(t,x=>25-x)},
+ 'Vigenère':{k:'Keyword (letters)',enc:(t,k)=>{let j=0;return map(t,x=>mod(x+A.indexOf(k[j++%k.length]),26))},dec:(t,k)=>{let j=0;return map(t,x=>mod(x-A.indexOf(k[j++%k.length]),26))},key:'w'},
+ A1Z26:{k:null,enc:t=>[...t.toUpperCase()].map(c=>A.indexOf(c)>=0?A.indexOf(c)+1:c).join(' ').replace(/ ([^\d]) /g,' $1 '),dec:t=>t.replace(/\d+/g,n=>A[+n-1]||'?').replace(/ /g,'')}};
+function run(){$('#er').textContent='';$('#tabs').innerHTML=Object.keys(CI).map(c=>`<button data-c="${c}" class="${c===cur?'on':''}">${c}</button>`).join('');const c=CI[cur];$('#kw').classList.toggle('hide',!c.k);$('#kl').textContent=c.k||'';let k=$('#k').value;
+  if(c.key==='n'){k=parseInt(k);if(isNaN(k)){$('#er').textContent='Shift must be a number.';return}k=mod(k,26)}if(c.key==='w'){k=k.toUpperCase().replace(/[^A-Z]/g,'');if(!k){$('#out').value='';return $('#er').textContent='Enter a keyword of letters.'}}
+  $('#out').value=c[$('#d').value==='e'?'enc':'dec']($('#in').value,k);$('#bf').classList.toggle('hide',cur!=='Caesar');if(cur==='Caesar')$('#bt').innerHTML=Array.from({length:25},(_,i)=>`<div class="row" style="padding:4px 0;border-bottom:1px solid var(--line);flex-wrap:nowrap"><b style="width:30px">${i+1}</b><span class="mono" style="flex:1;word-break:break-word">${esc(CI.Caesar.dec($('#in').value,i+1))}</span></div>`).join('')}
+$('#tabs').onclick=e=>{if(e.target.dataset.c){cur=e.target.dataset.c;$('#k').value=cur==='Caesar'?3:cur==='Vigenère'?'KEY':'';run()}};document.addEventListener('input',run);document.addEventListener('change',run);$('#cp').onclick=e=>copy($('#out').value,e.target);remember().then(run);
+</script>

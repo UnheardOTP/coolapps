@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>Gold Rush</title><script src="/shared/lib.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(#2a1a0e,#120a05);color:#ffe9b8;font-family:'Trebuchet MS',system-ui;display:flex;gap:50px;justify-content:center;align-items:center;padding:20px;user-select:none}
+.mine{text-align:center}#coins{font-size:56px;font-weight:700;color:#ffd23f;text-shadow:0 0 20px #ffd23f66}#rate{color:#c9a96a;margin-bottom:20px}#rock{width:230px;height:230px;border-radius:46% 54% 50% 50%;background:radial-gradient(circle at 35% 30%,#8a7a68,#4a3f33 60%,#2a231c);border:6px solid #1a140f;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:70px;transition:transform .05s;position:relative;box-shadow:0 14px 0 #0006}#rock:active{transform:scale(.95)}
+.pop{position:absolute;color:#ffd23f;font-weight:700;font-size:22px;pointer-events:none;animation:up .8s forwards}@keyframes up{to{transform:translateY(-70px);opacity:0}}
+.shop{width:340px}.shop h2{margin:0 0 10px;letter-spacing:.2em;font-weight:400}.up{display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:8px;background:#2f2013;border:2px solid #4a3220;border-radius:10px;cursor:pointer}.up.no{opacity:.45;cursor:not-allowed}.up:not(.no):hover{border-color:#ffd23f}.up b{font-size:26px;width:30px;text-align:center;color:#ffd23f}.up div{flex:1}.up small{color:#c9a96a;display:block}.up em{font-style:normal;color:#ffd23f}
+button{font:inherit;background:none;border:1px solid #4a3220;color:#9a825a;padding:5px 12px;border-radius:6px;cursor:pointer;margin-top:10px}</style>
+<div class="mine"><div id="coins">0</div><div id="rate"></div><div id="rock">⛏</div></div>
+<div class="shop"><h2>UPGRADES</h2><div id="shop"></div><div id="off" style="color:#c9a96a;margin-top:8px"></div><button id="rs">Reset game</button></div>
+<script>
+const UP=[['Pickaxe','+1 per click',15,'click',1],['Miner','+1 coin/sec',50,'cps',1],['Drill','+8 coin/sec',500,'cps',8],['Dynamite','+4 per click',900,'click',4],['Excavator','+60 coin/sec',6000,'cps',60],['Gold Mine','+400 coin/sec',50000,'cps',400]];
+let s={coins:0,owned:UP.map(()=>0),last:Date.now()},doc=null,total=0;
+const cost=i=>Math.ceil(UP[i][2]*1.15**s.owned[i]),perClick=()=>1+UP.reduce((n,u,i)=>n+(u[3]==='click'?u[4]*s.owned[i]:0),0),cps=()=>UP.reduce((n,u,i)=>n+(u[3]==='cps'?u[4]*s.owned[i]:0),0);
+const fmt=n=>n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e4?(n/1e3).toFixed(1)+'k':Math.floor(n).toLocaleString();
+function render(){$('#coins').textContent=fmt(s.coins);$('#rate').textContent=`${fmt(cps())} per second · ${perClick()} per click`;
+$('#shop').innerHTML=UP.map((u,i)=>`<div class="up ${s.coins<cost(i)?'no':''}" data-i="${i}"><b>${s.owned[i]}</b><div>${u[0]}<small>${u[1]}</small></div><em>${fmt(cost(i))}</em></div>`).join('')}
+$('#rock').onclick=e=>{s.coins+=perClick();const p=document.createElement('div');p.className='pop';p.textContent='+'+perClick();p.style.left=e.offsetX+'px';p.style.top=e.offsetY+'px';$('#rock').append(p);setTimeout(()=>p.remove(),800);render()};
+$('#shop').onclick=e=>{const u=e.target.closest('.up');if(!u)return;const i=+u.dataset.i;if(s.coins>=cost(i)){s.coins-=cost(i);s.owned[i]++;render();save()}};
+setInterval(()=>{s.coins+=cps()/10;render()},100);
+async function save(){s.last=Date.now();if(doc)api.upd(doc.id,{coins:s.coins,owned:s.owned,last:s.last});else doc=await api.add({coins:s.coins,owned:s.owned,last:s.last})}setInterval(save,5000);addEventListener('beforeunload',save);
+// Offline progress: coins earned at your current rate while the tab was closed (capped at 8 hours).
+api.list().then(d=>{if(d[0]){doc=d[0];s={coins:doc.coins,owned:doc.owned,last:doc.last};const away=Math.min(8*3600,(Date.now()-doc.last)/1000),gain=cps()*away;if(gain>1){s.coins+=gain;$('#off').textContent=`Welcome back! Your miners earned ${fmt(gain)} while you were away.`}}render()});
+$('#rs').onclick=()=>{if(confirm('Reset all progress?')){s={coins:0,owned:UP.map(()=>0),last:Date.now()};$('#off').textContent='';render();save()}};render();
+</script>

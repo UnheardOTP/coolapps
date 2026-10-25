@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>One-Rep Max Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#dc2626;--w:860px}</style>
+<div class="wrap"><h1>One-Rep Max Calculator</h1><p class="sub">Estimate your max single from a heavier set of several reps, then get training weights for every percentage.</p>
+<div class="card"><div class="row"><div class="col"><label>Weight lifted</label><input id="w" type="number" step="any" value="100" style="font-size:22px" data-keep></div><div class="col"><label>Reps (1–12)</label><input id="r" type="number" min="1" max="12" value="5" style="font-size:22px" data-keep></div><div class="col"><label>Unit</label><select id="u" data-keep><option>kg</option><option>lb</option></select></div></div></div>
+<div class="g2"><div class="card"><div class="mut">Estimated 1RM (average of formulas)</div><div class="big" id="avg"></div><table class="gap" id="fm"></table><button class="s gap" id="sv">Save this estimate</button></div><div class="card"><h2>Training percentages</h2><table id="pc"></table></div></div>
+<div class="card"><h2>Saved estimates</h2><div id="hs"></div></div></div>
+<script>
+// Several published formulas estimate 1RM from weight × reps; they agree closely at low reps.
+const F={Epley:(w,r)=>w*(1+r/30),Brzycki:(w,r)=>w*36/(37-r),Lombardi:(w,r)=>w*r**.1,'O\'Conner':(w,r)=>w*(1+r/40),Wathan:(w,r)=>w*100/(48.8+53.8*Math.exp(-.075*r))};
+const est=(w,r)=>r<=1?w:Object.values(F).reduce((n,f)=>n+f(w,r),0)/Object.keys(F).length;
+const RT=[[100,1],[95,2],[90,4],[85,6],[80,8],[75,10],[70,12],[65,15],[60,20],[55,25],[50,30]];let hist=[];
+function run(){const w=num('w'),r=Math.max(1,Math.min(12,Math.round(num('r')))),u=$('#u').value;if(!(w>0)){$('#avg').textContent='–';return}const a=est(w,r),rd=x=>Math.round(x*(u==='kg'?2:1)/(u==='kg'?2:1)*10)/10;$('#avg').textContent=fmt(a,1)+' '+u;
+  $('#fm').innerHTML=Object.entries(F).map(([k,f])=>`<tr><td class="mut">${k}</td><td class="r"><b>${fmt(r<=1?w:f(w,r),1)} ${u}</b></td></tr>`).join('');
+  $('#pc').innerHTML='<tr><th>%1RM</th><th class="r">Weight</th><th class="r">≈ reps</th></tr>'+RT.map(([p,n])=>`<tr><td>${p}%</td><td class="r"><b>${fmt(a*p/100,1)} ${u}</b></td><td class="r mut">${n}</td></tr>`).join('');
+  $('#hs').innerHTML=hist.slice(0,12).map(h=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)" data-id="${h.id}"><span class="mut">${new Date(h.createdAt).toLocaleDateString()}</span><span class="col">${h.w} ${h.u} × ${h.r}</span><b>${fmt(h.e,1)} ${h.u}</b><button class="x" data-rm>✕</button></div>`).join('')||'<span class="mut">None saved.</span>'}
+$('#sv').onclick=async()=>{const w=num('w'),r=Math.max(1,Math.min(12,Math.round(num('r'))));if(w>0){hist.unshift(await api.add({kind:'rm',w,r,u:$('#u').value,e:est(w,r)}));run()}};$('#hs').onclick=async e=>{if(!e.target.hasAttribute('data-rm'))return;const id=e.target.closest('[data-id]').dataset.id;await api.del(id);hist=hist.filter(x=>x.id!==id);run()};
+document.addEventListener('input',run);api.list().then(d=>{hist=only(d,'rm').sort((a,b)=>b.createdAt-a.createdAt);remember().then(run)});
+</script>

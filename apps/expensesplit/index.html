@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>Group Expenses</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0f766e;--w:900px}.pp label{display:inline-flex;gap:5px;align-items:center;margin:0 12px 4px 0;font-size:13px;color:var(--fg)}</style>
+<div class="wrap"><h1>Group Expenses</h1><p class="sub">Track who paid for what on a trip or a shared house, then see the fewest payments that settle everyone up.</p>
+<div class="card"><h2>People</h2><div class="row"><div class="col"><input id="pn" placeholder="Add a person"></div><button id="pa">Add</button></div><div class="chips" id="people"></div></div>
+<div class="card"><h2>Add an expense</h2><div class="row"><div class="col" style="flex:2"><label>What for</label><input id="d" placeholder="Dinner"></div><div class="col"><label>Amount ($)</label><input id="a" type="number" step="0.01"></div><div class="col"><label>Paid by</label><select id="by"></select></div></div><label class="gap">Shared by</label><div class="pp" id="sh"></div><button class="gap" id="ad">Add expense</button></div>
+<div class="g2"><div class="card"><h2>Expenses</h2><div id="ex"></div></div><div class="card"><h2>Settle up</h2><div id="se"></div></div></div></div>
+<script>
+let people=[],ex=[];
+const P=()=>people,exps=()=>ex;
+function paint(){$('#people').innerHTML=people.map(p=>`<span class="chip" data-id="${p.id}">${esc(p.name)}<i data-del>✕</i></span>`).join('');$('#by').innerHTML=people.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');$('#sh').innerHTML=people.map(p=>`<label><input type="checkbox" value="${p.id}" checked> ${esc(p.name)}</label>`).join('');
+  const name=id=>people.find(p=>p.id===id)?.name||'?';$('#ex').innerHTML=ex.map(e=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)" data-id="${e.id}"><div class="col"><b>${esc(e.d||'Expense')}</b><div class="mut">${esc(name(e.by))} paid · split ${e.sh.length} way${e.sh.length===1?'':'s'}</div></div><b>${money(e.a)}</b><button class="x" data-rm>✕</button></div>`).join('')||'<span class="mut">No expenses yet.</span>';
+  // Net balance per person: what they paid minus their share of every expense. Positive = is owed money.
+  const bal=Object.fromEntries(people.map(p=>[p.id,0]));ex.forEach(e=>{if(!(e.by in bal))return;bal[e.by]+=e.a;const sh=e.sh.filter(i=>i in bal);sh.forEach(i=>bal[i]-=e.a/sh.length)});
+  const cr=Object.entries(bal).filter(([,v])=>v>.005).map(([i,v])=>[i,v]).sort((a,b)=>b[1]-a[1]),db=Object.entries(bal).filter(([,v])=>v<-.005).map(([i,v])=>[i,-v]).sort((a,b)=>b[1]-a[1]),tx=[];
+  // Greedy settlement: repeatedly have the biggest debtor pay the biggest creditor; this uses at most (people − 1) payments.
+  while(cr.length&&db.length){const x=Math.min(cr[0][1],db[0][1]);tx.push([db[0][0],cr[0][0],x]);cr[0][1]-=x;db[0][1]-=x;if(cr[0][1]<.005)cr.shift();if(db[0][1]<.005)db.shift()}
+  $('#se').innerHTML=(people.length?`<table>${people.map(p=>`<tr><td>${esc(p.name)}</td><td class="r ${bal[p.id]>.005?'ok':bal[p.id]<-.005?'bad':'mut'}">${bal[p.id]>=0?'gets back':'owes'} ${money(Math.abs(bal[p.id]))}</td></tr>`).join('')}</table>`:'')+(tx.length?'<h2 class="gap">Payments</h2>'+tx.map(([f,t,x])=>`<div class="gap"><b>${esc(name(f))}</b> pays <b>${esc(name(t))}</b> <span class="big" style="font-size:18px">${money(x)}</span></div>`).join(''):'<div class="mut gap">All settled.</div>')}
+$('#pa').onclick=async()=>{const n=$('#pn').value.trim();if(n){people.push(await api.add({kind:'person',name:n}));$('#pn').value='';paint()}};$('#pn').onkeydown=e=>e.key==='Enter'&&$('#pa').click();
+$('#people').onclick=async e=>{const c=e.target.closest('.chip');if(!c||!e.target.hasAttribute('data-del'))return;await api.del(c.dataset.id);people=people.filter(p=>p.id!==c.dataset.id);paint()};
+$('#ad').onclick=async()=>{const a=num('a'),sh=[...document.querySelectorAll('#sh input:checked')].map(i=>i.value);if(!(a>0)||!sh.length||!$('#by').value)return;ex.unshift(await api.add({kind:'exp',d:$('#d').value,a,by:$('#by').value,sh}));$('#d').value=$('#a').value='';paint()};
+$('#ex').onclick=async e=>{if(!e.target.hasAttribute('data-rm'))return;const id=e.target.closest('[data-id]').dataset.id;await api.del(id);ex=ex.filter(x=>x.id!==id);paint()};
+api.list().then(d=>{people=d.filter(x=>x.kind==='person').sort((a,b)=>a.createdAt-b.createdAt);ex=d.filter(x=>x.kind==='exp');paint()});
+</script>

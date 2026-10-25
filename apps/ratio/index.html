@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Ratio &amp; Aspect Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0d9488;--w:860px}.q{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:18px}.q input{width:100px;text-align:center;font-size:17px}.q b{color:var(--a);font-size:22px}.pv{background:var(--a);border-radius:6px;margin-top:12px;max-width:100%;transition:all .2s}</style>
+<div class="wrap"><h1>Ratio &amp; Aspect Calculator</h1><p class="sub">Simplify ratios, solve proportions, and resize things without distorting them.</p>
+<div class="card"><h2>Simplify a ratio</h2><div class="q"><input id="a" type="number" value="1920" data-keep> : <input id="b" type="number" value="1080" data-keep> = <b id="s"></b> <span class="mut" id="d"></span></div></div>
+<div class="card"><h2>Solve a proportion</h2><div class="q"><input id="p1" type="number" value="3" data-keep> : <input id="p2" type="number" value="4" data-keep> = <input id="p3" type="number" value="12" data-keep> : <b id="p4"></b></div><div class="mut gap">Leave the last number as the unknown; type a value in the box above to solve for the missing term.</div></div>
+<div class="card"><h2>Resize keeping the aspect ratio</h2><div class="row"><div class="col"><label>Original width</label><input id="w0" type="number" value="1600" data-keep></div><div class="col"><label>Original height</label><input id="h0" type="number" value="900" data-keep></div><div class="col"><label>New width</label><input id="w1" type="number" value="800" data-keep></div><div class="kpi col"><small>New height</small><b id="h1"></b></div></div><div class="chips" id="pre"></div><div class="pv" id="pv"></div></div></div>
+<script>
+const gcd=(a,b)=>b?gcd(b,a%b):Math.abs(a);
+function run(){const a=num('a'),b=num('b');if(a>0&&b>0&&Number.isInteger(a)&&Number.isInteger(b)){const g=gcd(a,b);$('#s').textContent=`${a/g} : ${b/g}`;$('#d').textContent=`(÷ ${g}) · ${fmt(a/b,4)} : 1`}else{$('#s').textContent='–';$('#d').textContent=a>0&&b>0?'whole numbers only':''}
+  $('#p4').textContent=num('p1')?fmt(num('p2')*num('p3')/num('p1'),3).replace(/\.?0+$/,''):'–';
+  const w0=num('w0'),h0=num('h0');$('#h1').textContent=w0>0?fmt(h0*num('w1')/w0,1).replace(/\.0$/,''):'–';const W=Math.min(300,num('w1')||100),H=w0>0?W*h0/w0:0;$('#pv').style.cssText=`width:${W}px;height:${Math.min(300,H)}px`}
+$('#pre').innerHTML=[['16:9',16,9],['4:3',4,3],['21:9',21,9],['1:1',1,1],['3:2',3,2],['9:16',9,16]].map(([n,w,h])=>`<span class="chip" data-w="${w}" data-h="${h}">${n}</span>`).join('');$('#pre').onclick=e=>{const c=e.target.closest('.chip');if(c){$('#w0').value=c.dataset.w*100;$('#h0').value=c.dataset.h*100;run();$('#w0').dispatchEvent(new Event('input',{bubbles:true}))}};
+document.addEventListener('input',run);remember().then(run);
+</script>

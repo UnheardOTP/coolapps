@@ -1,0 +1,128 @@
+# CI on every push and pull request; deploys pushes to main to the home server once the repo variable
+# DEPLOY_ENABLED is "true". The server is reached over Tailscale (same setup as the utilbots repos) and the
+# hub is rebuilt there, health-checked, and rolled back to the previous image if it does not come up healthy.
+name: CI & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: coolapps-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}   # never cancel a deploy half way
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static checks (manifests, ids, script syntax)
+        run: python3 tests/static.py
+
+      - name: Start the stack
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 45); do
+            curl -fsS http://localhost:4100/api/apps >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          docker compose logs; echo "::error::hub did not start"; exit 1
+
+      - name: Install browser
+        working-directory: tests
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Logic checks
+        run: node tests/logic.js
+
+      - name: Smoke test every app
+        run: node tests/smoke.js
+
+      - name: Container logs (on failure)
+        if: failure()
+        run: docker compose logs --tail 120
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HOST: bamphbox.tail5ecf41.ts.net
+      USER_AT_HOST: root@bamphbox.tail5ecf41.ts.net
+      DIR: /mnt/user/appdata/coolapps
+      SSHPASS: ${{ secrets.DEPLOY_SSH_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        env:
+          HAS_TS_ID: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
+          HAS_TS_SECRET: ${{ secrets.TS_OAUTH_SECRET != '' }}
+        run: |
+          missing=""
+          [ "$HAS_TS_ID" = true ] || missing="$missing TS_OAUTH_CLIENT_ID"
+          [ "$HAS_TS_SECRET" = true ] || missing="$missing TS_OAUTH_SECRET"
+          [ -n "$SSHPASS" ] || missing="$missing DEPLOY_SSH_PASSWORD"
+          [ -z "$missing" ] || { echo "::error::Missing repo secrets:$missing"; exit 1; }
+
+      - name: Join tailnet
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Prepare SSH
+        run: |
+          sudo apt-get install -y -qq sshpass >/dev/null
+          install -m 700 -d ~/.ssh
+          # Reached over the authenticated tailnet, so trusting the scanned host key is acceptable.
+          ssh-keyscan -T 10 "$HOST" >> ~/.ssh/known_hosts
+          echo "SSH=sshpass -e ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes $USER_AT_HOST" >> "$GITHUB_ENV"
+
+      - name: Sync files
+        # Copies over the top of the existing folder: removed apps linger, but data (a Docker volume) is never touched.
+        run: |
+          tar --exclude=.git --exclude=.github --exclude=tests --exclude=node_modules -czf - . \
+            | $SSH "mkdir -p '$DIR' && tar xzf - -C '$DIR'"
+
+      - name: Build and restart
+        run: |
+          $SSH "DIR='$DIR' bash -s" <<'EOS'
+          set -euo pipefail
+          cd "$DIR"
+          # Keep the running image as :previous so a bad deploy can be undone.
+          docker image inspect coolapps-hub >/dev/null 2>&1 && docker tag coolapps-hub coolapps-hub:previous || true
+          DOCKER_BUILDKIT=0 docker build -q -t coolapps-hub .
+          docker compose up -d --no-build
+          EOS
+
+      - name: Health check
+        run: |
+          expected=$(ls -d apps/*/index.html | wc -l)
+          for i in $(seq 1 30); do
+            got=$($SSH "curl -fsS http://127.0.0.1:4100/api/apps" 2>/dev/null | jq length 2>/dev/null || echo 0)
+            if [ "$got" -ge "$expected" ]; then echo "healthy: $got apps (expected $expected)"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::hub unhealthy after deploy (got ${got:-0}, expected $expected)"; exit 1
+
+      - name: Roll back
+        if: failure()
+        run: |
+          $SSH "DIR='$DIR' bash -s" <<'EOS' || true
+          cd "$DIR"
+          docker logs --tail 60 coolapps-hub-1 2>&1 || true
+          if docker image inspect coolapps-hub:previous >/dev/null 2>&1; then
+            docker tag coolapps-hub:previous coolapps-hub
+            docker compose up -d --no-build
+            echo "rolled back to the previous image"
+          fi
+          EOS

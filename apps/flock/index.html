@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>Flock</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#0a1a24;color:#bfe3f0;font-family:system-ui;display:flex;gap:24px;justify-content:center;align-items:center}canvas{background:linear-gradient(#0f2b3d,#06131b);border-radius:12px;box-shadow:0 0 50px #0af3}
+.p{width:230px}h1{margin:0 0 14px;font-weight:200;letter-spacing:.3em}label{display:flex;justify-content:space-between;margin-top:12px;font-size:13px;color:#6fb0c8}input[type=range]{width:100%;accent-color:#2de0c4}button{font:inherit;margin:14px 6px 0 0;padding:8px 14px;border:1px solid #2de0c4;background:none;color:#2de0c4;cursor:pointer;border-radius:6px}.chip{display:inline-block;margin:8px 6px 0 0;padding:3px 10px;border:1px solid #3a6a80;border-radius:14px;cursor:pointer;font-size:13px}</style>
+<canvas id="c" width="760" height="540"></canvas>
+<div class="p"><h1>FLOCK</h1><label>Cohesion <b id="v0"></b></label><input type="range" id="k0" min="0" max="100" value="40"><label>Alignment <b id="v1"></b></label><input type="range" id="k1" min="0" max="100" value="60"><label>Separation <b id="v2"></b></label><input type="range" id="k2" min="0" max="100" value="55"><label>Boids <b id="v3"></b></label><input type="range" id="k3" min="20" max="300" value="140">
+<button id="sv">Save preset</button><button id="sc">Scatter</button><div id="chips"></div><p style="color:#5a8aa0;font-size:12px">Move the mouse to scare the flock.</p></div>
+<script>
+const cv=$('#c'),g=cv.getContext('2d'),W=760,H=540;let boids=[],mouse=null,saved=[];
+const K=[0,1,2,3].map(i=>()=>+$('#k'+i).value);
+const sync=()=>[0,1,2,3].forEach(i=>$('#v'+i).textContent=K[i]());[0,1,2,3].forEach(i=>$('#k'+i).oninput=()=>{sync();if(i===3)fit()});
+const fit=()=>{const n=K[3]();while(boids.length<n)boids.push({x:Math.random()*W,y:Math.random()*H,vx:Math.random()*4-2,vy:Math.random()*4-2});boids.length=n};
+// Classic boids: steer toward neighbours' centre (cohesion), match their heading (alignment), and keep distance (separation).
+function step(){const co=K[0]()/5000,al=K[1]()/1000,se=K[2]()/400;
+  for(const b of boids){let cx=0,cy=0,ax=0,ay=0,sx=0,sy=0,n=0;
+    for(const o of boids){if(o===b)continue;const dx=o.x-b.x,dy=o.y-b.y,d=Math.hypot(dx,dy);if(d<70){n++;cx+=o.x;cy+=o.y;ax+=o.vx;ay+=o.vy;if(d<22){sx-=dx;sy-=dy}}}
+    if(n){b.vx+=(cx/n-b.x)*co+(ax/n-b.vx)*al+sx*se*.05;b.vy+=(cy/n-b.y)*co+(ay/n-b.vy)*al+sy*se*.05}
+    if(mouse){const dx=b.x-mouse[0],dy=b.y-mouse[1],d=Math.hypot(dx,dy);if(d<110){b.vx+=dx/d*.7;b.vy+=dy/d*.7}}
+    const s=Math.hypot(b.vx,b.vy);if(s>3.4){b.vx*=3.4/s;b.vy*=3.4/s}if(s<1.4){b.vx*=1.4/(s||1);b.vy*=1.4/(s||1)}
+    b.x=(b.x+b.vx+W)%W;b.y=(b.y+b.vy+H)%H}}
+(function frame(){step();g.fillStyle='rgba(6,19,27,.35)';g.fillRect(0,0,W,H);
+  boids.forEach(b=>{const a=Math.atan2(b.vy,b.vx);g.save();g.translate(b.x,b.y);g.rotate(a);g.fillStyle=`hsl(${160+a*20},80%,60%)`;g.beginPath();g.moveTo(8,0);g.lineTo(-6,4);g.lineTo(-4,0);g.lineTo(-6,-4);g.fill();g.restore()});requestAnimationFrame(frame)})();
+cv.onmousemove=e=>{const r=cv.getBoundingClientRect();mouse=[e.clientX-r.left,e.clientY-r.top]};cv.onmouseleave=()=>mouse=null;
+$('#sc').onclick=()=>boids.forEach(b=>{b.vx=Math.random()*8-4;b.vy=Math.random()*8-4});
+$('#sv').onclick=async()=>{saved.unshift(await api.add({k:[0,1,2,3].map(i=>K[i]())}));chips()};
+const chips=()=>$('#chips').innerHTML=saved.map((s,i)=>`<span class="chip" data-id="${s.id}">${s.k.join('/')}<i data-del style="font-style:normal;margin-left:6px;opacity:.5">×</i></span>`).join('');
+$('#chips').onclick=async e=>{const c=e.target.closest('.chip');if(!c)return;const s=saved.find(x=>x.id===c.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(s.id);saved=saved.filter(x=>x!==s)}else{s.k.forEach((v,i)=>$('#k'+i).value=v);sync();fit()}chips()};
+sync();fit();api.list().then(d=>{saved=d;chips()});
+</script>

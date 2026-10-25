@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Slug &amp; Filename</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0d9488}</style>
+<div class="wrap"><h1>Slug &amp; Filename</h1><p class="sub">Turn titles into clean URL slugs or filesystem-safe filenames. One per line works too.</p>
+<div class="card"><label>Text (one item per line)</label><textarea id="t" data-keep style="min-height:100px" placeholder="Café Münster — Top 10 Tips & Tricks!"></textarea>
+<div class="row gap"><div class="col"><label>Separator</label><select id="sep" data-keep><option value="-">hyphen -</option><option value="_">underscore _</option><option value=".">dot .</option></select></div><div class="col"><label>Max length (0 = none)</label><input id="max" type="number" min="0" value="0" data-keep></div><label style="margin:0 0 9px"><input type="checkbox" id="lc" data-keep checked> lowercase</label><label style="margin:0 0 9px"><input type="checkbox" id="ac" data-keep checked> strip accents</label></div></div>
+<div class="g2"><div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0">URL slugs</h2><button class="x right" data-cp="#o1">Copy</button></div><div class="out" id="o1"></div></div><div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0">Safe filenames</h2><button class="x right" data-cp="#o2">Copy</button></div><div class="out" id="o2"></div></div></div></div>
+<script>
+const RESERVED=/^(con|prn|aux|nul|com\d|lpt\d)$/i;
+function slug(s,sep){if($('#ac').checked)s=s.normalize('NFD').replace(/[̀-ͯ]/g,'');s=s.replace(/ß/g,'ss').replace(/&/g,' and ');if($('#lc').checked)s=s.toLowerCase();
+  s=s.replace(/[^A-Za-z0-9À-￿]+/g,sep).replace(new RegExp(`^\\${sep}+|\\${sep}+$`,'g'),'');const m=+$('#max').value;if(m>0&&s.length>m)s=s.slice(0,m).replace(new RegExp(`\\${sep}[^\\${sep}]*$`),'')||s.slice(0,m);return s}
+function fname(s,sep){let b=s.normalize('NFC').replace(/[<>:"/\\|?*\x00-\x1f]/g,'').replace(/\s+/g,sep==='-'?'-':sep).replace(/^\.+/,'').replace(/[. ]+$/,'');if($('#lc').checked)b=b.toLowerCase();if(RESERVED.test(b))b='_'+b;const m=+$('#max').value;return(m>0?b.slice(0,m):b.slice(0,255))||'untitled'}
+function run(){const L=$('#t').value.split('\n').filter(l=>l.trim()),sep=$('#sep').value;$('#o1').textContent=L.map(l=>slug(l,sep)).join('\n');$('#o2').textContent=L.map(l=>fname(l,sep)).join('\n')}
+document.addEventListener('click',e=>{if(e.target.dataset.cp)copy($(e.target.dataset.cp).textContent,e.target)});['#t','#sep','#max','#lc','#ac'].forEach(s=>$(s).oninput=run);remember().then(run);
+</script>

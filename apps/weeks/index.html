@@ -1,0 +1,73 @@
+<!doctype html><meta charset="utf-8"><title>Life in Weeks</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fdfcf8; color: #111; font-family: Georgia, serif; }
+  header { position: sticky; top: 0; z-index: 5; background: #fdfcf8ee; backdrop-filter: blur(6px); border-bottom: 1px solid #111; padding: 18px 40px; display: flex; align-items: baseline; gap: 28px; }
+  h1 { margin: 0; font-size: 30px; letter-spacing: -.02em; } header p { margin: 0; flex: 1; color: #555; font-style: italic; }
+  input[type=date] { font: 14px Georgia, serif; padding: 6px 8px; border: 1px solid #111; background: #fff; }
+  main { padding: 28px 40px 80px; display: flex; justify-content: center; }
+  #grid { display: grid; grid-template-columns: 28px repeat(52, 13px); gap: 3px; }
+  .yr { font: 10px Helvetica, Arial, sans-serif; color: #888; text-align: right; padding-right: 6px; line-height: 13px; }
+  .w { width: 13px; height: 13px; border: 1px solid #111; cursor: pointer; }
+  .w.l { background: #111; } .w.now { background: #d62828; border-color: #d62828; animation: p 1.4s ease-in-out infinite; }
+  .w.m { border-color: var(--c); background: var(--c); }
+  .w:hover { outline: 2px solid #d62828; outline-offset: 1px; }
+  @keyframes p { 50% { transform: scale(1.5); } }
+  #pop { position: fixed; z-index: 10; background: #fff; border: 2px solid #111; box-shadow: 5px 5px 0 #111; padding: 12px; width: 250px; }
+  #pop small { font: 10px Helvetica, Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #d62828; }
+  #pop input { width: 100%; font: 15px Georgia, serif; border: none; border-bottom: 1px solid #111; padding: 5px 0; margin: 6px 0 10px; outline: none; }
+  .sw { display: inline-block; width: 18px; height: 18px; margin-right: 6px; border: 2px solid #fff; box-shadow: 0 0 0 1px #111; cursor: pointer; } .sw.on { box-shadow: 0 0 0 2px #111; }
+  #pop button { font: 12px Helvetica, Arial, sans-serif; margin-top: 10px; background: #111; color: #fff; border: none; padding: 6px 12px; cursor: pointer; }
+  #ask { text-align: center; margin-top: 80px; font-size: 22px; }
+</style>
+<header><h1>Life in Weeks</h1><p id="sum"></p><label>Born <input type="date" id="birth"></label></header>
+<main><div id="grid"></div><div id="ask" hidden>Enter your birth date above to see your life as 4,680 boxes.</div></main>
+<script>
+const WEEK = 7 * 864e5, YEARS = 90, SW = ['#d62828', '#f4a300', '#2a9d8f', '#3a6ea5', '#8e44ad'];
+let items = [], birth = null, color = SW[0];
+const profile = () => items.find(i => i.kind === 'profile'), marks = () => items.filter(i => i.kind === 'mark');
+const fmt = ms => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+// Draw 90 rows × 52 weeks. Black = lived, red pulse = this week, colored = marked memory.
+function render() {
+  $('#ask').hidden = !!birth; $('#grid').hidden = !birth; if (!birth) { $('#sum').textContent = ''; return; }
+  const now = Math.floor((Date.now() - birth) / WEEK), mk = Object.fromEntries(marks().map(m => [m.week, m]));
+  let h = '';
+  for (let y = 0; y < YEARS; y++) {
+    h += `<div class="yr">${y % 10 === 0 ? y : ''}</div>`;
+    for (let c = 0; c < 52; c++) {
+      const n = y * 52 + c, m = mk[n];
+      h += `<div class="w ${n < now ? 'l' : ''} ${n === now ? 'now' : ''} ${m ? 'm' : ''}" data-n="${n}" ${m ? `style="--c:${m.color}"` : ''}></div>`;
+    }
+  }
+  $('#grid').innerHTML = h;
+  $('#sum').textContent = `${now.toLocaleString()} of ${(YEARS * 52).toLocaleString()} weeks lived (${(now / YEARS / 52 * 100).toFixed(1)}%). ${marks().length} memories marked.`;
+}
+// Popover to add (or read/remove) a memory on a given week.
+function pop(n, el) {
+  $('#pop')?.remove();
+  const m = marks().find(x => x.week === n), r = el.getBoundingClientRect(), p = document.createElement('div');
+  p.id = 'pop'; p.style.left = Math.min(r.left, innerWidth - 280) + 'px'; p.style.top = Math.min(r.bottom + 8, innerHeight - 200) + 'px';
+  p.innerHTML = `<small>${fmt(birth + n * WEEK)} – ${fmt(birth + (n + 1) * WEEK - 1)}</small>` + (m
+    ? `<p style="margin:8px 0">${esc(m.note)}</p><button id="rm">Remove</button>`
+    : `<input id="note" placeholder="What happened this week?">${SW.map(c => `<span class="sw ${c === color ? 'on' : ''}" data-c="${c}" style="background:${c}"></span>`).join('')}`);
+  document.body.append(p); $('#note')?.focus();
+  p.onclick = e => { if (e.target.dataset.c) { color = e.target.dataset.c; p.querySelectorAll('.sw').forEach(s => s.classList.toggle('on', s.dataset.c === color)); } };
+  p.onkeydown = async e => {
+    if (e.key === 'Escape') p.remove();
+    if (e.key === 'Enter' && $('#note').value.trim()) { items.push(await api.add({ kind: 'mark', week: n, note: $('#note').value.trim(), color })); p.remove(); render(); }
+  };
+  $('#rm')?.addEventListener('click', async () => { await api.del(m.id); items = items.filter(i => i !== m); p.remove(); render(); });
+}
+$('#grid').onclick = e => { const w = e.target.closest('.w'); if (w) pop(+w.dataset.n, w); };
+addEventListener('mousedown', e => { if (!e.target.closest('#pop, .w')) $('#pop')?.remove(); });
+// Birth date is stored as a single "profile" item.
+$('#birth').onchange = async e => {
+  if (!e.target.value) return;
+  const [y, m, d] = e.target.value.split('-').map(Number); birth = new Date(y, m - 1, d).getTime();
+  const p = profile(); if (p) await api.upd(p.id, { birth: e.target.value }); else items.push(await api.add({ kind: 'profile', birth: e.target.value }));
+  render();
+};
+api.list().then(d => { items = d; const p = profile(); if (p) { $('#birth').value = p.birth; const [y, m, dd] = p.birth.split('-').map(Number); birth = new Date(y, m - 1, dd).getTime(); } render(); });
+</script>

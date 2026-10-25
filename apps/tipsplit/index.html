@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>Tip &amp; Split</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#f43f5e;--w:640px}</style>
+<div class="wrap"><h1>Tip &amp; Split</h1><p class="sub">Work out the tip and each person's share.</p>
+<div class="card"><label>Bill ($)</label><input id="b" type="number" step="0.01" value="86.40" style="font-size:22px" data-keep><label class="gap">Tip <b id="tv"></b>%</label><input type="range" id="t" min="0" max="35" value="18" data-keep><div class="chips" id="qt"></div>
+<div class="row gap"><div class="col"><label>People</label><div class="row" style="flex-wrap:nowrap;gap:8px"><button class="s" id="m">−</button><input id="n" type="number" min="1" value="2" style="text-align:center" data-keep><button class="s" id="pl">+</button></div></div><label style="margin:0 0 9px"><input type="checkbox" id="ru" data-keep> Round each share up</label></div></div>
+<div class="card"><div class="mut">Each person pays</div><div class="big" id="each"></div><div class="g3 gap" id="kp"></div></div></div>
+<script>
+function run(){const b=num('b'),t=num('t'),n=Math.max(1,Math.round(num('n')));$('#tv').textContent=t;let tip=b*t/100,total=b+tip,each=total/n;if($('#ru').checked){each=Math.ceil(each*100)/100;each=Math.ceil(each);total=each*n;tip=total-b}
+  $('#each').textContent=money(each);$('#kp').innerHTML=[['Tip',money(tip)],['Total',money(total)],['Tip per person',money(tip/n)]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('')}
+$('#qt').innerHTML=[10,15,18,20,25].map(p=>`<span class="chip" data-p="${p}">${p}%</span>`).join('');$('#qt').onclick=e=>{const p=e.target.dataset.p;if(p){$('#t').value=p;$('#t').dispatchEvent(new Event('input',{bubbles:true}))}};
+$('#m').onclick=()=>{$('#n').value=Math.max(1,num('n')-1);$('#n').dispatchEvent(new Event('input',{bubbles:true}))};$('#pl').onclick=()=>{$('#n').value=num('n')+1;$('#n').dispatchEvent(new Event('input',{bubbles:true}))};document.addEventListener('input',run);remember().then(run);
+</script>

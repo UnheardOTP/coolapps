@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>Phonetic Alphabet</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0369a1;--w:900px}.sp{display:flex;flex-wrap:wrap;gap:8px}.sp span{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:17px}.sp span b{color:var(--a)}.sp span.n{font-weight:600}.al{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}.al div{padding:6px 10px;border-radius:8px;background:var(--soft);cursor:pointer}.al div:hover{outline:2px solid var(--a)}.al b{display:inline-block;width:20px;color:var(--a)}</style>
+<div class="wrap"><h1>Phonetic Alphabet</h1><p class="sub">Spell out names, codes and licence plates in the NATO alphabet so nothing gets misheard over the phone.</p>
+<div class="card"><label>Text to spell</label><input id="t" style="font-size:22px" value="Smith 4B7-Q" data-keep></div>
+<div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0">Spelled out</h2><button class="x right" id="cp">Copy</button></div><div class="sp" id="out"></div></div>
+<div class="card"><h2>Full alphabet (click to hear it spoken, where supported)</h2><div class="al" id="al"></div></div></div>
+<script>
+const N={A:'Alfa',B:'Bravo',C:'Charlie',D:'Delta',E:'Echo',F:'Foxtrot',G:'Golf',H:'Hotel',I:'India',J:'Juliett',K:'Kilo',L:'Lima',M:'Mike',N:'November',O:'Oscar',P:'Papa',Q:'Quebec',R:'Romeo',S:'Sierra',T:'Tango',U:'Uniform',V:'Victor',W:'Whiskey',X:'X-ray',Y:'Yankee',Z:'Zulu'},D={0:'Zero',1:'One',2:'Two',3:'Three',4:'Four',5:'Five',6:'Six',7:'Seven',8:'Eight',9:'Niner'},P={'-':'Dash','.':'Point','/':'Slash','@':'At',_:'Underscore','#':'Hash','&':'And','+':'Plus','=':'Equals'};
+const word=c=>N[c.toUpperCase()]||D[c]||P[c];
+function run(){const t=$('#t').value;$('#out').innerHTML=[...t].map(c=>{if(c===' ')return '<span style="background:none;border:none;width:14px"></span>';const w=word(c);return w?`<span><b>${esc(c)}</b> ${w}</span>`:`<span class="n">${esc(c)}</span>`}).join('')}
+$('#cp').onclick=e=>copy([...$('#t').value].map(c=>c===' '?'/':word(c)||c).join(' '),e.target);$('#al').innerHTML=Object.entries(N).map(([l,w])=>`<div data-w="${w}"><b>${l}</b>${w}</div>`).join('');$('#al').onclick=e=>{const w=e.target.closest('[data-w]')?.dataset.w;if(w&&'speechSynthesis' in window)speechSynthesis.speak(new SpeechSynthesisUtterance(w))};
+$('#t').oninput=run;remember().then(run);
+</script>

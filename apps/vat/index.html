@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>VAT &amp; Sales Tax</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#7c3aed;--w:720px}</style>
+<div class="wrap"><h1>VAT &amp; Sales Tax</h1><p class="sub">Add tax to a net price, or take it out of a gross price — for VAT, GST or sales tax at any rate.</p>
+<div class="card"><div class="tabs" id="tabs"><button data-m="add" class="on">Add tax</button><button data-m="rem">Remove tax</button></div>
+<div class="row"><div class="col"><label id="al">Net price (before tax)</label><input id="a" type="number" step="0.01" value="100" style="font-size:22px" data-keep></div><div class="col"><label>Tax rate (%)</label><input id="r" type="number" step="0.01" value="20" style="font-size:22px" data-keep></div></div><div class="chips" id="pre"></div></div>
+<div class="g3" id="kp"></div><div class="card gap"><h2>Several items</h2><div class="mut">One price per line (they're treated as <span id="what">net</span> prices).</div><textarea id="ml" style="min-height:110px" data-keep placeholder="12.50&#10;8&#10;199.99"></textarea><div class="g3 gap" id="mk"></div></div></div>
+<script>
+let mode='add';
+const split=(v,r)=>mode==='add'?{net:v,tax:v*r,gross:v*(1+r)}:{gross:v,net:v/(1+r),tax:v-v/(1+r)};
+function run(){const r=num('r')/100,s=split(num('a'),r);$('#al').textContent=mode==='add'?'Net price (before tax)':'Gross price (tax included)';$('#what').textContent=mode==='add'?'net':'gross';
+  $('#kp').innerHTML=[['Net',s.net],['Tax',s.tax],['Gross',s.gross]].map(([k,v],i)=>`<div class="kpi"><small>${k}${k==='Tax'?` (${fmt(num('r'),2)}%)`:''}</small><b ${i===(mode==='add'?2:0)?'style="color:var(--a)"':''}>${money(v)}</b></div>`).join('');
+  const L=$('#ml').value.split('\n').map(x=>parseFloat(x.replace(/[^0-9.\-]/g,''))).filter(x=>!isNaN(x)),T=L.reduce((a,v)=>{const q=split(v,r);return{net:a.net+q.net,tax:a.tax+q.tax,gross:a.gross+q.gross}},{net:0,tax:0,gross:0});
+  $('#mk').innerHTML=L.length?[['Total net',T.net],['Total tax',T.tax],['Total gross',T.gross]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${money(v)}</b></div>`).join(''):''}
+$('#pre').innerHTML=[0,5,7.5,10,15,19,20,21,25].map(p=>`<span class="chip" data-p="${p}">${p}%</span>`).join('');$('#pre').onclick=e=>{const p=e.target.dataset.p;if(p!==undefined){$('#r').value=p;run();$('#r').dispatchEvent(new Event('input',{bubbles:true}))}};
+$('#tabs').onclick=e=>{const m=e.target.dataset.m;if(!m)return;mode=m;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b===e.target));run()};document.addEventListener('input',run);remember().then(run);
+</script>

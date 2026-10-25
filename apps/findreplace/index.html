@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Find &amp; Replace</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#dc2626;--w:1000px}.rule{display:grid;grid-template-columns:1fr 1fr auto auto auto;gap:8px;align-items:center;margin-bottom:8px}.rule label{margin:0;display:flex;gap:4px;align-items:center;font-weight:400}</style>
+<div class="wrap"><h1>Find &amp; Replace</h1><p class="sub">Run a list of find/replace rules over a block of text, in order. Plain text or regular expressions.</p>
+<div class="card"><h2>Rules</h2><div id="rules"></div><div class="row"><button class="s" id="add">+ Add rule</button><span class="mut" id="st"></span></div><div class="err" id="er"></div></div>
+<div class="card"><div class="g2"><div><label>Text</label><textarea id="in" style="min-height:260px" data-keep></textarea></div><div><label>Result</label><textarea id="out" style="min-height:260px" readonly></textarea></div></div><div class="row gap"><button class="s" id="chain">Use result as text</button><button class="s" id="cp">Copy result</button></div></div>
+<div class="card"><h2>Saved rule sets</h2><div id="sv"></div></div></div>
+<script>
+let rules=[{f:'colour',r:'color',re:false,ci:true}];
+function paint(){$('#rules').innerHTML=rules.map((r,i)=>`<div class="rule"><input data-i="${i}" data-k="f" placeholder="find" value="${esc(r.f)}"><input data-i="${i}" data-k="r" placeholder="replace with ($1 in regex)" value="${esc(r.r)}"><label><input type="checkbox" data-i="${i}" data-k="re" ${r.re?'checked':''}> regex</label><label><input type="checkbox" data-i="${i}" data-k="ci" ${r.ci?'checked':''}> ignore case</label><button class="x" data-rm="${i}">✕</button></div>`).join('')}
+function run(){$('#er').textContent='';let t=$('#in').value,total=0;for(const r of rules){if(!r.f)continue;let re;try{re=new RegExp(r.re?r.f:r.f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'+(r.ci?'i':''))}catch(e){$('#er').textContent=`Rule "${r.f}": ${e.message}`;continue}
+  const m=t.match(re);total+=m?m.length:0;t=t.replace(re,r.re?r.r:r.r.replace(/\$/g,'$$$$'))}$('#out').value=t;$('#st').textContent=`${total} replacement${total===1?'':'s'}`}
+$('#rules').oninput=$('#rules').onchange=e=>{const i=e.target.dataset.i;if(i===undefined)return;const k=e.target.dataset.k;rules[i][k]=e.target.type==='checkbox'?e.target.checked:e.target.value;run()};$('#rules').onclick=e=>{const r=e.target.dataset.rm;if(r!==undefined){rules.splice(+r,1);paint();run()}};
+$('#add').onclick=()=>{rules.push({f:'',r:'',re:false,ci:false});paint()};$('#in').oninput=run;$('#chain').onclick=()=>{$('#in').value=$('#out').value;run();$('#in').dispatchEvent(new Event('input',{bubbles:true}))};$('#cp').onclick=e=>copy($('#out').value,e.target);
+savedBar($('#sv'),{get:()=>({rules}),set:d=>{rules=JSON.parse(JSON.stringify(d.rules));paint();run()}});paint();remember().then(run);
+</script>

@@ -1,0 +1,62 @@
+<!doctype html><meta charset="utf-8"><title>Initiative</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #d9c6a0 radial-gradient(ellipse at 50% 30%, #ecdcb8, #c9b184 90%); color: #2a1a0c; font-family: 'Palatino Linotype', Palatino, Georgia, serif; }
+  main { width: 760px; margin: 0 auto; padding: 40px 0 80px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 3px double #2a1a0c; padding-bottom: 12px; margin-bottom: 20px; }
+  h1 { margin: 0; font-size: 48px; font-variant: small-caps; letter-spacing: .04em; } .round { font-size: 15px; text-align: right; } .round b { display: block; font-size: 44px; line-height: 1; color: #8b1a1a; }
+  .bar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  input, select { font: inherit; padding: 8px 10px; background: #f6ecd4; border: 1.5px solid #2a1a0c; color: inherit; outline: none; } input.n { width: 180px; } input.s { width: 64px; }
+  button { font: inherit; background: #2a1a0c; color: #f6ecd4; border: none; padding: 9px 16px; cursor: pointer; font-variant: small-caps; letter-spacing: .06em; font-size: 16px; } button.red { background: #8b1a1a; } button.q { background: none; color: #2a1a0c; border: 1.5px solid #2a1a0c; }
+  .row { display: flex; align-items: center; gap: 16px; padding: 12px 16px; margin-bottom: 8px; background: #f6ecd4aa; border-left: 8px solid var(--side); transition: .2s; }
+  .row.turn { background: #fff8e6; transform: translateX(14px) scale(1.02); box-shadow: 0 6px 20px #2a1a0c44; border-left-color: #8b1a1a; }
+  .row.down { opacity: .45; } .ini { width: 42px; font-size: 28px; font-weight: 700; text-align: center; }
+  .who { flex: 1; font-size: 20px; } .who small { display: block; font-size: 12px; color: #7a6548; font-variant: small-caps; letter-spacing: .08em; }
+  .hp { width: 190px; } .hp .t { height: 12px; background: #2a1a0c33; border: 1px solid #2a1a0c; } .hp .t i { display: block; height: 100%; background: var(--hp); transition: width .25s; } .hp span { font-size: 13px; }
+  .adj { display: flex; gap: 4px; } .adj button { padding: 4px 10px; font-size: 18px; } .x { background: none; color: #7a6548; padding: 4px 8px; }
+  .wax { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #8b1a1a; margin-right: 8px; }
+</style>
+<main>
+  <header><h1>Initiative</h1><div class="round">Round<b id="round">1</b></div></header>
+  <form class="bar" id="f"><input class="n" id="name" placeholder="Name" required><input class="s" id="init" type="number" placeholder="Init" required><input class="s" id="hp" type="number" placeholder="HP" required>
+    <select id="side"><option value="pc">Hero</option><option value="foe">Foe</option></select><button>Add to the fray</button></form>
+  <div class="bar"><button class="red" id="next">Next turn →</button><button class="q" id="reset">New combat</button><span style="margin-left:auto">HP change <input class="s" id="amt" type="number" value="5"></span></div>
+  <div id="list"></div>
+</main>
+<script>
+let items = [];
+const cs = () => items.filter(i => i.kind === 'c').sort((a, b) => b.init - a.init || a.createdAt - b.createdAt);
+let meta = () => items.find(i => i.kind === 'meta');
+
+function render() {
+  const m = meta(), list = cs(); $('#round').textContent = m?.round || 1;
+  $('#list').innerHTML = list.map(c => {
+    const pct = Math.max(0, c.hp / c.max * 100), col = pct > 60 ? '#3d7a3d' : pct > 25 ? '#c98a1a' : '#8b1a1a';
+    return `<div class="row ${m?.turnId === c.id ? 'turn' : ''} ${c.hp <= 0 ? 'down' : ''}" data-id="${c.id}" style="--side:${c.side === 'foe' ? '#6b2f6b' : '#2f5d8b'};--hp:${col}">
+      <div class="ini">${c.init}</div><div class="who">${m?.turnId === c.id ? '<span class="wax"></span>' : ''}${esc(c.name)}<small>${c.side === 'foe' ? 'foe' : 'hero'}${c.hp <= 0 ? ' · down' : ''}</small></div>
+      <div class="hp"><span>${c.hp} / ${c.max}</span><div class="t"><i style="width:${pct}%"></i></div></div>
+      <div class="adj"><button data-d="-1">−</button><button data-d="1">+</button></div><button class="x" data-del>×</button></div>`;
+  }).join('') || '<p style="text-align:center;font-style:italic">No combatants. Add some above.</p>';
+}
+// Advance the turn pointer through initiative order; wrapping around bumps the round.
+async function next() {
+  const list = cs(); if (!list.length) return; const m = meta(); let i = list.findIndex(c => c.id === m.turnId) + 1, round = m.round;
+  if (i >= list.length) { i = 0; round++; }
+  Object.assign(m, { turnId: list[i].id, round }); await api.upd(m.id, { turnId: m.turnId, round }); render();
+}
+$('#next').onclick = next;
+$('#reset').onclick = async () => { const m = meta(); Object.assign(m, { turnId: null, round: 1 }); await api.upd(m.id, { turnId: null, round: 1 }); render(); };
+$('#f').onsubmit = async e => {
+  e.preventDefault(); const hp = +$('#hp').value, c = { kind: 'c', name: $('#name').value, init: +$('#init').value, hp, max: hp, side: $('#side').value };
+  $('#name').value = $('#init').value = $('#hp').value = ''; $('#name').focus();
+  items.push(await api.add(c)); render();
+};
+$('#list').onclick = async e => {
+  const row = e.target.closest('.row'); if (!row) return; const c = items.find(i => i.id === row.dataset.id);
+  if (e.target.hasAttribute('data-del')) { await api.del(c.id); items = items.filter(i => i !== c); }
+  else if (e.target.dataset.d) { c.hp = Math.min(c.max, c.hp + e.target.dataset.d * (+$('#amt').value || 1)); await api.upd(c.id, { hp: c.hp }); }
+  render();
+};
+api.list().then(async d => { items = d; if (!meta()) items.push(await api.add({ kind: 'meta', round: 1, turnId: null })); render(); });
+</script>

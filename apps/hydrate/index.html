@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Hydrate</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:linear-gradient(#e0f4ff,#b8e2fb);color:#0b3a5a;font-family:'Avenir Next',system-ui;display:flex;gap:70px;align-items:center;justify-content:center}
+.glass{position:relative;width:200px;height:340px;border:6px solid #0b3a5acc;border-top:none;border-radius:0 0 40px 40px;overflow:hidden;background:#ffffff55;box-shadow:inset 0 0 30px #fff8}#w{position:absolute;left:-50%;width:200%;bottom:0;background:linear-gradient(#4fb3f0,#1d7fc4);transition:height .9s cubic-bezier(.3,1.2,.5,1)}#w::before{content:'';position:absolute;top:-14px;left:0;right:0;height:28px;background:#4fb3f0;border-radius:45%;animation:wv 3s linear infinite}@keyframes wv{to{transform:translateX(-25%)}}
+.big{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2;color:#fff;text-shadow:0 2px 8px #0b3a5a88;font-size:44px;font-weight:300}.big small{font-size:14px}
+h1{margin:0 0 4px;font-weight:200;font-size:38px}.p{width:320px}.btns{display:flex;gap:10px;margin:18px 0}.btns button{flex:1;font:inherit;padding:12px;border:none;border-radius:14px;background:#fff;color:#0b3a5a;cursor:pointer;box-shadow:0 3px 0 #9cc9e8}.btns button:active{transform:translateY(2px);box-shadow:none}
+.wk{display:flex;gap:8px;align-items:flex-end;height:110px;margin-top:20px}.wk div{flex:1;text-align:center;font-size:12px}.wk i{display:block;background:#4fb3f0;border-radius:6px 6px 0 0;margin-bottom:4px;min-height:3px}.wk i.ok{background:#27ae60}a{color:#0b3a5a99;cursor:pointer;font-size:13px}</style>
+<div class="glass"><div id="w" style="height:0"></div><div class="big"><b id="ml">0</b><small>of <span id="goal">2000</span> ml</small></div></div>
+<div class="p"><h1>Hydrate</h1><div id="msg" style="min-height:24px"></div><div class="btns"><button data-ml="150">+150<br><small>sip</small></button><button data-ml="250">+250<br><small>glass</small></button><button data-ml="500">+500<br><small>bottle</small></button></div><a id="undo">Undo last</a><div class="wk" id="wk"></div></div>
+<script>
+const GOAL=2000;let logs=[];const key=d=>new Date(d).toDateString();
+function render(){const today=logs.filter(l=>key(l.createdAt)===key(Date.now())).reduce((n,l)=>n+l.ml,0);$('#ml').textContent=today;$('#w').style.height=Math.min(100,today/GOAL*100)+'%';
+$('#msg').textContent=today>=GOAL?'Goal reached. 🎉'.replace(' 🎉','!'):`${GOAL-today} ml to go`;
+const days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return{d,ml:logs.filter(l=>key(l.createdAt)===key(d)).reduce((n,l)=>n+l.ml,0)}});
+$('#wk').innerHTML=days.map(x=>`<div><i class="${x.ml>=GOAL?'ok':''}" style="height:${Math.min(1,x.ml/GOAL)*90}px"></i>${x.d.toLocaleDateString(undefined,{weekday:'narrow'})}</div>`).join('')}
+document.querySelector('.btns').onclick=async e=>{const ml=+e.target.closest('button')?.dataset.ml;if(!ml)return;logs.unshift(await api.add({ml}));render()};
+$('#undo').onclick=async()=>{const l=logs[0];if(l){await api.del(l.id);logs.shift();render()}};
+api.list().then(d=>{logs=d;render()});
+</script>

@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Flexbox Playground</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#f97316;--w:1000px}#pv{min-height:300px;background:var(--soft);border:2px dashed var(--line);border-radius:10px;padding:8px}#pv div{background:var(--a);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;border-radius:6px;min-width:46px;min-height:46px;padding:4px 10px}</style>
+<div class="wrap"><h1>Flexbox Playground</h1><p class="sub">Change container properties and watch the layout respond.</p>
+<div class="card"><div id="pv"></div></div>
+<div class="card"><div class="g3" id="ctl"></div><div class="row gap"><div class="col"><label>Items <b id="vn"></b></label><input type="range" id="n" min="1" max="12" value="5" data-keep></div><div class="col"><label>Gap <b id="vg"></b>px</label><input type="range" id="g" min="0" max="48" value="10" data-keep></div><label style="margin:0 0 8px"><input type="checkbox" id="var" data-keep> Varied item sizes</label></div></div>
+<div class="card"><h2>CSS</h2><div class="out" id="css"></div><button class="s gap" id="cp">Copy</button></div></div>
+<script>
+const P={'flex-direction':['row','row-reverse','column','column-reverse'],'flex-wrap':['nowrap','wrap','wrap-reverse'],'justify-content':['flex-start','center','flex-end','space-between','space-around','space-evenly'],'align-items':['stretch','flex-start','center','flex-end','baseline'],'align-content':['stretch','flex-start','center','flex-end','space-between','space-around']};
+const dflt={'flex-direction':'row','flex-wrap':'wrap','justify-content':'space-between','align-items':'center','align-content':'stretch'};
+$('#ctl').innerHTML=Object.entries(P).map(([k,v])=>`<div><label>${k}</label><select id="p_${k}" data-keep>${v.map(o=>`<option ${dflt[k]===o?'selected':''}>${o}</option>`).join('')}</select></div>`).join('');
+function render(){const n=+$('#n').value,g=+$('#g').value;$('#vn').textContent=n;$('#vg').textContent=g;const pv=$('#pv');pv.style.cssText='display:flex;';let css='display: flex;\n';
+  for(const k of Object.keys(P)){const v=$('#p_'+k).value;pv.style[k]=v;css+=`${k}: ${v};\n`}pv.style.gap=g+'px';css+=`gap: ${g}px;`;
+  pv.innerHTML=Array.from({length:n},(_,i)=>`<div style="${$('#var').checked?`width:${50+(i*37%70)}px;height:${46+(i*53%60)}px`:''}">${i+1}</div>`).join('');$('#css').textContent=css}
+document.addEventListener('input',render);$('#cp').onclick=e=>copy($('#css').textContent,e.target);remember().then(render);render();
+</script>

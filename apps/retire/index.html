@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Retirement Planner</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#ea580c;--w:900px}svg{width:100%;height:230px}</style>
+<div class="wrap"><h1>Retirement Planner</h1><p class="sub">Project your nest egg and compare it to what the 4% rule says you need. A rough guide, not advice.</p>
+<div class="card"><div class="g4"><div><label>Current age</label><input id="ca" type="number" value="32" data-keep></div><div><label>Retire at</label><input id="ra" type="number" value="65" data-keep></div><div><label>Saved so far ($)</label><input id="s" type="number" value="60000" data-keep></div><div><label>Monthly saving ($)</label><input id="m" type="number" value="900" data-keep></div>
+<div><label>Return before retiring (%)</label><input id="r" type="number" value="6.5" step="0.1" data-keep></div><div><label>Inflation (%)</label><input id="i" type="number" value="2.5" step="0.1" data-keep></div><div><label>Wanted income / yr (today's $)</label><input id="inc" type="number" value="60000" data-keep></div><div><label>Safe withdrawal (%)</label><input id="wd" type="number" value="4" step="0.1" data-keep></div></div></div>
+<div class="g4" id="kp"></div><div class="card gap"><h2>Projected balance (today's dollars)</h2><svg id="sv" viewBox="0 0 800 230" preserveAspectRatio="none"></svg><div class="mut" id="ax"></div></div></div>
+<script>
+function run(){const ca=num('ca'),ra=num('ra'),yrs=ra-ca;if(yrs<=0)return;const rr=(1+num('r')/100)/(1+num('i')/100)-1,em=(1+rr)**(1/12)-1,pts=[];let bal=num('s');
+  for(let m=1;m<=yrs*12;m++){bal=bal*(1+em)+num('m');if(m%12===0)pts.push(bal)}
+  const need=num('inc')/(num('wd')/100),gap=bal-need,mx=Math.max(bal,need)*1.05;
+  // Because growth is computed in real (inflation-adjusted) terms, the result and the target are both in today's dollars.
+  $('#kp').innerHTML=[['Projected nest egg',money(bal)],['Needed (income ÷ rate)',money(need)],[gap>=0?'Surplus':'Shortfall',money(Math.abs(gap))],['Years to go',yrs]].map(([k,v],i)=>`<div class="kpi"><small>${k}</small><b class="${i===2?gap>=0?'ok':'bad':''}">${v}</b></div>`).join('');
+  $('#sv').innerHTML=`<polyline fill="none" stroke="var(--a)" stroke-width="4" points="${pts.map((v,i)=>`${(i+1)/pts.length*800},${230-v/mx*220}`).join(' ')}"/><line x1="0" x2="800" y1="${230-need/mx*220}" y2="${230-need/mx*220}" stroke="#ef4444" stroke-dasharray="8 6" stroke-width="2"/>`;
+  $('#ax').innerHTML=`Age ${ca} → ${ra} · <span style="color:#ef4444">- - -</span> target ${money(need)}`;}
+document.addEventListener('input',run);remember().then(run);
+</script>

@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><title>Sandbox</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#1c1a17;color:#e8dcc4;font-family:'Courier New',monospace;display:flex;gap:20px;justify-content:center;align-items:center}
+canvas{image-rendering:pixelated;background:#0c0b0a;border:3px solid #5a4a30;cursor:crosshair;width:800px;height:520px}.p{width:180px}h1{margin:0 0 12px;letter-spacing:.2em}button{display:block;width:100%;margin-bottom:6px;font:inherit;padding:9px;border:2px solid #5a4a30;background:#2a251d;color:#e8dcc4;cursor:pointer;text-align:left}button.on{background:#e8c26a;color:#1c1a17;border-color:#e8c26a}#gal{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}.th{position:relative;cursor:pointer}.th img{width:100%;image-rendering:pixelated;border:1px solid #5a4a30;display:block}.th b{position:absolute;right:3px;top:0;font-size:12px;opacity:0}.th:hover b{opacity:1}</style>
+<canvas id="c" width="160" height="104"></canvas>
+<div class="p"><h1>SAND</h1><div id="mats"></div><button id="cl">Clear</button><button id="sv" style="background:#e8c26a;color:#1c1a17;border-color:#e8c26a">Save snapshot</button><div id="gal"></div></div>
+<script>
+const W=160,H=104,E=0,SAND=1,WATER=2,STONE=3,FIRE=4;const COL=[[12,11,10],[232,194,106],[64,140,230],[110,110,120],[255,100,30]];
+const MATS=[['Sand',SAND],['Water',WATER],['Stone',STONE],['Fire',FIRE],['Erase',E]];let mat=SAND,grid=new Uint8Array(W*H),down=false,art=[];
+$('#mats').innerHTML=MATS.map(([n,m])=>`<button data-m="${m}" class="${m===mat?'on':''}">${n}</button>`).join('');$('#mats').onclick=e=>{if(e.target.dataset.m===undefined)return;mat=+e.target.dataset.m;document.querySelectorAll('#mats button').forEach(b=>b.classList.toggle('on',+b.dataset.m===mat))};
+const cv=$('#c'),g=cv.getContext('2d'),img=g.createImageData(W,H);
+const at=(x,y)=>x<0||y<0||x>=W||y>=H?STONE:grid[y*W+x];
+// Cellular rules, bottom-up: sand drops/slides diagonally, water also flows sideways, fire flickers upward and burns out.
+function step(){for(let y=H-2;y>=0;y--)for(let k=0;k<W;k++){const x=y%2?k:W-1-k,i=y*W+x,c=grid[i],d=Math.random()<.5?-1:1;
+  if(c===SAND){if(at(x,y+1)===E||at(x,y+1)===WATER){const t=grid[i+W];grid[i+W]=SAND;grid[i]=t}else if(at(x+d,y+1)===E){grid[i+d+W]=SAND;grid[i]=E}}
+  else if(c===WATER){if(at(x,y+1)===E){grid[i+W]=WATER;grid[i]=E}else if(at(x+d,y+1)===E){grid[i+d+W]=WATER;grid[i]=E}else if(at(x+d,y)===E){grid[i+d]=WATER;grid[i]=E}}
+  else if(c===FIRE){if(Math.random()<.08)grid[i]=E;else if(at(x,y-1)===E&&Math.random()<.5){grid[i-W]=FIRE;grid[i]=E}if(at(x,y+1)===WATER)grid[i]=E}}}
+function render(){for(let i=0;i<W*H;i++){const c=COL[grid[i]],j=i*4,v=grid[i]===FIRE?Math.random()*60:grid[i]===SAND?(i*7%13):0;img.data[j]=c[0]+v;img.data[j+1]=c[1]+v/2;img.data[j+2]=c[2];img.data[j+3]=255}g.putImageData(img,0,0)}
+function paint(e){const r=cv.getBoundingClientRect(),cx=Math.floor((e.clientX-r.left)/r.width*W),cy=Math.floor((e.clientY-r.top)/r.height*H);for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const x=cx+dx,y=cy+dy;if(x>=0&&y>=0&&x<W&&y<H&&(mat===E||grid[y*W+x]===E||Math.random()<.2))if(Math.hypot(dx,dy)<=2.3&&(mat===STONE||mat===E||Math.random()<.6))grid[y*W+x]=mat}}
+cv.onpointerdown=e=>{down=true;paint(e)};cv.onpointermove=e=>down&&paint(e);addEventListener('pointerup',()=>down=false);
+(function loop(){step();step();render();if(down&&mat!==STONE&&mat!==E){}requestAnimationFrame(loop)})();
+$('#cl').onclick=()=>grid.fill(0);
+$('#sv').onclick=async()=>{art.unshift(await api.add({w:W,h:H,g:Array.from(grid).join('')}));gal()};
+const thumb=s=>{const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d'),im=x.createImageData(W,H);for(let i=0;i<W*H;i++){const v=COL[+s[i]];im.data.set([...v,255],i*4)}x.putImageData(im,0,0);return c.toDataURL()};
+const gal=()=>$('#gal').innerHTML=art.map(a=>`<div class="th" data-id="${a.id}"><img src="${thumb(a.g)}"><b data-del>✕</b></div>`).join('');
+$('#gal').onclick=async e=>{const t=e.target.closest('.th');if(!t)return;const a=art.find(x=>x.id===t.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(a.id);art=art.filter(x=>x!==a);gal()}else[...a.g].forEach((c,i)=>grid[i]=+c)};
+api.list().then(d=>{art=d;gal()});
+</script>

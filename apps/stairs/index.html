@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Stairway</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:linear-gradient(#ffd9b3,#f7b0a0 60%,#c99ac0);color:#3a2230;font-family:'Avenir Next',system-ui;display:flex;gap:40px;justify-content:center;align-items:center;padding:20px}
+.stage{position:relative;width:640px;height:520px;overflow:hidden}.step{position:absolute;height:34px;background:#fff8;border-radius:4px;transition:background .4s;display:flex;align-items:center;padding-left:12px;font-size:13px;white-space:nowrap;cursor:pointer;color:#3a2230;box-shadow:0 4px 0 #0002;overflow:hidden}.step.d{background:#3a2230;color:#fff}
+#man{position:absolute;width:26px;height:44px;transition:left .7s cubic-bezier(.5,0,.3,1),bottom .7s cubic-bezier(.5,0,.3,1);z-index:2}.sun{position:absolute;right:20px;top:20px;width:80px;height:80px;border-radius:50%;background:#fff3c4;box-shadow:0 0 60px #fff3c4}
+.p{width:280px}h1{margin:0 0 6px;font-weight:300;font-size:36px}form{display:flex;gap:6px;margin:12px 0}input{flex:1;font:inherit;padding:9px 12px;border:none;border-radius:20px;outline:none;background:#fffa}button{font:inherit;padding:9px 16px;border:none;border-radius:20px;background:#3a2230;color:#fff;cursor:pointer}.x{font-size:12px;opacity:.6;cursor:pointer;margin-left:auto;padding-right:8px}</style>
+<div class="stage" id="st"><div class="sun"></div><svg id="man" viewBox="0 0 26 44"><circle cx="13" cy="7" r="6" fill="#3a2230"/><path d="M13 13v18M13 20l-8 8M13 20l8 6M13 31l-7 12M13 31l7 12" stroke="#3a2230" stroke-width="3" fill="none" stroke-linecap="round"/></svg></div>
+<div class="p"><h1>Stairway</h1><div id="sum" style="margin-bottom:6px"></div><form id="f"><input id="n" placeholder="Next step up…" required><button>Add</button></form><div style="font-size:13px;opacity:.7">Click a step to climb onto it. Click again to step back down.</div></div>
+<script>
+let steps=[];
+// Steps stack up and to the right; the climber stands on the highest completed step.
+function render(){const n=steps.length,sw=Math.max(60,Math.min(150,600/Math.max(n,1))),sh=Math.max(30,Math.min(60,440/Math.max(n,1)));let top=-1;steps.forEach((s,i)=>s.done&&(top=i));
+  $('#st').querySelectorAll('.step').forEach(e=>e.remove());
+  steps.forEach((s,i)=>{const e=document.createElement('div');e.className='step '+(s.done?'d':'');e.dataset.id=s.id;e.style.cssText=`left:${20+i*sw*.9}px;bottom:${10+i*sh}px;width:${Math.max(sw*1.6,110)}px;height:${sh-4}px`;e.innerHTML=`${esc(s.text)}<span class="x" data-del>✕</span>`;$('#st').append(e)});
+  const m=$('#man');m.style.left=(top<0?-10:20+top*sw*.9+30)+'px';m.style.bottom=(10+(top+1)*sh-4)+'px';$('#sum').textContent=n?`${top+1} of ${n} steps climbed`:'Add your first step.'}
+$('#st').onclick=async e=>{const el=e.target.closest('.step');if(!el)return;const s=steps.find(x=>x.id===el.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(s.id);steps=steps.filter(x=>x!==s)}else{s.done=!s.done;api.upd(s.id,{done:s.done})}render()};
+$('#f').onsubmit=async e=>{e.preventDefault();steps.push(await api.add({text:$('#n').value,done:false}));$('#n').value='';render()};
+api.list().then(d=>{steps=d.sort((a,b)=>a.createdAt-b.createdAt);render()});
+</script>

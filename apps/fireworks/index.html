@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Fireworks</title><script src="/shared/lib.js"></script>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#05060f;color:#cfd8ff;font-family:system-ui}canvas{position:fixed;inset:0;cursor:crosshair}
+#ui{position:fixed;left:24px;bottom:22px;display:flex;gap:10px;align-items:center}#ui input{width:300px;font:inherit;padding:9px 14px;border-radius:22px;border:1px solid #3a4a8a;background:#0a1030cc;color:#fff;outline:none}
+#log{position:fixed;right:24px;top:20px;width:260px;text-align:right;font-style:italic;color:#8fa0e0;line-height:1.7}#log div{opacity:.9}h1{position:fixed;left:24px;top:16px;margin:0;font-weight:200;letter-spacing:.35em;font-size:22px}</style>
+<canvas id="c"></canvas><h1>FIREWORKS</h1><div id="log"></div><div id="ui"><input id="w" placeholder="Type a wish, then click the sky…" maxlength="50"></div>
+<script>
+const cv=$('#c'),g=cv.getContext('2d');let W,H,rockets=[],parts=[],texts=[],wishes=[];
+const fit=()=>{W=cv.width=innerWidth;H=cv.height=innerHeight};fit();addEventListener('resize',fit);
+// A click launches a rocket from the bottom toward the cursor; when it arrives it bursts into a ring of sparks.
+function launch(x,y,wish){rockets.push({x:W/2+(x-W/2)*.2,y:H,tx:x,ty:y,hue:Math.random()*360,wish})}
+function burst(r){const n=90+Math.random()*60|0,sp=2+Math.random()*4;for(let i=0;i<n;i++){const a=Math.PI*2*i/n,s=sp*(.5+Math.random()*.7);parts.push({x:r.tx,y:r.ty,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,hue:r.hue+Math.random()*40})}if(r.wish)texts.push({x:r.tx,y:r.ty,t:r.wish,life:1})}
+cv.onmousedown=async e=>{const wish=$('#w').value.trim();launch(e.clientX,e.clientY,wish);if(wish){$('#w').value='';wishes.unshift(await api.add({wish}));log()}};
+const log=()=>$('#log').innerHTML=wishes.slice(0,6).map(w=>`<div>${esc(w.wish)}</div>`).join('');
+(function frame(){g.globalCompositeOperation='source-over';g.fillStyle='rgba(5,6,15,.22)';g.fillRect(0,0,W,H);g.globalCompositeOperation='lighter';
+  rockets=rockets.filter(r=>{r.x+=(r.tx-r.x)*.06;r.y+=(r.ty-r.y)*.06;g.fillStyle=`hsl(${r.hue},100%,75%)`;g.fillRect(r.x,r.y,3,3);if(Math.hypot(r.tx-r.x,r.ty-r.y)<8){burst(r);return false}return true});
+  parts=parts.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.04;p.vx*=.985;p.life-=.012;g.fillStyle=`hsla(${p.hue},100%,60%,${p.life})`;g.fillRect(p.x,p.y,2.4,2.4);return p.life>0});
+  g.globalCompositeOperation='source-over';texts=texts.filter(t=>{t.life-=.004;g.fillStyle=`rgba(255,244,214,${Math.min(1,t.life*1.4)})`;g.font='italic 22px Georgia';g.textAlign='center';g.fillText(t.t,t.x,t.y-16-(1-t.life)*20);return t.life>0});
+  if(Math.random()<.01)launch(Math.random()*W,60+Math.random()*H*.4);requestAnimationFrame(frame)})();
+api.list().then(d=>{wishes=d;log()});
+</script>

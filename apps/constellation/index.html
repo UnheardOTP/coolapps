@@ -1,0 +1,110 @@
+<!doctype html><meta charset="utf-8"><title>Constellation</title>
+<script src="/shared/lib.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #05060f; color: #e8e6ff; font-family: Georgia, 'Times New Roman', serif; }
+  #sky { position: fixed; inset: 0; width: 100%; height: 100%; background: radial-gradient(ellipse at 50% 130%, #232a63 0%, #0b0e2b 55%, #05060f 100%); cursor: crosshair; }
+  #hud { position: fixed; top: 28px; left: 36px; pointer-events: none; }
+  #hud h1 { margin: 0; font-weight: 400; font-size: 34px; letter-spacing: .28em; text-transform: uppercase; }
+  #hud p { margin: 6px 0 0; color: #8f93c9; font-style: italic; }
+  #hint { position: fixed; bottom: 22px; left: 0; right: 0; text-align: center; color: #6c70a8; font-size: 13px; letter-spacing: .06em; pointer-events: none; }
+  #ask { position: fixed; width: 240px; background: rgba(10,12,40,.85); border: 1px solid #ffe9a0; color: #fff6d6; padding: 8px 12px; border-radius: 20px; font: italic 15px Georgia, serif; outline: none; box-shadow: 0 0 24px rgba(255,233,160,.35); }
+  .dust { fill: #fff; }
+  .link { stroke: rgba(255,226,150,.5); stroke-width: 1.2; }
+  .star { cursor: grab; }
+  .star .core { fill: #fff6d6; filter: drop-shadow(0 0 7px #ffe9a0); animation: tw 3.4s ease-in-out infinite; }
+  .star .ring { fill: none; stroke: #ffe9a0; stroke-width: 1; opacity: 0; }
+  .star.sel .ring { opacity: .9; }
+  .star text { fill: #b9bce8; font-size: 14px; font-style: italic; opacity: .75; pointer-events: none; }
+  .star:hover text, .star.sel text { opacity: 1; fill: #fff6d6; }
+  @keyframes tw { 50% { opacity: .55; } }
+</style>
+<svg id="sky"></svg>
+<div id="hud"><h1>Constellation</h1><p id="count"></p></div>
+<div id="hint">click the sky to place a star · click one star, then another, to join them · select + Delete removes</div>
+<input id="ask" placeholder="a thought…" hidden>
+<script>
+let items = [], sel = null, drag = null, pending = null;
+const stars = () => items.filter(i => i.kind === 'star');
+const links = () => items.filter(i => i.kind === 'link');
+
+// Deterministic background dust so the sky doesn't reshuffle on every render.
+const mulberry = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const rnd = mulberry(7);
+const dust = Array.from({ length: 220 }, () => ({ x: rnd(), y: rnd(), r: rnd() * 1.1 + .3, o: rnd() * .6 + .2 }));
+
+// Draw dust, links and stars. Stars twinkle via CSS with staggered delays.
+function render() {
+  const W = innerWidth, H = innerHeight, S = stars(), by = Object.fromEntries(S.map(s => [s.id, s]));
+  $('#sky').innerHTML =
+    dust.map(d => `<circle class="dust" cx="${d.x * W}" cy="${d.y * H}" r="${d.r}" opacity="${d.o}"/>`).join('') +
+    links().filter(l => by[l.a] && by[l.b]).map(l =>
+      `<line class="link" data-a="${l.a}" data-b="${l.b}" x1="${by[l.a].x * W}" y1="${by[l.a].y * H}" x2="${by[l.b].x * W}" y2="${by[l.b].y * H}"/>`).join('') +
+    S.map((s, i) => `<g class="star ${sel === s.id ? 'sel' : ''}" data-id="${s.id}" transform="translate(${s.x * W},${s.y * H})">
+      <circle r="18" fill="transparent"/><circle class="ring" r="13"/>
+      <circle class="core" r="${3 + (s.text.length % 3)}" style="animation-delay:-${(i * .73) % 3.4}s"/>
+      <text x="16" y="5">${esc(s.text)}</text></g>`).join('');
+  $('#count').textContent = `${S.length} stars · ${links().filter(l => by[l.a] && by[l.b]).length} connections`;
+}
+
+// While dragging, move just the star and its lines in the DOM (a full render would restart the twinkle).
+function moveDom(s) {
+  const W = innerWidth, H = innerHeight;
+  $(`.star[data-id="${s.id}"]`).setAttribute('transform', `translate(${s.x * W},${s.y * H})`);
+  document.querySelectorAll('.link').forEach(l => {
+    if (l.dataset.a === s.id) { l.setAttribute('x1', s.x * W); l.setAttribute('y1', s.y * H); }
+    if (l.dataset.b === s.id) { l.setAttribute('x2', s.x * W); l.setAttribute('y2', s.y * H); }
+  });
+}
+
+// Clicking a star selects it; clicking a second star toggles a link between the two.
+async function clickStar(id) {
+  if (sel && sel !== id) {
+    const ex = links().find(l => (l.a === sel && l.b === id) || (l.a === id && l.b === sel));
+    if (ex) { await api.del(ex.id); items = items.filter(i => i !== ex); }
+    else items.push(await api.add({ kind: 'link', a: sel, b: id }));
+    sel = null;
+  } else sel = sel === id ? null : id;
+  render();
+}
+
+$('#sky').addEventListener('mousedown', e => {
+  const g = e.target.closest('.star');
+  if (g) { drag = { id: g.dataset.id, x: e.clientX, y: e.clientY, moved: false }; return; }
+  if (sel) { sel = null; return render(); }
+  pending = { x: e.clientX / innerWidth, y: e.clientY / innerHeight };
+  Object.assign($('#ask'), { hidden: false, value: '' });
+  $('#ask').style.left = Math.min(e.clientX + 14, innerWidth - 260) + 'px'; $('#ask').style.top = e.clientY - 18 + 'px';
+  $('#ask').focus();
+});
+addEventListener('mousemove', e => {
+  if (!drag) return;
+  if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 4) drag.moved = true;
+  if (!drag.moved) return;
+  const s = items.find(i => i.id === drag.id);
+  s.x = Math.min(.98, Math.max(.02, e.clientX / innerWidth)); s.y = Math.min(.95, Math.max(.05, e.clientY / innerHeight));
+  moveDom(s);
+});
+addEventListener('mouseup', () => {
+  if (!drag) return;
+  const s = items.find(i => i.id === drag.id);
+  drag.moved ? api.upd(s.id, { x: s.x, y: s.y }) : clickStar(s.id);
+  drag = null;
+});
+$('#ask').addEventListener('keydown', async e => {
+  if (e.key === 'Escape') { $('#ask').hidden = true; }
+  if (e.key === 'Enter' && $('#ask').value.trim()) {
+    const star = await api.add({ kind: 'star', ...pending, text: $('#ask').value.trim() });
+    items.push(star); $('#ask').hidden = true; render();
+  }
+});
+$('#ask').addEventListener('blur', () => $('#ask').hidden = true);
+// Delete removes the selected star along with its connections.
+addEventListener('keydown', async e => {
+  if (!sel || !['Delete', 'Backspace'].includes(e.key) || !$('#ask').hidden) return;
+  const gone = items.filter(i => i.id === sel || (i.kind === 'link' && (i.a === sel || i.b === sel)));
+  await Promise.all(gone.map(i => api.del(i.id)));
+  items = items.filter(i => !gone.includes(i)); sel = null; render();
+});
+addEventListener('resize', render);
+api.list().then(d => { items = d; render(); });
+</script>

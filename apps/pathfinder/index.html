@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>Pathfinder</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#0f1722;color:#d8e6f5;font-family:'Segoe UI',system-ui;display:flex;flex-direction:column;align-items:center;padding-top:22px}h1{margin:0;font-weight:200;letter-spacing:.3em}canvas{margin-top:12px;border:1px solid #2a3b52;cursor:crosshair}
+.bar{display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;justify-content:center}button,select{font:inherit;padding:8px 14px;background:#1a2638;color:#d8e6f5;border:1px solid #33496a;border-radius:6px;cursor:pointer}button.p{background:#4dd0e1;color:#04222a;border-color:#4dd0e1;font-weight:700}.chip{padding:3px 10px;border:1px solid #33496a;border-radius:14px;cursor:pointer;font-size:13px}#info{color:#8aa4c0;margin-top:8px;height:22px}</style>
+<h1>PATHFINDER</h1><canvas id="c" width="960" height="552"></canvas>
+<div class="bar"><select id="alg"><option value="astar">A* search</option><option value="dijkstra">Dijkstra</option><option value="bfs">Breadth-first</option></select><button class="p" id="go">Find path</button><button id="cp">Clear path</button><button id="cw">Clear walls</button><button id="rm">Random maze</button><button id="sv">Save map</button><span id="chips"></span></div><div id="info">Drag to draw walls (drag on a wall to erase). Drag the green and red squares to move them.</div>
+<script>
+const COLS=40,ROWS=23,S=24,cv=$('#c'),g=cv.getContext('2d');let wall,start=[4,11],goal=[35,11],vis,path,busy=false,saved=[],mode=null;
+const reset=()=>{wall=new Uint8Array(COLS*ROWS);vis=new Map();path=[];draw()};const id=(x,y)=>y*COLS+x;
+function draw(){g.fillStyle='#0f1722';g.fillRect(0,0,960,552);for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const i=id(x,y);g.fillStyle=wall[i]?'#e8f1fa':vis.has(i)?`hsl(${190+Math.min(60,vis.get(i)*.5)},70%,${28+Math.min(12,vis.get(i)*.1)}%)`:'#16212f';g.fillRect(x*S+1,y*S+1,S-2,S-2)}
+  g.fillStyle='#ffd23f';path.forEach(i=>g.fillRect(i%COLS*S+5,Math.floor(i/COLS)*S+5,S-10,S-10));g.fillStyle='#2ecc71';g.fillRect(start[0]*S+1,start[1]*S+1,S-2,S-2);g.fillStyle='#ff5d73';g.fillRect(goal[0]*S+1,goal[1]*S+1,S-2,S-2)}
+const cell=e=>{const r=cv.getBoundingClientRect();return[Math.floor((e.clientX-r.left)/S),Math.floor((e.clientY-r.top)/S)]};
+cv.onpointerdown=e=>{if(busy)return;const[x,y]=cell(e);mode=x===start[0]&&y===start[1]?'s':x===goal[0]&&y===goal[1]?'g':wall[id(x,y)]?'erase':'draw';cv.setPointerCapture(e.pointerId);cv.onpointermove(e)};
+cv.onpointermove=e=>{if(!mode)return;const[x,y]=cell(e);if(x<0||y<0||x>=COLS||y>=ROWS)return;if(mode==='s'&&!wall[id(x,y)])start=[x,y];else if(mode==='g'&&!wall[id(x,y)])goal=[x,y];else if(mode==='draw'&&!(x===start[0]&&y===start[1])&&!(x===goal[0]&&y===goal[1]))wall[id(x,y)]=1;else if(mode==='erase')wall[id(x,y)]=0;vis=new Map();path=[];draw()};cv.onpointerup=()=>mode=null;
+// Best-first search: Dijkstra orders by distance travelled; A* adds a Manhattan-distance guess to the goal; BFS ignores weights and just expands in rings.
+async function solve(){if(busy)return;busy=true;vis=new Map();path=[];const kind=$('#alg').value,h=(x,y)=>kind==='astar'?Math.abs(x-goal[0])+Math.abs(y-goal[1]):0,dist=new Map([[id(...start),0]]),prev=new Map(),open=[[h(...start),...start]];let n=0;
+  while(open.length){open.sort((a,b)=>kind==='bfs'?0:a[0]-b[0]);const[,x,y]=kind==='bfs'?open.shift():open.shift(),i=id(x,y);if(vis.has(i))continue;vis.set(i,n++);if(x===goal[0]&&y===goal[1])break;
+    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy,j=id(nx,ny);if(nx<0||ny<0||nx>=COLS||ny>=ROWS||wall[j]||vis.has(j))continue;const d=dist.get(i)+1;if(!dist.has(j)||d<dist.get(j)){dist.set(j,d);prev.set(j,i);open.push([d+h(nx,ny),nx,ny])}}
+    if(n%6===0){draw();await new Promise(r=>setTimeout(r,8))}}
+  const gi=id(...goal);if(vis.has(gi)){for(let c=gi;c!==id(...start);c=prev.get(c))path.push(c);path.reverse();$('#info').textContent=`${kind}: explored ${vis.size} cells, path length ${path.length}`}else $('#info').textContent='No path exists.';draw();busy=false}
+$('#go').onclick=solve;$('#cp').onclick=()=>{vis=new Map();path=[];draw()};$('#cw').onclick=reset;$('#rm').onclick=()=>{reset();for(let i=0;i<wall.length;i++)wall[i]=Math.random()<.28;wall[id(...start)]=wall[id(...goal)]=0;draw()};
+$('#sv').onclick=async()=>{saved.unshift(await api.add({walls:[...wall.keys()].filter(i=>wall[i]),start,goal}));chips()};
+const chips=()=>$('#chips').innerHTML=saved.map((s,i)=>`<span class="chip" data-id="${s.id}">map ${saved.length-i}<i data-del style="font-style:normal;margin-left:6px;opacity:.5">×</i></span>`).join(' ');
+$('#chips').onclick=async e=>{const c=e.target.closest('.chip');if(!c)return;const s=saved.find(x=>x.id===c.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(s.id);saved=saved.filter(x=>x!==s)}else{reset();s.walls.forEach(i=>wall[i]=1);start=s.start;goal=s.goal;draw()}chips()};
+api.list().then(d=>{saved=d;chips()});reset();
+</script>

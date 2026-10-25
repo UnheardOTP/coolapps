@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><title>Orbits</title><script src="/shared/lib.js"></script>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#04040c;color:#aab8ff;font-family:system-ui}canvas{position:fixed;inset:0;cursor:crosshair}h1{position:fixed;left:24px;top:16px;margin:0;font-weight:200;letter-spacing:.4em;font-size:22px}
+#ui{position:fixed;left:24px;bottom:20px;display:flex;gap:8px;align-items:center}#ui button,#ui input{font:inherit;padding:8px 14px;border-radius:20px;border:1px solid #3a4a99;background:#0a0f30cc;color:#cfd8ff;cursor:pointer;outline:none}#ui input{cursor:text;width:150px}
+#hint{position:fixed;right:24px;top:20px;color:#6a78c8;font-size:13px;text-align:right;line-height:1.6}.chip{margin-left:4px}</style>
+<canvas id="c"></canvas><h1>ORBITS</h1><div id="hint">Click and drag to fling a planet.<br>The longer the drag, the faster it goes.</div>
+<div id="ui"><button id="cl">Clear</button><input id="nm" placeholder="Name this system"><button id="sv">Save</button><span id="chips"></span></div>
+<script>
+const cv=$('#c'),g=cv.getContext('2d');let W,H,bodies=[],drag=null,saved=[];const GM=9000;
+const fit=()=>{W=cv.width=innerWidth;H=cv.height=innerHeight};fit();addEventListener('resize',fit);
+const cx=()=>W/2,cy=()=>H/2;
+// Planets feel inverse-square gravity from the central star (velocity-Verlet-ish integration in small sub-steps).
+function stepAll(dt){for(const b of bodies){const dx=cx()-b.x,dy=cy()-b.y,d2=dx*dx+dy*dy,d=Math.sqrt(d2);if(d<14){b.dead=1;continue}const a=GM/d2;b.vx+=dx/d*a*dt;b.vy+=dy/d*a*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.trail.push([b.x,b.y]);if(b.trail.length>260)b.trail.shift()}bodies=bodies.filter(b=>!b.dead&&Math.abs(b.x)<W*3&&Math.abs(b.y)<H*3)}
+(function frame(){for(let i=0;i<4;i++)stepAll(.25);g.fillStyle='rgba(4,4,12,.25)';g.fillRect(0,0,W,H);
+  const gr=g.createRadialGradient(cx(),cy(),2,cx(),cy(),40);gr.addColorStop(0,'#fff');gr.addColorStop(.3,'#ffd27a');gr.addColorStop(1,'#ffd27a00');g.fillStyle=gr;g.beginPath();g.arc(cx(),cy(),40,0,7);g.fill();
+  for(const b of bodies){g.strokeStyle=`hsla(${b.h},80%,65%,.5)`;g.lineWidth=1.5;g.beginPath();b.trail.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.stroke();g.fillStyle=`hsl(${b.h},85%,65%)`;g.beginPath();g.arc(b.x,b.y,b.r,0,7);g.fill()}
+  if(drag){g.strokeStyle='#fff8';g.setLineDash([4,4]);g.beginPath();g.moveTo(drag.x,drag.y);g.lineTo(drag.mx,drag.my);g.stroke();g.setLineDash([]);g.fillStyle='#fff';g.beginPath();g.arc(drag.x,drag.y,4,0,7);g.fill()}
+  requestAnimationFrame(frame)})();
+cv.onpointerdown=e=>drag={x:e.clientX,y:e.clientY,mx:e.clientX,my:e.clientY};cv.onpointermove=e=>{if(drag){drag.mx=e.clientX;drag.my=e.clientY}};
+cv.onpointerup=()=>{if(!drag)return;bodies.push({x:drag.x,y:drag.y,vx:(drag.mx-drag.x)/25,vy:(drag.my-drag.y)/25,r:3+Math.random()*4,h:Math.random()*360,trail:[]});drag=null};
+$('#cl').onclick=()=>bodies=[];
+$('#sv').onclick=async()=>{if(!bodies.length)return;saved.unshift(await api.add({name:$('#nm').value||'System',bodies:bodies.map(b=>({x:b.x-cx(),y:b.y-cy(),vx:b.vx,vy:b.vy,r:b.r,h:b.h}))}));$('#nm').value='';chips()};
+const chips=()=>$('#chips').innerHTML=saved.map(s=>`<button class="chip" data-id="${s.id}">${esc(s.name)} <i data-del style="font-style:normal;opacity:.6">×</i></button>`).join('');
+$('#chips').onclick=async e=>{const c=e.target.closest('.chip');if(!c)return;const s=saved.find(x=>x.id===c.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(s.id);saved=saved.filter(x=>x!==s)}else bodies=s.bodies.map(b=>({...b,x:b.x+cx(),y:b.y+cy(),trail:[]}));chips()};
+api.list().then(d=>{saved=d;chips()});
+for(let i=0;i<3;i++){const r=120+i*70;bodies.push({x:cx()+r,y:cy(),vx:0,vy:Math.sqrt(GM/r),r:4,h:i*100+20,trail:[]})}
+</script>

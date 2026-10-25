@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>Regex Lab</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#ef4444;--w:1000px}mark{background:color-mix(in srgb,var(--a) 28%,transparent);color:inherit;border-radius:3px;outline:1px solid var(--a)}mark:nth-of-type(even){background:color-mix(in srgb,#3b82f6 30%,transparent);outline-color:#3b82f6}</style>
+<div class="wrap"><h1>Regex Lab</h1><p class="sub">Test a JavaScript regular expression live, with matches highlighted and capture groups listed.</p>
+<div class="card"><div class="row"><div class="col" style="flex:4"><label>Pattern</label><input id="p" class="mono" data-keep placeholder="(\w+)@(\w+)\.com"></div><div class="col" style="flex:1;min-width:90px"><label>Flags</label><input id="f" class="mono" value="g" data-keep></div></div><div class="err" id="er"></div>
+<label class="gap">Test text</label><textarea id="s" data-keep placeholder="Paste text to search…"></textarea><label class="gap">Highlighted</label><div class="out" id="hl"></div></div>
+<div class="g2"><div class="card"><h2 id="mc">Matches</h2><div id="ml" style="max-height:300px;overflow:auto"></div></div><div class="card"><h2>Replace</h2><input id="r" class="mono" placeholder="replacement, e.g. $1 at $2" data-keep><div class="out gap" id="ro"></div></div></div>
+<div class="card"><h2>Saved patterns</h2><div id="sv"></div></div></div>
+<script>
+function run(){$('#er').textContent='';let re;try{re=new RegExp($('#p').value,$('#f').value)}catch(e){$('#hl').textContent=$('#s').value;$('#ml').innerHTML='';$('#mc').textContent='Matches';$('#ro').textContent='';return $('#er').textContent=e.message}
+  const s=$('#s').value;if(!$('#p').value){$('#hl').textContent=s;$('#ml').innerHTML='';$('#mc').textContent='Matches';$('#ro').textContent='';return}
+  const g=re.global||re.sticky,ms=[];if(g){let m,n=0;const r2=new RegExp(re.source,re.flags);while((m=r2.exec(s))&&n++<2000){ms.push(m);if(m[0]==='')r2.lastIndex++}}else{const m=re.exec(s);if(m)ms.push(m)}
+  let h='',last=0;ms.forEach(m=>{h+=esc(s.slice(last,m.index))+'<mark>'+esc(m[0])+'</mark>';last=m.index+m[0].length});$('#hl').innerHTML=h+esc(s.slice(last));
+  $('#mc').textContent=`Matches (${ms.length})`;$('#ml').innerHTML=ms.slice(0,200).map((m,i)=>`<div class="gap"><b>#${i+1}</b> <span class="mono">${esc(m[0])}</span> <span class="mut">at ${m.index}</span>${m.slice(1).map((x,k)=>`<div class="mut mono" style="margin-left:14px">$${k+1} = ${x===undefined?'<i>undefined</i>':esc(x)}</div>`).join('')}${m.groups?`<div class="mut mono" style="margin-left:14px">${esc(JSON.stringify(m.groups))}</div>`:''}</div>`).join('')||'<span class="mut">No matches</span>';
+  try{$('#ro').textContent=$('#r').value?s.replace(re,$('#r').value):''}catch{}}
+['#p','#f','#s','#r'].forEach(i=>$(i).oninput=run);
+savedBar($('#sv'),{get:()=>({p:$('#p').value,f:$('#f').value,s:$('#s').value}),set:d=>{$('#p').value=d.p;$('#f').value=d.f;$('#s').value=d.s;run()}});remember().then(run);
+</script>

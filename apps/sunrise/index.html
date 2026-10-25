@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>Sunrise &amp; Sunset</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#f59e0b;--w:860px}svg{width:100%;height:170px;background:linear-gradient(#1e3a8a,#f59e0b33);border-radius:12px}</style>
+<div class="wrap"><h1>Sunrise &amp; Sunset</h1><p class="sub">Daylight times for any place and date, computed locally with the NOAA solar equations.</p>
+<div class="card"><div class="row"><div class="col"><label>Latitude</label><input id="la" type="number" step="any" value="40.7128" data-keep></div><div class="col"><label>Longitude</label><input id="lo" type="number" step="any" value="-74.006" data-keep></div><div class="col"><label>Date</label><input id="d" type="date"></div><div class="col"><label>Show times in</label><select id="tz" data-keep><option value="local">my time zone</option><option value="loc">place's zone (≈ lon/15)</option><option value="utc">UTC</option></select></div></div>
+<div class="row gap"><button class="s" id="geo">📍 Use my location</button><div class="chips" id="pre" style="margin:0"></div></div><div class="err" id="er"></div></div>
+<div class="g4" id="kp"></div><div class="card gap"><h2>Sun position through the day</h2><svg id="sv" viewBox="0 0 800 170" preserveAspectRatio="none"></svg></div></div>
+<script>
+const CITIES=[['New York',40.7128,-74.006],['London',51.5074,-.1278],['Tokyo',35.6762,139.6503],['Sydney',-33.8688,151.2093],['Reykjavik',64.1466,-21.9426],['Cape Town',-33.9249,18.4241]];
+$('#d').value=dkey(new Date());$('#pre').innerHTML=CITIES.map(([n,a,o])=>`<span class="chip" data-a="${a}" data-o="${o}">${n}</span>`).join('');
+// NOAA general solar position: equation of time + declination from the fractional year, then the sunrise hour angle for a −0.833° horizon.
+function sun(y,m,d,lat,lon){const n=Math.round((Date.UTC(y,m,d)-Date.UTC(y,0,0))/864e5),g=2*Math.PI/365*(n-1),R=Math.PI/180,
+  eq=229.18*(.000075+.001868*Math.cos(g)-.032077*Math.sin(g)-.014615*Math.cos(2*g)-.040849*Math.sin(2*g)),
+  dec=.006918-.399912*Math.cos(g)+.070257*Math.sin(g)-.006758*Math.cos(2*g)+.000907*Math.sin(2*g)-.002697*Math.cos(3*g)+.00148*Math.sin(3*g),
+  c=Math.cos(90.833*R)/(Math.cos(lat*R)*Math.cos(dec))-Math.tan(lat*R)*Math.tan(dec),noon=720-4*lon-eq;if(c>1)return{noon,polar:'night'};if(c<-1)return{noon,polar:'day'};
+  const ha=Math.acos(c)/R;return{rise:720-4*(lon+ha)-eq,set:720-4*(lon-ha)-eq,noon,len:8*ha}}
+const mm=m=>{m=((m%1440)+1440)%1440;return`${pad2(Math.floor(m/60))}:${pad2(Math.floor(m%60))}`};
+function run(){$('#er').textContent='';const lat=num('la'),lon=num('lo');if(Math.abs(lat)>90||Math.abs(lon)>180)return $('#er').textContent='Latitude must be −90…90 and longitude −180…180.';const[y,m,d]=$('#d').value.split('-').map(Number),r=sun(y,m-1,d,lat,lon);
+  const off=$('#tz').value==='utc'?0:$('#tz').value==='loc'?Math.round(lon/15)*60:-new Date(y,m-1,d).getTimezoneOffset(),t=x=>mm(x+off);
+  if(r.polar){$('#kp').innerHTML=`<div class="kpi" style="grid-column:1/-1"><b>${r.polar==='day'?'Midnight sun — the sun does not set':'Polar night — the sun does not rise'} at this latitude today.</b></div>`;$('#sv').innerHTML='';return}
+  $('#kp').innerHTML=[['Sunrise',t(r.rise)],['Solar noon',t(r.noon)],['Sunset',t(r.set)],['Daylight',`${Math.floor(r.len/60)}h ${Math.round(r.len%60)}m`]].map(([k,v],i)=>`<div class="kpi"><small>${k}</small><b ${i===0||i===2?'style="color:var(--a)"':''}>${v}</b></div>`).join('');
+  const X=min=>((min+off)%1440+1440)%1440/1440*800,pts=Array.from({length:97},(_,i)=>{const mn=i*15-off,alt=Math.max(-1,Math.min(1,-Math.cos((mn-r.noon)/1440*2*Math.PI)*0+Math.cos((mn-r.noon)/1440*2*Math.PI)));return`${i/96*800},${150-(alt)*(70)}`}).join(' ');
+  $('#sv').innerHTML=`<rect x="${X(r.rise)}" y="0" width="${Math.max(0,X(r.set)-X(r.rise))}" height="170" fill="#fde68a22"/><line x1="0" x2="800" y1="150" y2="150" stroke="#fff6"/><polyline fill="none" stroke="#fde047" stroke-width="3" points="${pts}"/><circle cx="${X(r.noon)}" cy="${80}" r="8" fill="#fde047"/><text x="${X(r.rise)}" y="165" fill="#fff" font-size="13" text-anchor="middle">↑ ${t(r.rise)}</text><text x="${X(r.set)}" y="165" fill="#fff" font-size="13" text-anchor="middle">↓ ${t(r.set)}</text>`}
+$('#geo').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{$('#la').value=+p.coords.latitude.toFixed(4);$('#lo').value=+p.coords.longitude.toFixed(4);run();$('#la').dispatchEvent(new Event('input',{bubbles:true}))},()=>$('#er').textContent='Location permission was denied.'):$('#er').textContent='Geolocation is not available.';
+$('#pre').onclick=e=>{const c=e.target.closest('.chip');if(c){$('#la').value=c.dataset.a;$('#lo').value=c.dataset.o;run();$('#la').dispatchEvent(new Event('input',{bubbles:true}))}};document.addEventListener('input',run);document.addEventListener('change',run);remember().then(run);
+</script>

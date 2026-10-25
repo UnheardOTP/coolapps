@@ -1,0 +1,1498 @@
+[
+[
+"loancalc",
+"schedule(25000,6.5,5,0).base",
+489.15
+],
+[
+"loancalc",
+"schedule(100000,0,10,0).base",
+833.33
+],
+[
+"subnet",
+"toStr(info(toInt('192.168.10.37'),24).net)",
+"192.168.10.0"
+],
+[
+"subnet",
+"toStr(info(toInt('192.168.10.37'),24).bc)",
+"192.168.10.255"
+],
+[
+"subnet",
+"info(toInt('10.0.0.1'),30).hosts",
+2
+],
+[
+"subnet",
+"toStr(mask(20))",
+"255.255.240.0"
+],
+[
+"chmodcalc",
+"(setOct('755'),modeFromBoxes()).toString(8)",
+"755"
+],
+[
+"chmodcalc",
+"(setOct('4755'),show(modeFromBoxes()),document.getElementById('sym').textContent)",
+"rwsr-xr-x"
+],
+[
+"bytes",
+"1.5*1000**3/1024**3",
+1.397,
+0.01
+],
+[
+"cronhelper",
+"[...expand('*/15',[0,59])].join(',')",
+"0,15,30,45"
+],
+[
+"cronhelper",
+"[...expand('mon-fri',[0,6])].join(',')",
+"1,2,3,4,5"
+],
+[
+"cronhelper",
+"english(parse('0 9 * * 1-5'))",
+"At 09:00, on Monday, Tuesday, Wednesday, Thursday, Friday"
+],
+[
+"colorconv",
+"ratio([0,0,0],[255,255,255])",
+21,
+0.01
+],
+[
+"colorconv",
+"toHex(parse('hsl(0,100%,50%)'))",
+"#ff0000"
+],
+[
+"uuidgen",
+"/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v4())",
+true
+],
+[
+"uuidgen",
+"/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v7())",
+true
+],
+[
+"csvjson",
+"parseCSV('a,b\\n\"x,1\",\"he said \"\"hi\"\"\"\\n',',')",
+[
+[
+"a",
+"b"
+],
+[
+"x,1",
+"he said \"hi\""
+]
+]
+],
+[
+"base64",
+"enc('héllo ✓',false)",
+"aMOpbGxvIOKckw=="
+],
+[
+"base64",
+"dec('aMOpbGxvIOKckw==')",
+"héllo ✓"
+],
+[
+"diffview",
+"diff(['a','b','c'],['a','c','d'],x=>x).map(r=>r[0]).join('')",
+"=-=+"
+],
+[
+"jwtview",
+"b64('eyJhbGciOiJIUzI1NiJ9')",
+"{\"alg\":\"HS256\"}"
+],
+[
+"bmi",
+"(()=>{document.getElementById('h').value=180;document.getElementById('w').value=81;const m=metric();return m.w/m.h/m.h})()",
+25,
+0.01
+],
+[
+"calories",
+"(()=>{const ids={ag:'30',h:'180',w:'80'};for(const k in ids)document.getElementById(k).value=ids[k];document.getElementById('sx').value='m';run();return document.getElementById('kp').textContent})()",
+"Basal metabolic rate1780 kcalMaintenance (TDEE)2448 kcalDaily target2448 kcal"
+],
+[
+"runpace",
+"parseT('52:30')",
+3150
+],
+[
+"runpace",
+"fmtT(3150/10)",
+"5:15"
+],
+[
+"runpace",
+"parseT('1:02:03')",
+3723
+],
+[
+"datecalc",
+"ymd(new Date(2020,0,31),new Date(2020,2,1))",
+[
+0,
+1,
+1
+]
+],
+[
+"datecalc",
+"ymd(new Date(2000,5,15),new Date(2024,5,14))",
+[
+23,
+11,
+30
+]
+],
+[
+"sleepcalc",
+"(()=>{document.getElementById('fa').value=15;return typeof run})()",
+"function"
+],
+[
+"cookconv",
+"(()=>{document.getElementById('a').value=2;document.getElementById('u').value='cup';document.getElementById('ing').value='flour';run();return document.querySelector('#r1 .kpi:nth-child(3) b').textContent})()",
+"250"
+],
+[
+"timers",
+"fmtT(125)",
+"02:05"
+],
+[
+"stopwatch",
+"f(65432)",
+"01:05.43"
+],
+[
+"hrzones",
+"(()=>{document.getElementById('ag').value=40;document.getElementById('fm').value='classic';document.getElementById('rs').value='';run();return document.getElementById('mx').value})()",
+"180"
+],
+[
+"mpg",
+"rows.length",
+0
+],
+[
+"caseconv",
+"S.find(x=>x[0]==='camelCase')[1]('hello World-foo_bar')",
+"helloWorldFooBar"
+],
+[
+"caseconv",
+"S.find(x=>x[0]==='snake_case')[1]('HelloWorld fooBar')",
+"hello_world_foo_bar"
+],
+[
+"caseconv",
+"S.find(x=>x[0]==='kebab-case')[1]('XMLHttpRequest')",
+"xml-http-request"
+],
+[
+"caseconv",
+"S.find(x=>x[0]==='Title Case')[1]('the quick brown fox of the woods')",
+"The Quick Brown Fox of the Woods"
+],
+[
+"caseconv",
+"S.find(x=>x[0]==='Sentence case')[1]('hello there. how ARE you? fine')",
+"Hello there. How are you? Fine"
+],
+[
+"fancytext",
+"ST.find(x=>x[0]==='Bold')[1]('Hi 7')",
+"𝐇𝐢 𝟕"
+],
+[
+"fancytext",
+"ST.find(x=>x[0]==='Italic')[1]('h')",
+"ℎ"
+],
+[
+"fancytext",
+"ST.find(x=>x[0]==='Circled')[1]('aZ')",
+"ⓐⓏ"
+],
+[
+"fancytext",
+"ST.find(x=>x[0]==='Upside down')[1]('hello')",
+"ollǝɥ"
+],
+[
+"linetools",
+"OPS['Remove duplicates'](['a','b','a','c','b'])",
+[
+"a",
+"b",
+"c"
+]
+],
+[
+"linetools",
+"OPS['Sort numerically'](['10','9','100','1'])",
+[
+"1",
+"9",
+"10",
+"100"
+]
+],
+[
+"linetools",
+"OPS['Count occurrences'](['x','y','x'])",
+[
+"2\tx",
+"1\ty"
+]
+],
+[
+"readability",
+"[syl('the'),syl('banana'),syl('quickly'),syl('make'),syl('beautiful'),syl('jumped'),syl('wanted'),syl('table'),syl('reading')]",
+[
+1,
+3,
+2,
+1,
+3,
+1,
+2,
+2,
+2
+]
+],
+[
+"jsonfmt",
+"compile('2+3*4')({})",
+14
+],
+[
+"jsonfmt",
+"compile('(2+3)*4')({})",
+20
+],
+[
+"jsonfmt",
+"compile('2^3^2')({})",
+512
+],
+[
+"jsonfmt",
+"compile('-2^2')({})",
+-4
+],
+[
+"jsonfmt",
+"compile('2pi')({})",
+6.2832,
+0.001
+],
+[
+"jsonfmt",
+"compile('sin(30)',{deg:true})({})",
+0.5,
+0.0001
+],
+[
+"jsonfmt",
+"compile('5!')({})",
+120
+],
+[
+"jsonfmt",
+"compile('x^2+1')({x:3})",
+10
+],
+[
+"jsonfmt",
+"compile('sqrt(16)+log(1000)+ln(e)')({})",
+8
+],
+[
+"jsonfmt",
+"compile('10%3')({})",
+1
+],
+[
+"jsonfmt",
+"compile('3(4+1)')({})",
+15
+],
+[
+"jsonfmt",
+"compile('max(1,5,3)-min(2,8)')({})",
+3
+],
+[
+"jsonfmt",
+"(()=>{try{compile('2+')({});return 'no'}catch(e){return e.message}})()",
+"Unexpected end"
+],
+[
+"jsonfmt",
+"(()=>{try{compile('2 $ 3')({});return 'no'}catch(e){return e.message}})()",
+"Unexpected character"
+],
+[
+"jsonfmt",
+"(()=>{try{compile('foo(2)')({});return 'no'}catch(e){return e.message}})()",
+"Unknown function foo"
+],
+[
+"unitconv",
+"conv(1,'mile','km','Length')",
+1.609344,
+1e-06
+],
+[
+"unitconv",
+"conv(100,'°C','°F','Temperature')",
+212
+],
+[
+"unitconv",
+"conv(0,'K','°C','Temperature')",
+-273.15
+],
+[
+"unitconv",
+"conv(1,'GiB','MB','Data')",
+1073.741824,
+1e-06
+],
+[
+"unitconv",
+"conv(60,'mph','km/h','Speed')",
+96.5606,
+0.001
+],
+[
+"baseconv",
+"parse('ff',16).toString()",
+"255"
+],
+[
+"baseconv",
+"parse('-1010',2).toString()",
+"-10"
+],
+[
+"baseconv",
+"parse('0x1F',16).toString()",
+"31"
+],
+[
+"baseconv",
+"toBase(parse('12345678901234567890',10),16)",
+"ab54a98ceb1f0ad2"
+],
+[
+"baseconv",
+"(()=>{try{parse('12',2);return 'no'}catch(e){return e.message}})()",
+"\"2\" is not a valid base-2 digit"
+],
+[
+"primes",
+"[isPrime(97),isPrime(91),isPrime(2),isPrime(1)]",
+[
+true,
+false,
+true,
+false
+]
+],
+[
+"primes",
+"factor(360360)",
+[
+2,
+2,
+2,
+3,
+3,
+5,
+7,
+11,
+13
+]
+],
+[
+"primes",
+"factor(600851475143)",
+[
+71,
+839,
+1471,
+6857
+]
+],
+[
+"primes",
+"[nextP(100),prevP(100)]",
+[
+101,
+97
+]
+],
+[
+"primes",
+"gcd(84,126)",
+42
+],
+[
+"statscalc",
+"q([1,2,3,4,5,6,7,8],0.5)",
+4.5
+],
+[
+"statscalc",
+"q([1,2,3,4,5,6,7,8],0.25)",
+2.75
+],
+[
+"fractions",
+"simp(6,-8)",
+[
+-3,
+4
+]
+],
+[
+"fractions",
+"mixed(7,3)",
+"2 1/3"
+],
+[
+"fractions",
+"mixed(-7,3)",
+"-2 1/3"
+],
+[
+"ratio",
+"gcd(1920,1080)",
+120
+],
+[
+"scicalc",
+"compile('2^10-24')({})",
+1000
+],
+[
+"scicalc",
+"compile('ans*2')({ans:21})",
+42
+],
+[
+"matrixcalc",
+"det([[2,1,0],[1,3,1],[0,1,4]])",
+18,
+1e-09
+],
+[
+"matrixcalc",
+"det([[1,2],[2,4]])",
+0
+],
+[
+"matrixcalc",
+"inv([[4,7],[2,6]]).flat().map(x=>+x.toFixed(4))",
+[
+0.6,
+-0.7,
+-0.2,
+0.4
+]
+],
+[
+"matrixcalc",
+"OPS['A × B']([[1,2],[3,4]],[[5,6],[7,8]])",
+[
+[
+19,
+22
+],
+[
+43,
+50
+]
+]
+],
+[
+"matrixcalc",
+"OPS['Aᵀ']([[1,2,3],[4,5,6]])",
+[
+[
+1,
+4
+],
+[
+2,
+5
+],
+[
+3,
+6
+]
+]
+],
+[
+"matrixcalc",
+"(()=>{try{OPS['A × B']([[1,2]],[[1,2]]);return 'no'}catch(e){return e.message}})()",
+"Columns of A (2) must equal rows of B (1)"
+],
+[
+"geometry",
+"S.Circle.o(2).map(x=>+x[1].toFixed(4))",
+[
+12.5664,
+12.5664,
+4
+]
+],
+[
+"geometry",
+"S.Triangle.o(3,4,5)[0][1]",
+6
+],
+[
+"geometry",
+"+S.Sphere.o(1)[0][1].toFixed(4)",
+4.1888
+],
+[
+"geometry",
+"S.Cone.o(3,4)[2][1]",
+5
+],
+[
+"passgen",
+"(()=>{document.getElementById('len').value=24;document.getElementById('lo').checked=true;return gen().pw.length})()",
+24
+],
+[
+"passgen",
+"(()=>{['up','di','sy'].forEach(i=>document.getElementById(i).checked=false);document.getElementById('lo').checked=true;return /^[a-z]+$/.test(gen().pw)})()",
+true
+],
+[
+"passgen",
+"(()=>{mode='pp';document.getElementById('wc').value=4;return gen().pw.split('-').length>=4})()",
+true
+],
+[
+"picker",
+"shuffle([1,2,3,4,5]).sort().join()",
+"1,2,3,4,5"
+],
+[
+"sunrise",
+"(()=>{const r=sun(2024,5,21,40.7128,-74.006);return [Math.round(r.len),Math.round(r.rise)]})()",
+[
+906,
+565
+],
+4
+],
+[
+"sunrise",
+"sun(2024,5,21,40.7128,-74.006).len/60",
+15.1,
+0.1
+],
+[
+"sunrise",
+"sun(2024,5,21,78.2,15.6).polar",
+"day"
+],
+[
+"sunrise",
+"sun(2024,11,21,78.2,15.6).polar",
+"night"
+],
+[
+"weeknum",
+"iso(new Date(2021,0,3))",
+{
+"y": 2020,
+"w": 53
+}
+],
+[
+"weeknum",
+"iso(new Date(2024,11,30))",
+{
+"y": 2025,
+"w": 1
+}
+],
+[
+"weeknum",
+"iso(new Date(2026,9,25))",
+{
+"y": 2026,
+"w": 43
+}
+],
+[
+"weeknum",
+"[leap(2024),leap(1900),leap(2000),leap(2023)]",
+[
+true,
+false,
+true,
+false
+]
+],
+[
+"weeknum",
+"doy(new Date(2024,2,1))",
+61
+],
+[
+"duration",
+"[parse('1h 30m'),parse('1:45:30'),parse('90'),parse('45s'),parse('2h15m10s')]",
+[
+5400,
+6330,
+5400,
+45,
+8110
+]
+],
+[
+"duration",
+"isNaN(parse('abc'))",
+true
+],
+[
+"duration",
+"clock(5430)",
+"1:30:30"
+],
+[
+"duration",
+"clock(-90)",
+"−0:01:30"
+],
+[
+"gradebook",
+"[letter(95),letter(91),letter(85),letter(72),letter(55)]",
+[
+"A",
+"A−",
+"B",
+"C−",
+"F"
+]
+],
+[
+"gradebook",
+"avg({s:[80,90,100]})",
+90
+],
+[
+"shoppinglist",
+"[guess('2 lbs chicken breast'),guess('toothpaste'),guess('whole milk'),guess('widgets')]",
+[
+"Meat & fish",
+"Household",
+"Dairy & eggs",
+"Other"
+]
+],
+[
+"decisionmatrix",
+"tot({s:[10,0,5]})",
+5.4167,
+0.001
+],
+[
+"jsonquery",
+"query(SAMPLE,'$.store.book[*].title')",
+[
+"Sayings",
+"Sword of Honour",
+"Moby Dick"
+]
+],
+[
+"jsonquery",
+"query(SAMPLE,'$..price')",
+[
+8.95,
+12.99,
+8.99,
+19.95
+]
+],
+[
+"jsonquery",
+"query(SAMPLE,'$.store.book[?(@.price<10)].title')",
+[
+"Sayings",
+"Moby Dick"
+]
+],
+[
+"jsonquery",
+"query(SAMPLE,'$.store.book[-1].title')",
+[
+"Moby Dick"
+]
+],
+[
+"jsonquery",
+"query(SAMPLE,\"$.store.book[?(@.category=='fiction')].title\")",
+[
+"Sword of Honour",
+"Moby Dick"
+]
+],
+[
+"jsonquery",
+"(()=>{try{query(SAMPLE,'store.x');return 'no'}catch(e){return e.message}})()",
+"Query must start with $"
+],
+[
+"minify",
+"M.CSS('a { color : red ; }\\n b{margin:0px}')",
+"a{color:red}b{margin:0}"
+],
+[
+"minify",
+"M.JSON('{ \"a\" : [1, 2] }')",
+"{\"a\":[1,2]}"
+],
+[
+"minify",
+"M.JavaScript('var a = 1; // note\\nvar b = \"x  y\";')",
+"var a=1;var b=\"x  y\";"
+],
+[
+"minify",
+"M.HTML('<div>\\n  <p>hi</p>\\n  <!-- c -->\\n</div>')",
+"<div><p>hi</p></div>"
+],
+[
+"cssunits",
+"toPx(1.5,'rem')",
+24
+],
+[
+"cssunits",
+"+fromPx(24,'pt').toFixed(2)",
+18
+],
+[
+"cssunits",
+"toPx(50,'vw')",
+720
+],
+[
+"hexdump",
+"(()=>{document.getElementById('in').value='Hi';mode='t';load();return Array.from(bytes)})()",
+[
+72,
+105
+]
+],
+[
+"hexdump",
+"(()=>{document.getElementById('in').value='48 65 6c 6c 6f';mode='h';load();return new TextDecoder().decode(bytes)})()",
+"Hello"
+],
+[
+"mdtable",
+"md().split('\\n')[0]",
+"| Name  | Role       | Score |"
+],
+[
+"mdtable",
+"md().split('\\n')[1]",
+"| :---- | :--------- | ----: |"
+],
+[
+"fakedata",
+"/^ada\\.lovelace@/.test(COLS.email({first_name:'Ada',last_name:'Love-lace'}))",
+true
+],
+[
+"fakedata",
+"/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(COLS.uuid())",
+true
+],
+[
+"htmlplay",
+"(()=>{document.getElementById('h').value='<p id=x>hi</p>';document.getElementById('c').value='';document.getElementById('j').value='x.textContent=\"ok\"; console.log(1+1)';return doc().includes('try{(0,eval)(')})()",
+true
+],
+[
+"htmlplay",
+"(()=>{document.getElementById('j').value='a b c 1';return doc().includes('</script></body>')&&doc().split('</script>').length===3})()",
+true
+],
+[
+"typescale",
+"(()=>{document.getElementById('b').value=16;document.getElementById('r').value='1.25';run();return document.getElementById('css').textContent.includes('--text-lg: 1.563rem')})()",
+true
+],
+[
+"colorscheme",
+"[norm('#ABC'),norm('3b82f6'),norm('zzz')]",
+[
+"#aabbcc",
+"#3b82f6",
+null
+]
+],
+[
+"colorscheme",
+"hex(0,100,50)",
+"#ff0000"
+],
+[
+"colorscheme",
+"hex(...toHsl('#3b82f6')).toLowerCase()",
+"#3b82f6"
+],
+[
+"colorscheme",
+"hex(toHsl('#ff0000')[0]+180,100,50)",
+"#00ffff"
+],
+[
+"barcode",
+"Object.values(C39).every(p=>p.length===9&&(p.match(/w/g)||[]).length===(p==='nwnwnwnnn'||p==='nwnwnnnwn'||p==='nwnnnwnwn'||p==='nnnwnwnwn'?1:2)||(p.match(/w/g)||[]).length===3)",
+true
+],
+[
+"barcode",
+"Object.keys(C39).length",
+44
+],
+[
+"barcode",
+"svg('AB',2,60,true,false).includes('<rect')",
+true
+],
+[
+"barcode",
+"(()=>{try{svg('a_b',2,60,false,false);return 'no'}catch(e){return e.message}})()",
+"\"_\" can't be encoded in Code 39"
+],
+[
+"jsontotypes",
+"(()=>{lang='TypeScript';document.getElementById('rn').value='Root';return gen(infer({id:1,tags:['a'],user:{n:'x',age:3.5}}),'TypeScript')})()",
+"interface Root {\n  id: number;\n  tags: string[];\n  user: User;\n}\n\ninterface User {\n  n: string;\n  age: number;\n}"
+],
+[
+"jsontotypes",
+"gen(infer({xs:[{a:1,b:2},{a:3}]}),'TypeScript').includes('b?: number')",
+true
+],
+[
+"jsontotypes",
+"gen(infer({name:'x',n:1}),'Go').includes('Name string `json:\"name\"`')",
+true
+],
+[
+"projectile",
+"(()=>{const r=solve(20,45,0,9.80665);return [+r.T.toFixed(3),+r.range.toFixed(2),+r.peak.toFixed(2)]})()",
+[
+2.884,
+40.79,
+10.2
+]
+],
+[
+"projectile",
+"+solve(10,90,0,10).peak.toFixed(2)",
+5
+],
+[
+"datelist",
+"(()=>{document.getElementById('s').value='2026-01-31';document.getElementById('n').value=1;document.getElementById('u').value='months';document.getElementById('c').value=3;for(let i=0;i<7;i++)document.getElementById('d'+i).checked=true;document.getElementById('f').value='iso';document.getElementById('sep').value='comma';gen();return document.getElementById('out').textContent})()",
+"2026-01-31, 2026-02-28, 2026-03-31"
+],
+[
+"cssunits",
+"+fromPx(24,'rem').toFixed(2)",
+1.5
+],
+[
+"jsontotypes",
+"(()=>{document.getElementById('rn').value='Root';const o=gen(infer({user:{n:'x'},id:1}),'Python');return o.indexOf('class User')<o.indexOf('class Root')})()",
+true
+],
+[
+"datelist",
+"(()=>{document.getElementById('sep').value='nl';document.getElementById('c').value=2;gen();return document.getElementById('out').textContent.split('\\n').length})()",
+2
+],
+[
+"debtpayoff",
+"(()=>{D=[{n:'A',b:1000,r:12,m:100}];const r=sim(AVAL,0);return [r.mo,r.int>55&&r.int<70]})()",
+[
+11,
+true
+]
+],
+[
+"debtpayoff",
+"(()=>{D=[{n:'Big',b:5000,r:5,m:50},{n:'Card',b:1000,r:25,m:30}];const a=sim(AVAL,100),s=sim(SNOW,100);return [a.paid[0].n,s.paid[0].n,a.int<=s.int]})()",
+[
+"Card",
+"Card",
+true
+]
+],
+[
+"debtpayoff",
+"(()=>{D=[{n:'Stuck',b:10000,r:30,m:10}];return sim(AVAL,0).ok})()",
+false
+],
+[
+"subs",
+"[mo({c:120,p:12}),mo({c:30,p:3}),+mo({c:7,p:.230769}).toFixed(2)]",
+[
+10,
+10,
+30.33
+]
+],
+[
+"subs",
+"next({d:'2020-01-15',p:1}).getDate()",
+15
+],
+[
+"birthdays",
+"nextB({d:'2000-02-29'})>=new Date(new Date().setHours(0,0,0,0))",
+true
+],
+[
+"birthdays",
+"(()=>{const t=new Date();const d=dkey(new Date(1990,t.getMonth(),t.getDate()));return nextB({d}).toDateString()===new Date(t.getFullYear(),t.getMonth(),t.getDate()).toDateString()})()",
+true
+],
+[
+"wishlist",
+"safe('javascript:alert(1)')===''&&safe('https://x.com')==='https://x.com'",
+true
+],
+[
+"margin",
+"(()=>{document.getElementById('c').value=40;document.getElementById('p').value=50;const r=solve(['c','p']);return [r.m,r.u]})()",
+[
+20,
+25
+]
+],
+[
+"margin",
+"(()=>{document.getElementById('c').value=60;document.getElementById('m').value=40;const r=solve(['c','m']);return [Math.round(r.p),Math.round(r.u)]})()",
+[
+100,
+67
+]
+],
+[
+"margin",
+"(()=>{document.getElementById('p').value=125;document.getElementById('u').value=25;const r=solve(['p','u']);return [Math.round(r.c),Math.round(r.m)]})()",
+[
+100,
+20
+]
+],
+[
+"vat",
+"(()=>{mode='add';const s=split(100,.2);return [s.net,Math.round(s.tax),Math.round(s.gross)]})()",
+[
+100,
+20,
+120
+]
+],
+[
+"vat",
+"(()=>{mode='rem';const s=split(120,.2);return [Math.round(s.net),Math.round(s.tax)]})()",
+[
+100,
+20
+]
+],
+[
+"roi",
+"(()=>{for(const [k,v] of Object.entries({i:10000,f:16500,y:4.5,c:0}))document.getElementById(k).value=v;run();return document.getElementById('kp').textContent.includes('11.77%')&&document.getElementById('kp').textContent.includes('65.00%')})()",
+true
+],
+[
+"hourdec",
+"[mins('7:45'),mins('1h 20m'),mins('2.5'),mins('0:30')]",
+[
+465,
+80,
+150,
+30
+]
+],
+[
+"ohm",
+"(()=>{document.getElementById('V').value=12;document.getElementById('R').value=470;document.getElementById('I').value='';document.getElementById('P').value='';known=['V','R'];const r=solve(known);return [+r.I.toFixed(5),+r.P.toFixed(4)]})()",
+[
+0.02553,
+0.3064
+]
+],
+[
+"ohm",
+"(()=>{document.getElementById('I').value=2;document.getElementById('P').value=100;const r=solve(['I','P']);return [r.V,r.R]})()",
+[
+50,
+25
+]
+],
+[
+"ohm",
+"[eng(4700,'Ω'),eng(0.012,'A'),eng(2.2e6,'Ω')]",
+[
+"4.7 kΩ",
+"12 mA",
+"2.2 MΩ"
+]
+],
+[
+"resistor",
+"(()=>{nb=4;const r=calc([1,0,2,10]);return [r.v,r.tol]})()",
+[
+1000,
+5
+]
+],
+[
+"resistor",
+"(()=>{nb=5;const r=calc([4,7,0,1,1]);return [r.v,r.tol]})()",
+[
+4700,
+1
+]
+],
+[
+"resistor",
+"[parse('4.7k'),parse('2k2'),parse('330'),parse('1M')]",
+[
+4700,
+2200,
+330,
+1000000
+]
+],
+[
+"resistor",
+"(()=>{document.getElementById('rv').value='4.7k';reverse();const t=document.getElementById('bands').textContent;return t.includes('yellow')&&t.includes('violet')&&t.includes('red')})()",
+true
+],
+[
+"concrete",
+"(()=>{document.getElementById('un').value='ft';return vol({t:'slab',l:12,w:10,d:4,q:1})})()",
+40
+],
+[
+"concrete",
+"(()=>{document.getElementById('un').value='ft';return +vol({t:'col',dm:12,h:36,q:1}).toFixed(3)})()",
+2.356
+],
+[
+"electric",
+"kwh({w:1000,h:2,q:3})",
+6
+],
+[
+"duedate",
+"(()=>{document.getElementById('l').value='2026-01-01';document.getElementById('c').value=28;run();return document.getElementById('r').textContent.includes('October 8')})()",
+true
+],
+[
+"duedate",
+"(()=>{document.getElementById('l').value='2026-01-01';document.getElementById('c').value=32;run();return document.getElementById('r').textContent.includes('October 12')})()",
+true
+],
+[
+"bodyfat",
+"+bf('m',178/2.54,38/2.54,86/2.54).toFixed(1)",
+17.3,
+0.3
+],
+[
+"bodyfat",
+"+bf('f',165/2.54,32/2.54,72/2.54,98/2.54).toFixed(1)",
+27.7,
+0.2
+],
+[
+"onerm",
+"[+F.Epley(100,5).toFixed(2),+F.Brzycki(100,5).toFixed(1),est(100,1)]",
+[
+116.67,
+112.5,
+100
+]
+],
+[
+"onerm",
+"est(100,5)>112&&est(100,5)<118",
+true
+],
+[
+"plates",
+"load(142.5,20,[25,20,15,10,5,2.5,1.25])",
+{
+"out": [
+25,
+25,
+10,
+1.25
+],
+"left": 0
+}
+],
+[
+"plates",
+"load(100,20,[20,10,5]).out",
+[
+20,
+20
+]
+],
+[
+"plates",
+"load(21,20,[5,2.5]).left",
+1
+],
+[
+"plates",
+"load(10,20,[5]).err",
+"Target is lighter than the bar."
+],
+[
+"roman",
+"[toRoman(2026),toRoman(3999),toRoman(4),toRoman(1994)]",
+[
+"MMXXVI",
+"MMMCMXCIX",
+"IV",
+"MCMXCIV"
+]
+],
+[
+"roman",
+"[fromRoman('MCMXCIV'),fromRoman('XLII'),Number.isNaN(fromRoman('IIII')),Number.isNaN(fromRoman('VX')),Number.isNaN(fromRoman('ABC'))]",
+[
+1994,
+42,
+true,
+true,
+true
+]
+],
+[
+"numwords",
+"words('1234567')",
+"one million two hundred thirty-four thousand five hundred sixty-seven"
+],
+[
+"numwords",
+"[words('0'),words('100'),words('1000000'),words('21')]",
+[
+"zero",
+"one hundred",
+"one million",
+"twenty-one"
+]
+],
+[
+"numwords",
+"[ordinal('twenty-one'),ordinal('twelve'),ordinal('five'),ordinal('thirty'),ordinal('one hundred')]",
+[
+"twenty-first",
+"twelfth",
+"fifth",
+"thirtieth",
+"one hundredth"
+]
+],
+[
+"ciphers",
+"CI.Caesar.enc('Hello, World!',3)",
+"Khoor, Zruog!"
+],
+[
+"ciphers",
+"CI.Caesar.dec('Khoor, Zruog!',3)",
+"Hello, World!"
+],
+[
+"ciphers",
+"CI.ROT13.enc(CI.ROT13.enc('Secret Message'))",
+"Secret Message"
+],
+[
+"ciphers",
+"CI.Atbash.enc('abc XYZ')",
+"zyx CBA"
+],
+[
+"ciphers",
+"CI['Vigenère'].enc('ATTACKATDAWN','LEMON')",
+"LXFOPVEFRNHR"
+],
+[
+"ciphers",
+"CI['Vigenère'].dec('LXFOPVEFRNHR','LEMON')",
+"ATTACKATDAWN"
+],
+[
+"ciphers",
+"[CI.A1Z26.enc('abc'),CI.A1Z26.dec('1 2 3')]",
+[
+"1 2 3",
+"ABC"
+]
+],
+[
+"nato",
+"[word('a'),word('9'),word('Z'),word('-'),word('é')]",
+[
+"Alfa",
+"Niner",
+"Zulu",
+"Dash",
+null
+]
+],
+[
+"mathdrill",
+"Array.from({length:300},()=>make(['÷'],12)).every(q=>{const[a,b]=q.t.split(' ÷ ').map(Number);return a/b===q.a&&Number.isInteger(q.a)})",
+true
+],
+[
+"mathdrill",
+"Array.from({length:300},()=>make(['−'],50)).every(q=>q.a>=0)",
+true
+],
+[
+"mathdrill",
+"Array.from({length:50},()=>make(['×'],12)).every(q=>{const[a,b]=q.t.split(' × ').map(Number);return a*b===q.a})",
+true
+],
+[
+"printcal",
+"isoWeek(new Date(2021,0,3))",
+53
+],
+[
+"printcal",
+"isoWeek(new Date(2026,9,25))",
+43
+],
+[
+"bloodpressure",
+"[cat(118,76)[0],cat(125,75)[0],cat(133,82)[0],cat(145,95)[0],cat(190,100)[0],cat(110,125)[0]]",
+[
+"Normal",
+"Elevated",
+"High (stage 1)",
+"High (stage 2)",
+"Hypertensive crisis",
+"Hypertensive crisis"
+]
+],
+[
+"utmbuilder",
+"(()=>{document.getElementById('u').value='example.com/landing';document.getElementById('s').value='News Letter';document.getElementById('m').value='email';document.getElementById('c').value='Spring Sale';document.getElementById('t').value='';document.getElementById('n').value='';return build()})()",
+"https://example.com/landing?utm_source=news_letter&utm_medium=email&utm_campaign=spring_sale"
+],
+[
+"utmbuilder",
+"(()=>{document.getElementById('u').value='https://x.com/p?ref=1&utm_source=old';document.getElementById('s').value='new';document.getElementById('m').value='m';document.getElementById('c').value='c';return build()})()",
+"https://x.com/p?ref=1&utm_source=new&utm_medium=m&utm_campaign=c"
+],
+[
+"utmbuilder",
+"(()=>{document.getElementById('u').value='http://';document.getElementById('s').value='';build();return document.getElementById('er').textContent.length>0})()",
+true
+],
+[
+"metatags",
+"(()=>{document.getElementById('t').value='A'.repeat(70);run();return document.getElementById('ct').className.includes('bad')&&document.getElementById('out').textContent.includes('og:title')})()",
+true
+],
+[
+"metatags",
+"(()=>{document.getElementById('t').value='Hi \"there\" <b>';document.getElementById('im').value='https://x.com/i.png';run();const o=document.getElementById('out').textContent;return o.includes('Hi &quot;there&quot; &lt;b>')&&o.includes('summary_large_image')})()",
+true
+],
+[
+"rentvsbuy",
+"(()=>{const v={hp:100000,dp:20,mr:0,tm:10,pt:0,mt:0,ap:0,cc:0,rn:1000,ri:0,ir:0,yr:5};for(const k in v)document.getElementById(k).value=v[k];const{out,pay}=sim();return [out.length,Math.round(pay),Math.round(out[4].buy),Math.round(out[4].rent)]})()",
+[
+5,
+667,
+60000,
+20000
+]
+],
+[
+"rentvsbuy",
+"(()=>{const v={hp:100000,dp:20,mr:0,tm:10,pt:0,mt:0,ap:10,cc:0,rn:1000,ri:0,ir:0,yr:5};for(const k in v)document.getElementById(k).value=v[k];const{out}=sim();return out[4].buy>out[4].rent})()",
+true
+],
+[
+"caloriesburned",
+"(()=>{document.getElementById('w').value=70;document.getElementById('u').value='kg';return Math.round(burn(2,30))})()",
+305
+],
+[
+"caloriesburned",
+"(()=>{document.getElementById('w').value=154;document.getElementById('u').value='lb';return Math.round(kg())})()",
+70
+],
+[
+"pantry",
+"(()=>{const t=dkey(new Date());return [pill({d:t})[1],pill({d:''})[1],pill({d:dkey(new Date(Date.now()-3*864e5))})[0]]})()",
+[
+"expires today",
+"no date",
+"ex"
+]
+],
+[
+"chores",
+"(()=>{people=[{n:'A'},{n:'B'},{n:'C'}];chores=[{id:'1'},{id:'2'},{id:'3'}];const w=chores.map((c,i)=>who(c,i).n);return new Set(w).size})()",
+3
+],
+[
+"chores",
+"(()=>{people=[{n:'A'},{n:'B'},{n:'C'}];const a=who({},0).n;start.setDate(start.getDate()+7);const b=who({},0).n;return a!==b})()",
+true
+],
+[
+"roast",
+"[hm(1110),hm(0),hm(725),hm(-30)]",
+[
+"6:30 pm",
+"12:00 am",
+"12:05 pm",
+"11:30 pm"
+]
+],
+[
+"roast",
+"(()=>{document.getElementById('m').value='Whole turkey (unstuffed)';document.getElementById('w').value=5;document.getElementById('u').value='kg';document.getElementById('sv').value='18:00';run();const t=document.getElementById('tl').textContent;return t.includes('Meat goes in')&&t.includes('Carve and serve')&&t.includes('6:00 pm')})()",
+true
+],
+[
+"triangle",
+"solve([3,4,5,null,null,null]).out[0].slice(3).map(x=>+x.toFixed(2))",
+[
+36.87,
+53.13,
+90
+]
+],
+[
+"triangle",
+"(()=>{const t=solve([null,7,9,40,null,null]).out[0];return [+t[0].toFixed(3),+t[4].toFixed(2),+t[5].toFixed(2)]})()",
+[
+5.786,
+51.05,
+88.95
+],
+0.02
+],
+[
+"triangle",
+"solve([8,10,null,30,null,null]).out.length",
+2
+],
+[
+"triangle",
+"solve([2,10,null,30,null,null]).err",
+"No triangle exists with those values."
+],
+[
+"triangle",
+"+solve([null,null,5,40,60,null]).out[0][0].toFixed(3)",
+3.263
+],
+[
+"triangle",
+"solve([1,2,10,null,null,null]).err",
+"Those sides cannot form a triangle (the two shorter must add up to more than the longest)."
+],
+[
+"triangle",
+"solve([5,null,null,100,90,null]).err",
+"Angles must add up to less than 180°."
+],
+[
+"scorekeeper",
+"(()=>{G={players:['a','b'],rounds:[[3,5],[4,1]]};document.getElementById('lw').checked=false;const t=tot();return [t,leader(t)]})()",
+[
+[
+7,
+6
+],
+[
+true,
+false
+]
+]
+],
+[
+"scorekeeper",
+"(()=>{G={players:['a','b'],rounds:[[3,5],[4,1]]};document.getElementById('lw').checked=true;return leader(tot())})()",
+[
+false,
+true
+]
+],
+[
+"csvstats",
+"(()=>{const P=profile(parseCSV('n,s,d\\nA,10,x\\nB,20,x\\nC,,y\\nD,30,x',','));return [P[1].t,P[1].missing,P[1].mean,P[2].t,P[2].top[0]]})()",
+[
+"number",
+1,
+20,
+"text",
+[
+"x",
+3
+]
+]
+],
+[
+"csvstats",
+"[detect('a;b;c\\n1;2;3'),detect('a\\tb\\n1\\t2'),detect('a,b\\n1,2')]",
+[
+";",
+"\t",
+","
+]
+]
+]

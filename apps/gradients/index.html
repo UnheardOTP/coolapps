@@ -1,0 +1,50 @@
+<!doctype html><meta charset="utf-8"><title>Gradient Lab</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #111; color: #ddd; font: 14px 'Inter', system-ui, sans-serif; }
+  #prev { height: 46vh; transition: background .05s; position: relative; } #prev h1 { position: absolute; left: 32px; bottom: 20px; margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -.03em; color: #fff; mix-blend-mode: difference; }
+  main { max-width: 900px; margin: 0 auto; padding: 28px 24px; }
+  #barwrap { position: relative; height: 70px; margin-bottom: 18px; } #bar { height: 36px; border-radius: 8px; box-shadow: 0 0 0 1px #333; cursor: copy; }
+  .stop { position: absolute; top: 28px; width: 20px; height: 34px; margin-left: -10px; border: 3px solid #fff; border-radius: 4px 4px 10px 10px; cursor: grab; box-shadow: 0 2px 8px #000a; } .stop.sel { border-color: #ffd23f; transform: translateY(-4px); }
+  .row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; } label { color: #888; font-size: 11px; letter-spacing: .15em; text-transform: uppercase; }
+  input[type=color] { width: 44px; height: 32px; border: none; background: none; padding: 0; } input[type=range] { accent-color: #ffd23f; }
+  select, button { font: inherit; background: #222; color: #ddd; border: 1px solid #333; padding: 7px 14px; border-radius: 6px; cursor: pointer; } button.p { background: #ffd23f; color: #000; border-color: #ffd23f; font-weight: 700; }
+  code { display: block; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 14px; font: 13px/1.6 monospace; color: #9ce37d; word-break: break-all; cursor: pointer; }
+  #gal { display: grid; grid-template-columns: repeat(auto-fill, 90px); gap: 10px; margin-top: 12px; } .g { position: relative; height: 60px; border-radius: 8px; cursor: pointer; box-shadow: 0 0 0 1px #333; } .g b { position: absolute; top: 2px; right: 4px; font-size: 12px; opacity: 0; } .g:hover b { opacity: 1; }
+</style>
+<div id="prev"><h1>Gradient Lab</h1></div>
+<main>
+  <div id="barwrap"><div id="bar"></div><div id="stops"></div></div>
+  <div class="row"><label>Color</label><input type="color" id="col"><label>Angle <span id="av">90</span>°</label><input type="range" id="ang" min="0" max="360" value="90"><label>Type</label><select id="type"><option>linear</option><option>radial</option></select><button id="del">Delete stop</button><button class="p" id="save">Save</button></div>
+  <code id="css" title="click to copy"></code>
+  <label style="display:block;margin-top:24px">Saved</label><div id="gal"></div>
+</main>
+<script>
+let stops = [{ p: 0, c: '#ff5f6d' }, { p: 55, c: '#ffc371' }, { p: 100, c: '#47e5bc' }], sel = 0, saved = [], dragging = -1;
+const css = () => { const s = [...stops].sort((a, b) => a.p - b.p).map(x => `${x.c} ${Math.round(x.p)}%`).join(', '); return $('#type').value === 'linear' ? `linear-gradient(${$('#ang').value}deg, ${s})` : `radial-gradient(circle, ${s})`; };
+// Repaint preview, bar (always a left-to-right strip), stop handles and the CSS snippet.
+function render() {
+  const g = css(); $('#prev').style.background = g; $('#bar').style.background = `linear-gradient(90deg, ${[...stops].sort((a, b) => a.p - b.p).map(x => `${x.c} ${x.p}%`).join(', ')})`;
+  $('#stops').innerHTML = stops.map((s, i) => `<div class="stop ${i === sel ? 'sel' : ''}" data-i="${i}" style="left:${s.p}%;background:${s.c}"></div>`).join('');
+  $('#css').textContent = `background: ${g};`; $('#col').value = stops[sel].c; $('#av').textContent = $('#ang').value;
+  $('#gal').innerHTML = saved.map(x => `<div class="g" data-id="${x.id}" style="background:${x.css}"><b data-del>✕</b></div>`).join('');
+}
+const pos = e => { const r = $('#bar').getBoundingClientRect(); return Math.max(0, Math.min(100, (e.clientX - r.left) / r.width * 100)); };
+$('#stops').onmousedown = e => { const s = e.target.closest('.stop'); if (s) { sel = +s.dataset.i; dragging = sel; render(); } };
+$('#bar').onmousedown = e => {                                    // click the strip to add a stop, colored by what's already there
+  const p = pos(e), s = [...stops].sort((a, b) => a.p - b.p), nxt = s.find(x => x.p >= p) || s[s.length - 1];
+  stops.push({ p, c: nxt.c }); sel = stops.length - 1; dragging = sel; render();
+};
+addEventListener('mousemove', e => { if (dragging >= 0) { stops[dragging].p = pos(e); render(); } }); addEventListener('mouseup', () => dragging = -1);
+$('#col').oninput = e => { stops[sel].c = e.target.value; render(); }; $('#ang').oninput = $('#type').onchange = render;
+$('#del').onclick = () => { if (stops.length > 2) { stops.splice(sel, 1); sel = 0; render(); } };
+$('#css').onclick = () => { navigator.clipboard.writeText($('#css').textContent); const t = $('#css').textContent; $('#css').textContent = 'Copied!'; setTimeout(render, 700); };
+$('#save').onclick = async () => { saved.unshift(await api.add({ css: css(), stops, angle: +$('#ang').value, type: $('#type').value })); render(); };
+$('#gal').onclick = async e => {
+  const g = e.target.closest('.g'); if (!g) return; const x = saved.find(v => v.id === g.dataset.id);
+  if (e.target.hasAttribute('data-del')) { await api.del(x.id); saved = saved.filter(v => v !== x); } else { stops = JSON.parse(JSON.stringify(x.stops)); $('#ang').value = x.angle; $('#type').value = x.type; sel = 0; }
+  render();
+};
+api.list().then(d => { saved = d; render(); });
+</script>

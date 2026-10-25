@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><title>Spirograph</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#f5f0e6;color:#2b2118;font-family:Georgia,serif;display:flex;gap:40px;align-items:center;justify-content:center}
+canvas{background:#fffdf8;border-radius:50%;box-shadow:0 10px 40px #0003}.p{width:260px}h1{margin:0 0 16px;font-weight:400;font-size:34px}label{display:flex;justify-content:space-between;font-size:14px;margin-top:12px}input[type=range]{width:100%;accent-color:#c0392b}
+button{font:inherit;padding:9px 16px;border:1px solid #2b2118;background:#fff;cursor:pointer;margin:12px 6px 0 0}button.p2{background:#2b2118;color:#fff}.chip{display:inline-block;margin:6px 6px 0 0;padding:4px 10px;border:1px solid #2b2118;border-radius:14px;cursor:pointer;font-size:13px}</style>
+<canvas id="c" width="560" height="560"></canvas>
+<div class="p"><h1>Spirograph</h1>
+<label>Outer ring <b id="vR">230</b></label><input type="range" id="R" min="80" max="260" value="230">
+<label>Inner wheel <b id="vr">87</b></label><input type="range" id="r" min="10" max="200" value="87">
+<label>Pen offset <b id="vd">110</b></label><input type="range" id="d" min="5" max="250" value="110">
+<label>Hue <b id="vh">340</b></label><input type="range" id="h" min="0" max="360" value="340">
+<button id="dr" class="p2">Draw</button><button id="sv">Save</button><div id="chips"></div></div>
+<script>
+const cv=$('#c'),g=cv.getContext('2d');let token=0,saved=[];const ids=['R','r','d','h'];
+const val=()=>Object.fromEntries(ids.map(k=>[k,+$('#'+k).value]));
+const gcd=(a,b)=>b?gcd(b,a%b):a;
+// Hypotrochoid: a pen on a wheel of radius r rolling inside a ring of radius R, pen d from the wheel's centre. Drawn progressively.
+function draw(){const my=++token,{R,r,d,h}=val();ids.forEach(k=>$('#v'+k.replace('h','h')).textContent=$('#'+k).value);
+  g.clearRect(0,0,560,560);const turns=r/gcd(R,r),total=turns*2*Math.PI,steps=Math.min(30000,Math.floor(turns*400));let i=0;g.lineWidth=1.2;
+  const pt=t=>[280+(R-r)*Math.cos(t)+d*Math.cos((R-r)/r*t),280+(R-r)*Math.sin(t)-d*Math.sin((R-r)/r*t)];let p=pt(0);
+  (function chunk(){if(my!==token)return;for(let n=0;n<600&&i<steps;n++,i++){const t=(i+1)/steps*total,q=pt(t);g.strokeStyle=`hsl(${(h+i/steps*80)%360},70%,45%)`;g.beginPath();g.moveTo(...p);g.lineTo(...q);g.stroke();p=q}if(i<steps)requestAnimationFrame(chunk)})()}
+ids.forEach(k=>$('#'+k).oninput=()=>{$('#v'+k).textContent=$('#'+k).value;draw()});$('#dr').onclick=draw;
+$('#sv').onclick=async()=>{saved.unshift(await api.add(val()));chips()};
+const chips=()=>$('#chips').innerHTML=saved.map(s=>`<span class="chip" data-id="${s.id}">${s.R}/${s.r}/${s.d}<i data-del style="font-style:normal;margin-left:6px;opacity:.5">×</i></span>`).join('');
+$('#chips').onclick=async e=>{const c=e.target.closest('.chip');if(!c)return;const s=saved.find(x=>x.id===c.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(s.id);saved=saved.filter(x=>x!==s);chips()}else{ids.forEach(k=>{$('#'+k).value=s[k];$('#v'+k).textContent=s[k]});draw()}};
+api.list().then(d=>{saved=d;chips()});draw();
+</script>

@@ -1,0 +1,121 @@
+<!doctype html><meta charset="utf-8"><title>The Long View</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; flex-direction: column; background: #fff; color: #111; font-family: Georgia, 'Times New Roman', serif; }
+  header { padding: 28px 40px 18px; border-bottom: 4px double #111; display: flex; align-items: baseline; gap: 28px; }
+  header h1 { margin: 0; font-size: 46px; letter-spacing: -.03em; font-weight: 700; }
+  header p { margin: 0; flex: 1; color: #666; font-style: italic; }
+  header small { font: 11px Helvetica, Arial, sans-serif; letter-spacing: .15em; text-transform: uppercase; color: #999; }
+  #stage { flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; cursor: grab; user-select: none; }
+  #stage::-webkit-scrollbar { height: 8px; } #stage::-webkit-scrollbar-thumb { background: #ccc; }
+  #inner { position: relative; height: 100%; }
+  .axis { position: absolute; left: 0; right: 0; height: 3px; background: #111; }
+  .hit { position: absolute; left: 0; right: 0; height: 36px; cursor: copy; }
+  .tick { position: absolute; width: 1px; background: #bbb; }
+  .lbl { position: absolute; font: 10px Helvetica, Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #888; padding-left: 4px; }
+  .year { position: absolute; font: 700 56px Georgia, serif; color: #eee; letter-spacing: -.04em; pointer-events: none; }
+  .now { position: absolute; width: 2px; background: #d62828; }
+  .now::after { content: 'NOW'; position: absolute; top: -18px; left: -14px; font: 700 10px Helvetica, Arial, sans-serif; letter-spacing: .15em; color: #d62828; }
+  .stalk { position: absolute; width: 1px; background: #111; }
+  .dot { position: absolute; width: 11px; height: 11px; border-radius: 50%; background: #d62828; border: 2px solid #fff; box-shadow: 0 0 0 1px #111; }
+  .card { position: absolute; width: 168px; height: 74px; padding: 8px 10px; border-top: 3px solid #111; background: #fff; overflow: hidden; cursor: default; }
+  .card:hover { z-index: 5; height: auto; min-height: 74px; box-shadow: 0 8px 24px #0002; }
+  .card small { font: 10px Helvetica, Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #d62828; }
+  .card b { display: block; font-size: 15px; line-height: 1.2; margin: 2px 0; }
+  .card span { font-size: 12px; color: #666; line-height: 1.3; }
+  .card i { position: absolute; top: 4px; right: 8px; font-style: normal; cursor: pointer; color: #bbb; }
+  .card i:hover { color: #d62828; }
+  #pop { position: absolute; z-index: 10; background: #fff; border: 2px solid #111; padding: 12px; width: 240px; box-shadow: 6px 6px 0 #111; }
+  #pop input { width: 100%; font: 15px Georgia, serif; border: none; border-bottom: 1px solid #111; padding: 4px 0; margin-bottom: 8px; outline: none; }
+  #pop small { font: 10px Helvetica, Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #d62828; }
+</style>
+<header><h1>The Long View</h1><p>Your life as a single line. Click the line to mark a moment; scroll to zoom; drag to travel.</p><small id="count"></small></header>
+<div id="stage"><div id="inner"></div></div>
+<script>
+const DAY = 864e5, PAD = 120, CARD = 178;
+let events = [], ppd = 2.2, start = 0, end = 0;
+const stage = $('#stage'), inner = $('#inner');
+const pad2 = n => String(n).padStart(2, '0');
+const key = ms => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const parse = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
+const X = ms => (ms - start) / DAY * ppd + PAD;
+const toMs = x => start + (x - PAD) / ppd * DAY;
+const nice = k => new Date(parse(k)).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+// The visible span always covers a year either side of today and of every event.
+function bounds() {
+  const t = Date.now(), ds = events.map(e => parse(e.date));
+  const lo = Math.min(t - 365 * DAY, ...ds) - 60 * DAY, hi = Math.max(t + 365 * DAY, ...ds) + 60 * DAY, d = new Date(lo);
+  start = new Date(d.getFullYear(), d.getMonth(), 1).getTime(); end = hi;
+}
+// Assign each event to a lane above or below the axis so neighbours never overlap.
+function layout() {
+  const order = [['u', 0], ['d', 0], ['u', 1], ['d', 1], ['u', 2], ['d', 2], ['u', 3], ['d', 3]], ends = {};
+  return [...events].sort((a, b) => parse(a.date) - parse(b.date)).map((e, i) => {
+    const x = X(parse(e.date)) - 6;
+    const pref = i % 2 ? 'd' : 'u', cand = [...order].sort((p, q) => p[1] - q[1] || (q[0] === pref) - (p[0] === pref));
+    const slot = cand.find(([s, l]) => (ends[s + l] ?? -1e9) <= x) || cand[cand.length - 1];
+    ends[slot.join('')] = x + CARD; return { e, x, side: slot[0], lane: slot[1] };
+  });
+}
+
+function render() {
+  bounds();
+  const H = stage.clientHeight, mid = Math.round(H / 2), w = X(end) + 200;
+  let h = `<div class="axis" style="top:${mid}px;width:${w}px"></div><div class="hit" style="top:${mid - 16}px;width:${w}px"></div>`;
+  for (let d = new Date(start); d.getTime() < end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+    const x = X(d.getTime()), jan = d.getMonth() === 0;
+    h += `<div class="tick" style="left:${x}px;top:${mid - (jan ? 26 : 8)}px;height:${jan ? 52 : 16}px"></div>`;
+    if (jan) h += `<div class="year" style="left:${x + 8}px;top:${mid + 40}px">${d.getFullYear()}</div>`;
+    else if (ppd > 1.4) h += `<div class="lbl" style="left:${x}px;top:${mid + 10}px">${d.toLocaleDateString(undefined, { month: 'short' })}</div>`;
+  }
+  h += `<div class="now" style="left:${X(Date.now())}px;top:${mid - 60}px;height:120px"></div>`;
+  layout().forEach(({ e, x, side, lane }) => {
+    const reach = 46 + lane * 92, top = side === 'u' ? mid - reach - 74 : mid + reach;
+    h += `<div class="stalk" style="left:${x + 6}px;top:${side === 'u' ? top + 74 : mid}px;height:${reach}px"></div>
+      <div class="dot" style="left:${x}px;top:${mid - 5}px"></div>
+      <div class="card" data-id="${e.id}" style="left:${x}px;top:${top}px"><i data-del>×</i><small>${nice(e.date)}</small><b>${esc(e.title)}</b><span>${esc(e.note)}</span></div>`;
+  });
+  inner.style.width = w + 'px'; inner.innerHTML = h;
+  $('#count').textContent = `${events.length} moment${events.length === 1 ? '' : 's'}`;
+}
+
+// Open a small form at the clicked spot on the axis.
+function openPop(clientX) {
+  const r = stage.getBoundingClientRect(), x = clientX - r.left + stage.scrollLeft, date = key(toMs(x));
+  $('#pop')?.remove();
+  const p = Object.assign(document.createElement('div'), { id: 'pop' });
+  p.style.left = Math.min(x, parseFloat(inner.style.width) - 260) + 'px'; p.style.top = stage.clientHeight / 2 + 24 + 'px';
+  p.innerHTML = `<small>${nice(date)}</small><input id="t" placeholder="What happened?"><input id="n" placeholder="A note (optional)">`;
+  p.onkeydown = async e => {
+    if (e.key === 'Escape') p.remove();
+    if (e.key === 'Enter' && $('#t').value.trim()) {
+      events.push(await api.add({ date, title: $('#t').value.trim(), note: $('#n').value.trim() })); p.remove(); render();
+    }
+  };
+  inner.append(p); $('#t').focus();
+}
+// Click the axis to add; click × on a card to remove.
+inner.addEventListener('click', async e => {
+  if (moved) return;
+  if (e.target.classList.contains('hit')) return openPop(e.clientX);
+  const c = e.target.closest('.card');
+  if (c && e.target.hasAttribute('data-del')) { await api.del(c.dataset.id); events = events.filter(v => v.id !== c.dataset.id); render(); }
+});
+// Drag to pan.
+let down = null, moved = false;
+stage.addEventListener('mousedown', e => { down = { x: e.clientX, s: stage.scrollLeft }; moved = false; stage.style.cursor = 'grabbing'; });
+addEventListener('mousemove', e => { if (!down) return; if (Math.abs(e.clientX - down.x) > 4) moved = true; stage.scrollLeft = down.s - (e.clientX - down.x); });
+addEventListener('mouseup', () => { down = null; stage.style.cursor = 'grab'; setTimeout(() => moved = false); });
+// Wheel zooms around the cursor so the date under it stays put.
+stage.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = stage.getBoundingClientRect(), x = e.clientX - r.left, ms = toMs(x + stage.scrollLeft);
+  ppd = Math.min(14, Math.max(.35, ppd * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+  render(); stage.scrollLeft = X(ms) - x;
+}, { passive: false });
+
+api.list().then(d => { events = d; render(); stage.scrollLeft = X(Date.now()) - stage.clientWidth / 2; });
+</script>

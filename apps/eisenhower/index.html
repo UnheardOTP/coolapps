@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Priority Matrix</title><script src="/shared/lib.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f4f1ea;color:#222;font-family:'Helvetica Neue',Arial;padding:24px 40px}h1{margin:0 0 4px;font-size:26px;font-weight:800;letter-spacing:-.02em}.sub{color:#777;margin:0 0 14px}
+.m{display:grid;grid-template-columns:40px 1fr 1fr;grid-template-rows:30px 1fr 1fr;gap:10px;height:calc(100vh - 150px);min-height:480px}.ax{display:flex;align-items:center;justify-content:center;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#888}.ax.v{writing-mode:vertical-rl;transform:rotate(180deg)}
+.q{border-radius:14px;padding:14px;display:flex;flex-direction:column;border:2px dashed transparent;transition:border-color .15s}.q.over{border-color:#222}.q h2{margin:0;font-size:16px}.q small{color:#0007;margin-bottom:10px}.q .l{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.q form{display:flex;margin-top:8px}.q form input{flex:1;border:none;background:#fff9;padding:8px 10px;border-radius:8px;font:inherit;outline:none}
+.t{background:#fff;border-radius:8px;padding:9px 12px;display:flex;justify-content:space-between;cursor:grab;box-shadow:0 1px 3px #0002}.t.dr{opacity:.4}.t i{font-style:normal;cursor:pointer;color:#bbb}.t.done span{text-decoration:line-through;color:#999}</style>
+<h1>Priority Matrix</h1><p class="sub">Drag tasks between quadrants. Double-click a task to mark it done.</p>
+<div class="m"><div></div><div class="ax">Urgent</div><div class="ax">Not urgent</div><div class="ax v">Important</div><div class="q" data-q="do" style="background:#ffd6d0"></div><div class="q" data-q="plan" style="background:#d4ecd2"></div><div class="ax v">Not important</div><div class="q" data-q="delegate" style="background:#ffeabb"></div><div class="q" data-q="drop" style="background:#dcdcdc"></div></div>
+<script>
+const Q={do:['Do first','Urgent + important'],plan:['Schedule','Important, not urgent'],delegate:['Delegate','Urgent, not important'],drop:['Eliminate','Neither']};let tasks=[],dragId=null;
+function render(){document.querySelectorAll('.q').forEach(q=>{const k=q.dataset.q;q.innerHTML=`<h2>${Q[k][0]}</h2><small>${Q[k][1]}</small><div class="l">${tasks.filter(t=>t.q===k).map(t=>`<div class="t ${t.done?'done':''}" draggable="true" data-id="${t.id}"><span>${esc(t.text)}</span><i data-del>✕</i></div>`).join('')}</div><form data-q="${k}"><input placeholder="Add a task…"></form>`})}
+document.addEventListener('dragstart',e=>{const t=e.target.closest('.t');if(t){dragId=t.dataset.id;t.classList.add('dr')}});document.addEventListener('dragend',()=>{dragId=null;document.querySelectorAll('.q').forEach(q=>q.classList.remove('over'));render()});
+document.addEventListener('dragover',e=>{const q=e.target.closest('.q');if(q&&dragId){e.preventDefault();document.querySelectorAll('.q').forEach(x=>x.classList.toggle('over',x===q))}});
+// Dropping on a quadrant simply rewrites that task's quadrant.
+document.addEventListener('drop',async e=>{const q=e.target.closest('.q');if(!q||!dragId)return;e.preventDefault();const t=tasks.find(x=>x.id===dragId);t.q=q.dataset.q;render();api.upd(t.id,{q:t.q})});
+document.addEventListener('submit',async e=>{e.preventDefault();const i=e.target.querySelector('input'),v=i.value.trim();if(!v)return;tasks.push(await api.add({text:v,q:e.target.dataset.q,done:false}));render()});
+document.addEventListener('click',async e=>{if(!e.target.hasAttribute('data-del'))return;const id=e.target.closest('.t').dataset.id;await api.del(id);tasks=tasks.filter(t=>t.id!==id);render()});
+document.addEventListener('dblclick',e=>{const t=e.target.closest('.t');if(!t)return;const x=tasks.find(v=>v.id===t.dataset.id);x.done=!x.done;api.upd(x.id,{done:x.done});render()});
+api.list().then(d=>{tasks=d;render()});
+</script>

@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>BMI Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0891b2;--w:760px}.scale{display:flex;height:16px;border-radius:8px;overflow:hidden;position:relative;margin:14px 0 24px}.scale div{flex:1}.pin{position:absolute;top:-6px;width:4px;height:28px;background:var(--fg);border-radius:2px;transition:left .3s}</style>
+<div class="wrap"><h1>BMI Calculator</h1><p class="sub">Body mass index with a healthy weight range for your height. A screening number, not a diagnosis.</p>
+<div class="card"><div class="tabs" id="tabs"><button data-u="m" class="on">Metric</button><button data-u="i">Imperial</button></div><div class="g2" id="inp"></div></div>
+<div class="card"><div class="row"><div><div class="mut">Your BMI</div><div class="big" id="bmi"></div></div><div class="col" style="text-align:right"><div class="big" id="cat" style="font-size:22px"></div><div class="mut" id="rng"></div></div></div>
+<div class="scale"><div style="background:#38bdf8;flex:18.5"></div><div style="background:#22c55e;flex:6.5"></div><div style="background:#facc15;flex:5"></div><div style="background:#fb923c;flex:5"></div><div style="background:#ef4444;flex:10"></div><span class="pin" id="pin"></span></div>
+<button class="s" id="log">Save this reading</button></div><div class="card"><h2>History</h2><div id="hist"></div></div></div>
+<script>
+let unit='m',hist=[];
+function inputs(){const m=unit==='m';$('#inp').innerHTML=m?`<div><label>Height (cm)</label><input id="h" type="number" value="172" data-keep></div><div><label>Weight (kg)</label><input id="w" type="number" value="70" step="0.1" data-keep></div>`:`<div><label>Height (ft)</label><input id="ft" type="number" value="5" data-keep></div><div><label>Height (in)</label><input id="in" type="number" value="8" data-keep></div><div class="col"><label>Weight (lb)</label><input id="w" type="number" value="155" step="0.1" data-keep></div>`}
+const metric=()=>unit==='m'?{h:num('h')/100,w:num('w')}:{h:(num('ft')*12+num('in'))*.0254,w:num('w')*.45359237};
+const CAT=b=>b<18.5?['Underweight','#38bdf8']:b<25?['Healthy weight','#22c55e']:b<30?['Overweight','#facc15']:b<35?['Obesity I','#fb923c']:['Obesity II+','#ef4444'];
+function run(){const{h,w}=metric();if(!(h>0&&w>0))return;const b=w/h/h,[c,col]=CAT(b),lo=18.5*h*h,hi=24.9*h*h,f=x=>unit==='m'?fmt(x,1)+' kg':fmt(x/.45359237,0)+' lb';
+  $('#bmi').textContent=fmt(b,1);$('#cat').textContent=c;$('#cat').style.color=col;$('#rng').textContent=`Healthy range for your height: ${f(lo)} – ${f(hi)}`;$('#pin').style.left=Math.max(0,Math.min(100,(b-10)/(45-10)*100))+'%'}
+$('#tabs').onclick=e=>{const u=e.target.dataset.u;if(!u)return;unit=u;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b===e.target));inputs();run()};
+$('#log').onclick=async()=>{const{h,w}=metric();hist.unshift(await api.add({kind:'bmi',bmi:w/h/h,w,h}));paint()};
+function paint(){$('#hist').innerHTML=hist.length?`<table>${hist.map(x=>`<tr data-id="${x.id}"><td class="mut">${new Date(x.createdAt).toLocaleDateString()}</td><td>${fmt(x.w,1)} kg</td><td><b>${fmt(x.bmi,1)}</b></td><td class="r"><button class="x" data-rm>✕</button></td></tr>`).join('')}</table>`:'<span class="mut">No saved readings.</span>'}
+$('#hist').onclick=async e=>{if(!e.target.hasAttribute('data-rm'))return;const id=e.target.closest('tr').dataset.id;await api.del(id);hist=hist.filter(x=>x.id!==id);paint()};
+document.addEventListener('input',run);inputs();api.list().then(d=>{hist=only(d,'bmi');paint();remember().then(run)});
+</script>

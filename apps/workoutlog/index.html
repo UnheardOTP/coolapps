@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Workout Log</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#dc2626;--w:900px}.pr{color:#f59e0b;font-weight:700}</style>
+<div class="wrap"><h1>Workout Log</h1><p class="sub">Log sets, see your history by day, and track personal records (estimated one-rep max, Epley).</p>
+<div class="card"><div class="row"><div class="col" style="flex:2"><label>Exercise</label><input id="ex" list="exl" placeholder="Bench press"><datalist id="exl"></datalist></div><div class="col"><label>Weight</label><input id="w" type="number" step="0.5"></div><div class="col"><label>Reps</label><input id="r" type="number" value="8"></div><div class="col"><label>Sets</label><input id="s" type="number" value="1"></div><button id="add">Log set</button></div></div>
+<div class="g2"><div class="card"><h2>History</h2><div id="hist"></div></div><div class="card"><h2>Personal records</h2><table id="prs"></table></div></div></div>
+<script>
+let sets=[];const e1=(w,r)=>r===1?w:w*(1+r/30);
+function run(){const ex=[...new Set(sets.map(s=>s.ex))];$('#exl').innerHTML=ex.map(e=>`<option value="${esc(e)}">`).join('');
+  const prs={};sets.forEach(s=>{const v=e1(s.w,s.r);if(!prs[s.ex]||v>prs[s.ex].v)prs[s.ex]={v,s}});
+  $('#prs').innerHTML='<tr><th>Exercise</th><th class="r">Best set</th><th class="r">Est. 1RM</th></tr>'+Object.entries(prs).sort().map(([e,p])=>`<tr><td>${esc(e)}</td><td class="r">${p.s.w} × ${p.s.r}</td><td class="r pr">${fmt(p.v,1)}</td></tr>`).join('')||'<tr><td class="mut">No sets yet.</td></tr>';
+  const days={};[...sets].sort((a,b)=>b.at-a.at).forEach(s=>(days[dkey(new Date(s.at))]??=[]).push(s));
+  $('#hist').innerHTML=Object.entries(days).slice(0,14).map(([d,l])=>{const vol=l.reduce((n,s)=>n+s.w*s.r*s.n,0);return`<div class="gap"><b>${pdate(d).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}</b> <span class="mut">· volume ${Math.round(vol).toLocaleString()}</span>${l.map(s=>`<div class="row" style="padding:3px 0" data-id="${s.id}"><div class="col">${esc(s.ex)}</div><span>${s.n>1?s.n+' × ':''}${s.w} × ${s.r}</span><button class="x" data-rm>✕</button></div>`).join('')}</div>`}).join('')||'<span class="mut">Nothing logged yet.</span>'}
+$('#add').onclick=async()=>{const ex=$('#ex').value.trim(),w=num('w'),r=num('r'),n=Math.max(1,num('s'));if(!ex||!(r>0))return;sets.push(await api.add({kind:'set',ex,w,r,n,at:Date.now()}));run();$('#w').focus()};
+$('#hist').onclick=async e=>{if(!e.target.hasAttribute('data-rm'))return;const id=e.target.closest('[data-id]').dataset.id;await api.del(id);sets=sets.filter(x=>x.id!==id);run()};api.list().then(d=>{sets=only(d,'set');run()});
+</script>

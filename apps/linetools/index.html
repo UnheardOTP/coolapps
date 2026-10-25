@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Line Tools</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0d9488;--w:1000px}.ops{display:flex;gap:7px;flex-wrap:wrap}</style>
+<div class="wrap"><h1>Line Tools</h1><p class="sub">Sort, de-duplicate, trim, number and reshape lists — one item per line.</p>
+<div class="card"><div class="g2"><div><label>Input <span class="mut" id="ic"></span></label><textarea id="in" style="min-height:300px" data-keep></textarea></div><div><label>Output <span class="mut" id="oc"></span></label><textarea id="out" style="min-height:300px" readonly></textarea></div></div>
+<h2 class="gap">Operations (applied to the input each time; click "Use output as input" to chain)</h2><div class="ops" id="ops"></div>
+<div class="row gap"><div class="col"><label>Prefix / suffix / join text</label><div class="row" style="flex-wrap:nowrap"><input id="pf" placeholder="prefix" data-keep><input id="sf" placeholder="suffix" data-keep><input id="jn" placeholder="join with, e.g. ,"  data-keep></div></div></div>
+<div class="row gap"><button class="s" id="chain">Use output as input</button><button class="s" id="cp">Copy output</button></div></div></div>
+<script>
+const lines=()=>$('#in').value.split('\n');
+const OPS={'Sort A→Z':l=>[...l].sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base',numeric:true})),'Sort Z→A':l=>[...l].sort((a,b)=>b.localeCompare(a,undefined,{sensitivity:'base',numeric:true})),'Sort by length':l=>[...l].sort((a,b)=>a.length-b.length),'Sort numerically':l=>[...l].sort((a,b)=>parseFloat(a)-parseFloat(b)),'Reverse order':l=>[...l].reverse(),'Shuffle':l=>[...l].sort(()=>Math.random()-.5),
+'Remove duplicates':l=>[...new Set(l)],'Remove empty lines':l=>l.filter(x=>x.trim()),'Trim whitespace':l=>l.map(x=>x.trim()),'Number lines':l=>l.map((x,i)=>`${i+1}. ${x}`),'UPPER':l=>l.map(x=>x.toUpperCase()),'lower':l=>l.map(x=>x.toLowerCase()),'Add prefix/suffix':l=>l.map(x=>$('#pf').value+x+$('#sf').value),'Join into one line':l=>[l.filter(x=>x.length).join($('#jn').value||', ')],'Keep only duplicates':l=>{const c={};l.forEach(x=>c[x]=(c[x]||0)+1);return[...new Set(l.filter(x=>c[x]>1))]},'Count occurrences':l=>{const c={};l.forEach(x=>c[x]=(c[x]||0)+1);return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${v}\t${k}`)}};
+$('#ops').innerHTML=Object.keys(OPS).map(k=>`<button class="s" data-k="${k}">${k}</button>`).join('');
+const count=()=>{const l=lines().filter(x=>x.length).length;$('#ic').textContent=`(${l} lines)`};
+$('#ops').onclick=e=>{const k=e.target.dataset.k;if(!k)return;const out=OPS[k](lines());$('#out').value=out.join('\n');$('#oc').textContent=`(${out.length} lines)`};
+$('#chain').onclick=()=>{$('#in').value=$('#out').value;count();$('#in').dispatchEvent(new Event('input',{bubbles:true}))};$('#cp').onclick=e=>copy($('#out').value,e.target);$('#in').addEventListener('input',count);remember().then(count);
+</script>

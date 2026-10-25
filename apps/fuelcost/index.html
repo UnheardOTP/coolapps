@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><title>Trip Fuel Cost</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#ea580c;--w:800px}</style>
+<div class="wrap"><h1>Trip Fuel Cost</h1><p class="sub">What will the drive cost, and what is each passenger's share?</p>
+<div class="card"><div class="row"><div class="col"><label>Unit system</label><select id="un" data-keep><option value="us">Miles · MPG · $/gal</option><option value="km">km · L/100km · $/L</option></select></div><label style="margin:0 0 9px"><input type="checkbox" id="rt" data-keep checked> Round trip</label></div>
+<div class="g4 gap"><div><label>Distance (<span id="du">mi</span>)</label><input id="d" type="number" step="any" value="240" data-keep></div><div><label>Efficiency (<span id="eu">MPG</span>)</label><input id="e" type="number" step="any" value="28" data-keep></div><div><label>Fuel price (<span id="pu">$/gal</span>)</label><input id="p" type="number" step="0.001" value="3.65" data-keep></div><div><label>People sharing</label><input id="n" type="number" min="1" value="2" data-keep></div></div></div>
+<div class="g4" id="kp"></div><div class="card gap"><h2>Saved trips</h2><div id="sv"></div></div></div>
+<script>
+function run(){const us=$('#un').value==='us';$('#du').textContent=us?'mi':'km';$('#eu').textContent=us?'MPG':'L/100km';$('#pu').textContent=us?'$/gal':'$/L';const d=num('d')*($('#rt').checked?2:1),e=num('e'),p=num('p'),n=Math.max(1,num('n'));if(!(e>0))return;
+  const fuel=us?d/e:d*e/100,cost=fuel*p;$('#kp').innerHTML=[['Fuel needed',fmt(fuel,1)+(us?' gal':' L')],['Total cost',money(cost)],['Per person',money(cost/n)],['Cost per '+(us?'mile':'km'),d?money(cost/d):'–']].map(([k,v],i)=>`<div class="kpi"><small>${k}</small><b ${i===1?'style="color:var(--a)"':''}>${v}</b></div>`).join('')}
+document.addEventListener('input',run);document.addEventListener('change',run);const ids=['un','d','e','p','n'];savedBar($('#sv'),{get:()=>({...Object.fromEntries(ids.map(i=>[i,$('#'+i).value])),rt:$('#rt').checked}),set:d=>{ids.forEach(i=>$('#'+i).value=d[i]);$('#rt').checked=d.rt;run()}});remember().then(run);
+</script>

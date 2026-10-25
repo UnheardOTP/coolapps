@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><title>Synth</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#15101f;color:#d8c8ff;font-family:'Helvetica Neue',Arial;display:flex;gap:26px;justify-content:center;align-items:center;padding:20px}
+#xy{width:520px;height:420px;border-radius:14px;background:radial-gradient(circle at 50% 100%,#3a1f6e,#150f24);border:1px solid #4b3a7a;cursor:crosshair;position:relative;touch-action:none;overflow:hidden}
+#xy i{position:absolute;top:0;bottom:0;border-left:1px solid #ffffff12}#dot{position:absolute;width:26px;height:26px;margin:-13px;border-radius:50%;background:#ff7ad9;box-shadow:0 0 30px #ff7ad9;display:none;pointer-events:none}
+#osc{display:block;margin-top:12px;background:#0b0813;border-radius:8px;width:520px;height:90px}.p{width:240px}h1{margin:0 0 10px;font-weight:200;letter-spacing:.4em}
+label{display:block;margin-top:12px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:#8d7bd0}input[type=range]{width:100%;accent-color:#ff7ad9}.w{display:flex;gap:6px;margin-top:6px}.w button{flex:1}
+button{font:inherit;background:#241a3a;color:#d8c8ff;border:1px solid #4b3a7a;padding:7px;cursor:pointer;border-radius:5px}button.on{background:#ff7ad9;color:#15101f;border-color:#ff7ad9}.chip{display:inline-block;margin:6px 6px 0 0;padding:3px 10px;border:1px solid #4b3a7a;border-radius:14px;cursor:pointer;font-size:13px}</style>
+<div><div id="xy"><div id="dot"></div></div><canvas id="osc" width="520" height="90"></canvas></div>
+<div class="p"><h1>SYNTH</h1><div class="w" id="wv"></div><label>Cutoff range</label><input type="range" id="cut" min="300" max="8000" value="3000"><label>Release <span id="rv"></span></label><input type="range" id="rel" min="5" max="200" value="40"><label>Echo</label><input type="range" id="echo" min="0" max="80" value="25">
+<div style="margin-top:14px"><input id="nm" placeholder="Patch name" style="width:100%;box-sizing:border-box;padding:7px;background:#241a3a;border:1px solid #4b3a7a;color:#fff;border-radius:5px"><button id="sv" style="width:100%;margin-top:6px">Save patch</button></div><div id="chips"></div><p style="color:#6d5da0;font-size:12px">Drag on the pad: left–right is pitch (pentatonic), up is brighter.</p></div>
+<script>
+const SC=[0,2,4,7,9],WAVES=['sine','triangle','sawtooth','square'];let wave='sawtooth',ac,an,saved=[],voice=null;
+$('#wv').innerHTML=WAVES.map(w=>`<button data-w="${w}" class="${w===wave?'on':''}">${w.slice(0,3)}</button>`).join('');$('#wv').onclick=e=>{if(!e.target.dataset.w)return;wave=e.target.dataset.w;document.querySelectorAll('#wv button').forEach(b=>b.classList.toggle('on',b.dataset.w===wave))};
+$('#xy').insertAdjacentHTML('afterbegin',Array.from({length:15},(_,i)=>`<i style="left:${i/15*100}%"></i>`).join(''));
+function audio(){if(ac)return;ac=new AudioContext();an=ac.createAnalyser();an.fftSize=1024;const d=ac.createDelay(1),fb=ac.createGain(),wet=ac.createGain();d.delayTime.value=.28;fb.gain.value=.4;d.connect(fb).connect(d);wet.connect(d);d.connect(ac.destination);audio.out=ac.createGain();audio.out.connect(an);audio.out.connect(ac.destination);audio.out.connect(wet);audio.wet=wet;an.connect(ac.destination)}
+const noteHz=x=>{const k=Math.floor(x*15),oct=Math.floor(k/5);return 220*2**((SC[k%5]+oct*12)/12)};
+// While the pointer is down one oscillator stays alive; x re-tunes it and y moves the filter cutoff.
+function start(e){audio();ac.resume();const o=ac.createOscillator(),f=ac.createBiquadFilter(),g=ac.createGain();o.type=wave;f.type='lowpass';f.Q.value=6;g.gain.setValueAtTime(0,ac.currentTime);g.gain.linearRampToValueAtTime(.3,ac.currentTime+.02);o.connect(f).connect(g).connect(audio.out);o.start();voice={o,f,g};audio.wet.gain.value=$('#echo').value/100;move(e);$('#dot').style.display='block'}
+function move(e){if(!voice)return;const r=$('#xy').getBoundingClientRect(),x=Math.max(0,Math.min(.999,(e.clientX-r.left)/r.width)),y=1-Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+  voice.o.frequency.setTargetAtTime(noteHz(x),ac.currentTime,.02);voice.f.frequency.setTargetAtTime(200+y*y*+$('#cut').value,ac.currentTime,.03);$('#dot').style.left=e.clientX-r.left+'px';$('#dot').style.top=e.clientY-r.top+'px'}
+function stop(){if(!voice)return;const t=ac.currentTime,rel=$('#rel').value/100;voice.g.gain.setTargetAtTime(0,t,rel/3);voice.o.stop(t+rel*1.5);voice=null;$('#dot').style.display='none'}
+$('#xy').onpointerdown=e=>{$('#xy').setPointerCapture(e.pointerId);start(e)};$('#xy').onpointermove=move;$('#xy').onpointerup=stop;
+const sc=$('#osc').getContext('2d');(function draw(){sc.fillStyle='#0b0813';sc.fillRect(0,0,520,90);if(an){const b=new Uint8Array(an.fftSize);an.getByteTimeDomainData(b);sc.strokeStyle='#ff7ad9';sc.beginPath();for(let i=0;i<520;i++){const v=b[Math.floor(i/520*512)]/128-1;sc.lineTo(i,45+v*40)}sc.stroke()}requestAnimationFrame(draw)})();
+$('#rel').oninput=()=>$('#rv').textContent=$('#rel').value/100+'s';$('#rel').oninput();
+const patch=()=>({wave,cut:+$('#cut').value,rel:+$('#rel').value,echo:+$('#echo').value});
+$('#sv').onclick=async()=>{saved.unshift(await api.add({name:$('#nm').value||'Patch',...patch()}));$('#nm').value='';chips()};
+const chips=()=>$('#chips').innerHTML=saved.map(s=>`<span class="chip" data-id="${s.id}">${esc(s.name)}<i data-del style="font-style:normal;margin-left:6px;opacity:.5">×</i></span>`).join('');
+$('#chips').onclick=async e=>{const c=e.target.closest('.chip');if(!c)return;const s=saved.find(x=>x.id===c.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(s.id);saved=saved.filter(x=>x!==s)}else{wave=s.wave;$('#cut').value=s.cut;$('#rel').value=s.rel;$('#echo').value=s.echo;$('#rel').oninput();document.querySelectorAll('#wv button').forEach(b=>b.classList.toggle('on',b.dataset.w===wave))}chips()};
+api.list().then(d=>{saved=d;chips()});
+</script>

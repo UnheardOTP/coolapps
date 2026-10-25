@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>CSV ⇄ JSON</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#65a30d;--w:1050px}</style>
+<div class="wrap"><h1>CSV ⇄ JSON</h1><p class="sub">Convert in either direction. Quoted fields, embedded commas and line breaks are handled.</p>
+<div class="card"><div class="tabs" id="tabs"><button data-m="c2j" class="on">CSV → JSON</button><button data-m="j2c">JSON → CSV</button></div>
+<div class="row"><div class="col"><label>Delimiter</label><select id="d" data-keep><option value=",">Comma</option><option value=";">Semicolon</option><option value="&#9;">Tab</option><option value="|">Pipe</option></select></div><label style="margin:0 0 9px"><input type="checkbox" id="h" data-keep checked> First row is a header</label><label style="margin:0 0 9px"><input type="checkbox" id="n" data-keep> Parse numbers</label></div>
+<div class="g2 gap"><div><label id="li">Input</label><textarea id="in" style="min-height:260px" data-keep></textarea></div><div><label>Output</label><textarea id="out" style="min-height:260px" readonly></textarea></div></div><div class="err" id="er"></div><div class="row gap"><button class="s" id="cp">Copy output</button><span class="mut" id="st"></span></div></div>
+<div class="card"><h2>Preview</h2><div style="overflow:auto;max-height:320px" id="pv"></div></div></div>
+<script>
+let mode='c2j';
+// RFC-4180 style parser: handles "quoted, fields", doubled quotes and newlines inside quotes.
+function parseCSV(t,d){const rows=[];let r=[],f='',q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}else if(c==='"')q=true;else if(c===d){r.push(f);f=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;r.push(f);rows.push(r);r=[];f=''}else f+=c}if(f!==''||r.length){r.push(f);rows.push(r)}if(q)throw Error('Unterminated quoted field');return rows.filter(r=>r.some(x=>x!==''))}
+const val=(s,num)=>num&&s.trim()!==''&&!isNaN(Number(s))?Number(s):s;
+function toCSV(rows,d){const e=v=>{v=v==null?'':typeof v==='object'?JSON.stringify(v):String(v);return /["\n\r]/.test(v)||v.includes(d)?'"'+v.replace(/"/g,'""')+'"':v};return rows.map(r=>r.map(e).join(d)).join('\n')}
+function table(rows){$('#pv').innerHTML=rows.length?'<table>'+rows.slice(0,100).map((r,i)=>`<tr>${r.map(c=>i===0&&$('#h').checked?`<th>${esc(c)}</th>`:`<td>${esc(c)}</td>`).join('')}</tr>`).join('')+'</table>':''}
+function run(){$('#er').textContent='';const d=$('#d').value;try{if(mode==='c2j'){const rows=parseCSV($('#in').value,d);table(rows);if(!rows.length){$('#out').value='';return}
+    const hdr=$('#h').checked,keys=hdr?rows[0]:rows[0].map((_,i)=>'col'+(i+1)),body=hdr?rows.slice(1):rows;$('#out').value=JSON.stringify(body.map(r=>Object.fromEntries(keys.map((k,i)=>[k,val(r[i]??'',$('#n').checked)]))),null,2);$('#st').textContent=`${body.length} records, ${keys.length} columns`}
+  else{const j=JSON.parse($('#in').value),arr=Array.isArray(j)?j:[j],keys=[...new Set(arr.flatMap(o=>Object.keys(o)))],rows=[keys,...arr.map(o=>keys.map(k=>o[k]))];$('#out').value=toCSV(rows,d);table(rows);$('#st').textContent=`${arr.length} records, ${keys.length} columns`}}catch(e){$('#er').textContent=e.message;$('#out').value=''}}
+$('#tabs').onclick=e=>{const m=e.target.dataset.m;if(!m)return;mode=m;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b===e.target));$('#li').textContent=m==='c2j'?'CSV input':'JSON input (array of objects)';run()};
+['#in','#d','#h','#n'].forEach(s=>$(s).oninput=run);$('#cp').onclick=e=>copy($('#out').value,e.target);remember().then(run);
+</script>

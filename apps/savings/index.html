@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Savings Goal</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0ea5e9;--w:760px}</style>
+<div class="wrap"><h1>Savings Goal</h1><p class="sub">How long until you hit a target, or how much to save each month to reach it by a date.</p>
+<div class="card"><div class="g2"><div><label>Goal ($)</label><input id="g" type="number" value="20000" data-keep></div><div><label>Already saved ($)</label><input id="s" type="number" value="2500" data-keep></div><div><label>Interest rate (% / yr)</label><input id="r" type="number" value="4" step="0.1" data-keep></div><div><label>Target date (for monthly amount)</label><input id="d" type="date" data-keep></div></div></div>
+<div class="g2"><div class="card"><h2>Time to goal</h2><label>Monthly saving ($)</label><input id="m" type="number" value="500" data-keep><div class="big gap" id="t1"></div><div class="mut" id="t1s"></div></div>
+<div class="card"><h2>Needed per month</h2><div class="mut">to reach the goal by the target date</div><div class="big gap" id="t2"></div><div class="mut" id="t2s"></div></div></div>
+<div class="card"><h2>Progress</h2><div class="bar"><i id="pb" style="width:0"></i></div><div class="mut gap" id="pt"></div></div></div>
+<script>
+function run(){const G=num('g'),S=num('s'),i=num('r')/1200,m=num('m');$('#pb').style.width=Math.min(100,S/G*100)+'%';$('#pt').textContent=`${money(S)} of ${money(G)} (${fmt(S/G*100,1)}%)`;
+  // Months until balance ≥ goal, compounding monthly with contributions at month end.
+  let bal=S,mo=0;while(bal<G&&mo<1200){bal=bal*(1+i)+m;mo++}$('#t1').textContent=S>=G?'Already there 🎉'.replace(' 🎉','!'):mo>=1200||m<=0&&i===0?'Never at this rate':`${Math.floor(mo/12)} yr ${mo%12} mo`;$('#t1s').textContent=mo<1200&&S<G?`≈ ${new Date(Date.now()+mo*30.44*864e5).toLocaleDateString(undefined,{month:'long',year:'numeric'})}`:'';
+  const dv=$('#d').value;if(!dv){$('#t2').textContent='Pick a date';$('#t2s').textContent='';return}const n=Math.max(1,Math.round((new Date(dv)-Date.now())/(30.44*864e5)));
+  const fv=S*(1+i)**n,need=i?(G-fv)*i/((1+i)**n-1):(G-S)/n;$('#t2').textContent=G<=fv?'$0.00':money(need);$('#t2s').textContent=`over ${n} months${G<=fv?' — interest alone gets you there':''}`}
+document.addEventListener('input',run);remember().then(run);
+</script>

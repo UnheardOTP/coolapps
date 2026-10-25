@@ -1,0 +1,64 @@
+<!doctype html><meta charset="utf-8"><title>Day Dial</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #fbf3e6; color: #3b2f2f; font-family: 'Avenir Next', 'Helvetica Neue', system-ui, sans-serif; display: flex; gap: 48px; align-items: center; justify-content: center; }
+  svg { user-select: none; cursor: crosshair; } .hr { font-size: 11px; fill: #a08e7b; text-anchor: middle; dominant-baseline: central; }
+  .blk { cursor: pointer; } .blk:hover { filter: brightness(1.08); } .blk.sel { stroke: #3b2f2f; stroke-width: 3; }
+  .lbl { font-size: 12px; font-weight: 600; fill: #fff; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+  #center { position: absolute; width: 190px; text-align: center; pointer-events: none; }
+  #center big { display: block; font-size: 40px; font-weight: 200; } #center small { color: #a08e7b; }
+  #ask { position: absolute; width: 160px; padding: 8px 12px; border: 2px solid #3b2f2f; border-radius: 20px; font: inherit; outline: none; background: #fff; text-align: center; }
+  aside { width: 250px; } h1 { margin: 0 0 4px; font-weight: 300; font-size: 34px; } h1 b { color: #e76f51; } .sub { color: #a08e7b; margin: 0 0 20px; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e8dcc7; } .item i { width: 12px; height: 12px; border-radius: 50%; } .item span { flex: 1; } .item em { font-style: normal; color: #a08e7b; font-size: 13px; }
+</style>
+<div style="position:relative"><svg id="svg" width="520" height="520" viewBox="0 0 520 520"></svg><div id="center" style="left:165px;top:200px"></div><input id="ask" hidden style="left:180px;top:244px" placeholder="Name this block"></div>
+<aside><h1>Day <b>Dial</b></h1><p class="sub">Drag around the ring to plan your 24 hours.</p><div id="list"></div></aside>
+<script>
+const CX = 260, CY = 260, R0 = 130, R1 = 200, COL = ['#e76f51', '#f4a261', '#2a9d8f', '#457b9d', '#9b5de5', '#e5989b', '#6a994e'];
+let blocks = [], drag = null, sel = null, pend = null;
+const fmt = m => { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const ang = m => m / 1440 * Math.PI * 2;                       // minute of day → radians, midnight at top, clockwise
+const pt = (a, r) => [CX + Math.sin(a) * r, CY - Math.cos(a) * r];
+// Annular sector between two angles.
+function arc(a0, a1, r0, r1) {
+  const big = a1 - a0 > Math.PI ? 1 : 0, p = (a, r) => pt(a, r).join(',');
+  return `M${p(a0, r1)} A${r1},${r1} 0 ${big} 1 ${p(a1, r1)} L${p(a1, r0)} A${r0},${r0} 0 ${big} 0 ${p(a0, r0)}Z`;
+}
+function render() {
+  const now = new Date(), nm = now.getHours() * 60 + now.getMinutes();
+  let h = `<circle cx="${CX}" cy="${CY}" r="${R1 + 6}" fill="#fff" stroke="#e8dcc7"/><path d="${arc(0, Math.PI * 2 - .001, R0, R1)}" fill="#f6ead6"/>`;
+  h += `<path d="${arc(ang(1320), ang(1440) - .0001, R0, R1)} ${arc(0, ang(360), R0, R1)}" fill="#e3dcf0" opacity=".55"/>`;      // night shading
+  for (let i = 0; i < 24; i++) { const [x, y] = pt(ang(i * 60), R1 + 22); h += `<text class="hr" x="${x}" y="${y}">${i}</text>`; }
+  const all = [...blocks, ...(drag ? [{ id: 'new', start: drag.s, len: drag.len, color: '#3b2f2f55' }] : [])];
+  all.forEach(b => {
+    const a0 = ang(b.start), a1 = ang(b.start + b.len), mid = (a0 + a1) / 2, [lx, ly] = pt(mid, (R0 + R1) / 2);
+    h += `<path class="blk ${sel === b.id ? 'sel' : ''}" data-id="${b.id}" d="${arc(a0, a1 - .002, R0 + 2, R1 - 2)}" fill="${b.color}"/>` + (b.len >= 75 && b.label ? `<text class="lbl" x="${lx}" y="${ly}">${esc(b.label.slice(0, 9))}</text>` : '');
+  });
+  const [nx, ny] = pt(ang(nm), R1 + 4), [ix, iy] = pt(ang(nm), R0 - 8);
+  h += `<line x1="${ix}" y1="${iy}" x2="${nx}" y2="${ny}" stroke="#3b2f2f" stroke-width="3" stroke-linecap="round"/><circle cx="${ix}" cy="${iy}" r="5" fill="#3b2f2f"/>`;
+  $('#svg').innerHTML = h;
+  const tot = blocks.reduce((n, b) => n + b.len, 0), cur = blocks.find(b => (nm - b.start + 1440) % 1440 < b.len);
+  $('#center').innerHTML = `<big>${fmt(nm)}</big><small>${cur ? esc(cur.label) : 'free time'}</small><br><small>${(tot / 60).toFixed(1)} h planned</small>`;
+  $('#list').innerHTML = [...blocks].sort((a, b) => a.start - b.start).map(b => `<div class="item" data-id="${b.id}"><i style="background:${b.color}"></i><span>${esc(b.label)}</span><em>${fmt(b.start)}–${fmt(b.start + b.len)}</em></div>`).join('') || '<p class="sub">No blocks yet.</p>';
+}
+// Pointer → minute of day snapped to 15 minutes.
+function minute(e) { const r = $('#svg').getBoundingClientRect(), a = Math.atan2(e.clientX - r.left - CX, -(e.clientY - r.top - CY)); return Math.round(((a + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * 96) * 15 % 1440; }
+$('#svg').onmousedown = e => {
+  const b = e.target.closest('.blk'); if (b) { sel = b.dataset.id; return render(); }
+  const r = $('#svg').getBoundingClientRect(), d = Math.hypot(e.clientX - r.left - CX, e.clientY - r.top - CY);
+  if (d < R0 || d > R1 + 10) { sel = null; return render(); }
+  const m = minute(e); drag = { m0: m, s: m, len: 15 }; render();
+};
+addEventListener('mousemove', e => { if (!drag) return; const m = minute(e); let len = (m - drag.m0 + 1440) % 1440; if (len === 0) len = 15; drag.s = drag.m0; drag.len = len; render(); });
+addEventListener('mouseup', () => { if (!drag) return; pend = { start: drag.s, len: drag.len }; drag = null; render(); $('#ask').hidden = false; $('#ask').value = ''; $('#ask').focus(); });
+$('#ask').onkeydown = async e => {
+  if (e.key === 'Escape') { $('#ask').hidden = true; pend = null; }
+  if (e.key === 'Enter' && $('#ask').value.trim()) {
+    const b = await api.add({ ...pend, label: $('#ask').value.trim(), color: COL[blocks.length % COL.length] }); blocks.push(b); $('#ask').hidden = true; pend = null; render();
+  }
+};
+addEventListener('keydown', async e => { if (sel && ['Delete', 'Backspace'].includes(e.key) && $('#ask').hidden) { await api.del(sel); blocks = blocks.filter(b => b.id !== sel); sel = null; render(); } });
+$('#list').onclick = e => { const i = e.target.closest('.item'); if (i) { sel = i.dataset.id; render(); } };
+api.list().then(d => { blocks = d; render(); }); setInterval(render, 30000);
+</script>

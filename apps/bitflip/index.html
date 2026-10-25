@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Bit Flip</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#0a0f0a;color:#9dff9d;font-family:'Courier New',monospace;display:flex;flex-direction:column;align-items:center;padding-top:34px}h1{margin:0;letter-spacing:.4em;font-weight:400}.sub{color:#4a7a4a;margin:6px 0 24px}
+.bits{display:flex;gap:10px}.bit{width:76px;text-align:center;cursor:pointer;user-select:none}.led{width:56px;height:56px;margin:0 auto 8px;border-radius:50%;background:#112211;border:3px solid #1d3d1d;transition:.12s}.bit.on .led{background:#4dff4d;box-shadow:0 0 28px #4dff4d;border-color:#9dff9d}.sw{width:34px;height:64px;margin:0 auto;background:#1a2a1a;border:2px solid #2d4d2d;border-radius:8px;position:relative}.sw::after{content:'';position:absolute;left:3px;right:3px;height:26px;background:#8fdc8f;border-radius:5px;bottom:3px;transition:.12s}.bit.on .sw::after{bottom:31px}.bit small{display:block;margin-top:6px;color:#4a7a4a}
+.out{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:30px 0;width:760px}.o{border:1px solid #2d4d2d;padding:14px;text-align:center}.o small{color:#4a7a4a;display:block;letter-spacing:.2em;margin-bottom:6px}.o b{font-size:32px;font-weight:400;color:#c8ffc8}
+.pre{display:flex;gap:8px}button{font:inherit;background:none;border:1px solid #2d4d2d;color:#9dff9d;padding:7px 14px;cursor:pointer}button:hover{background:#1a2a1a}.chip{display:inline-block;margin:8px 8px 0 0;padding:3px 12px;border:1px solid #2d4d2d;cursor:pointer}</style>
+<h1>BIT FLIP</h1><div class="sub">Click the switches. Watch the number.</div><div class="bits" id="bits"></div>
+<div class="out"><div class="o"><small>DECIMAL</small><b id="d"></b></div><div class="o"><small>HEX</small><b id="h"></b></div><div class="o"><small>OCTAL</small><b id="o"></b></div><div class="o"><small>ASCII</small><b id="a"></b></div></div>
+<div class="pre"><button data-v="42">42</button><button data-v="65">'A'</button><button data-v="127">127</button><button data-v="255">255</button><button data-v="0">0</button><button id="inv">invert</button><button id="shl">&laquo; shift</button><button id="shr">shift &raquo;</button><button id="sv">★ save</button></div><div id="chips"></div>
+<script>
+let v=0,saved=[];const bit=i=>7-i;
+function render(){$('#bits').innerHTML=Array.from({length:8},(_,i)=>{const b=bit(i),on=v>>b&1;return`<div class="bit ${on?'on':''}" data-b="${b}"><div class="led"></div><div class="sw"></div><small>${2**b}</small></div>`}).join('');
+$('#d').textContent=v;$('#h').textContent='0x'+v.toString(16).toUpperCase().padStart(2,'0');$('#o').textContent='0'+v.toString(8);$('#a').textContent=v>=32&&v<127?`'${String.fromCharCode(v)}'`:'·';
+$('#chips').innerHTML=saved.map(s=>`<span class="chip" data-id="${s.id}">${s.v}<i data-del style="font-style:normal;margin-left:8px;opacity:.5">×</i></span>`).join('')}
+$('#bits').onclick=e=>{const b=e.target.closest('.bit');if(b){v^=1<<+b.dataset.b;render()}};
+document.querySelector('.pre').onclick=e=>{if(e.target.dataset.v)v=+e.target.dataset.v;if(e.target.id==='inv')v=~v&255;if(e.target.id==='shl')v=v<<1&255;if(e.target.id==='shr')v>>=1;if(e.target.id==='sv'){api.add({v}).then(s=>{saved.unshift(s);render()});return}render()};
+$('#chips').onclick=async e=>{const c=e.target.closest('.chip');if(!c)return;const s=saved.find(x=>x.id===c.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(s.id);saved=saved.filter(x=>x!==s)}else v=s.v;render()};
+api.list().then(d=>{saved=d;render()});
+</script>

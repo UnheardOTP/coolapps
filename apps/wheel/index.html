@@ -1,0 +1,101 @@
+<!doctype html><meta charset="utf-8"><title>Decision Wheel</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #ffe14d; color: #000; font: 600 15px 'Arial Black', 'Helvetica Neue', Arial, sans-serif; }
+  main { display: flex; gap: 48px; justify-content: center; align-items: flex-start; padding: 48px 32px; }
+  h1 { margin: 0 0 24px; font-size: 44px; line-height: .95; text-transform: uppercase; letter-spacing: -.02em; }
+  .box { background: #fff; border: 3px solid #000; box-shadow: 7px 7px 0 #000; padding: 18px; }
+  canvas { display: block; }
+  #result { margin-top: 22px; height: 54px; font-size: 34px; text-align: center; text-transform: uppercase; }
+  #spin { display: block; margin: 8px auto 0; font: inherit; font-size: 22px; padding: 12px 54px; background: #ff4d6d; color: #fff; border: 3px solid #000; box-shadow: 5px 5px 0 #000; cursor: pointer; text-transform: uppercase; }
+  #spin:active { transform: translate(4px, 4px); box-shadow: 1px 1px 0 #000; }
+  #spin:disabled { background: #999; }
+  side { display: block; width: 340px; }
+  form { display: flex; gap: 8px; margin-bottom: 16px; }
+  input { flex: 1; min-width: 0; font: inherit; padding: 10px; border: 3px solid #000; outline: none; }
+  button.add { font: inherit; padding: 10px 16px; background: #000; color: #fff; border: 3px solid #000; cursor: pointer; }
+  .opt { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 2px dashed #000; }
+  .opt i { width: 16px; height: 16px; border: 2px solid #000; flex: none; }
+  .opt span { flex: 1; } .opt b { cursor: pointer; }
+  h2 { margin: 26px 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .12em; }
+  .hist { font-size: 13px; padding: 5px 0; display: flex; justify-content: space-between; }
+  .hist em { font-style: normal; color: #777; }
+  .none { color: #777; padding: 8px 0; }
+</style>
+<main>
+  <div>
+    <h1>Decision<br>Wheel</h1>
+    <div class="box"><canvas id="w" width="440" height="440"></canvas></div>
+    <div id="result"></div>
+    <button id="spin">Spin!</button>
+  </div>
+  <side>
+    <div class="box">
+      <form id="f"><input id="in" placeholder="Add an option" autocomplete="off"><button class="add">+</button></form>
+      <div id="opts"></div>
+      <h2>Past spins</h2><div id="hist"></div>
+    </div>
+  </side>
+</main>
+<script>
+const COLORS = ['#ff6b6b', '#4ecdc4', '#ffd93d', '#a29bfe', '#ff9f43', '#1dd1a1', '#54a0ff', '#f368e0'];
+const TAU = Math.PI * 2;
+let items = [], rot = 0, spinning = false;
+const options = () => items.filter(i => i.kind === 'option').reverse();   // oldest first so segment order is stable
+const spins = () => items.filter(i => i.kind === 'spin');
+const cv = $('#w'), ctx = cv.getContext('2d');
+
+// Draw the wheel at the current rotation, plus the fixed pointer on top.
+function draw() {
+  const o = options(), n = o.length, cx = 220, cy = 232, r = 196;
+  ctx.clearRect(0, 0, 440, 440);
+  ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.font = '700 17px Arial, sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  if (!n) { ctx.fillStyle = '#eee'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#999'; ctx.textAlign = 'center'; ctx.fillText('add some options →', cx, cy); }
+  o.forEach((opt, i) => {
+    const a0 = rot + i * TAU / n, a1 = a0 + TAU / n;
+    ctx.fillStyle = COLORS[i % COLORS.length];
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, a0, a1); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate((a0 + a1) / 2); ctx.fillStyle = '#000';
+    ctx.fillText(opt.text.length > 16 ? opt.text.slice(0, 15) + '…' : opt.text, r - 16, 0); ctx.restore();
+  });
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx, cy, 26, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(cx - 16, 6); ctx.lineTo(cx + 16, 6); ctx.lineTo(cx, 44); ctx.closePath(); ctx.fill();
+}
+
+// Which option sits under the pointer (top, i.e. angle -90°) for a given rotation.
+function winner(rotation) {
+  const o = options(), seg = TAU / o.length;
+  const a = (((-Math.PI / 2 - rotation) % TAU) + TAU) % TAU;
+  return o[Math.floor(a / seg)];
+}
+// Spin with an ease-out curve toward a random end angle; the winner is whatever lands under the pointer.
+function spin() {
+  if (spinning || options().length < 2) return;
+  spinning = true; $('#spin').disabled = true; $('#result').textContent = '';
+  const from = rot, to = rot + TAU * 5 + Math.random() * TAU, t0 = performance.now(), dur = 4600;
+  (function frame(now) {
+    const t = Math.min(1, (now - t0) / dur);
+    rot = from + (to - from) * (1 - Math.pow(1 - t, 4)); draw();
+    if (t < 1) return requestAnimationFrame(frame);
+    const w = winner(rot);
+    spinning = false; $('#spin').disabled = false; $('#result').textContent = w.text;
+    api.add({ kind: 'spin', result: w.text }).then(s => { items.unshift(s); renderSide(); });
+  })(t0);
+}
+function renderSide() {
+  $('#opts').innerHTML = options().map((o, i) => `<div class="opt" data-id="${o.id}"><i style="background:${COLORS[i % COLORS.length]}"></i><span>${esc(o.text)}</span><b data-del>×</b></div>`).join('') || '<div class="none">No options yet.</div>';
+  $('#hist').innerHTML = spins().slice(0, 8).map(s => `<div class="hist"><span>${esc(s.result)}</span><em>${new Date(s.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</em></div>`).join('') || '<div class="none">Nothing yet.</div>';
+  draw();
+}
+$('#f').onsubmit = async e => {
+  e.preventDefault(); const t = $('#in').value.trim(); if (!t) return;
+  items.unshift(await api.add({ kind: 'option', text: t })); $('#in').value = ''; renderSide();
+};
+$('#opts').onclick = async e => {
+  const row = e.target.closest('.opt'); if (!row || !e.target.hasAttribute('data-del')) return;
+  await api.del(row.dataset.id); items = items.filter(i => i.id !== row.dataset.id); renderSide();
+};
+$('#spin').onclick = spin; cv.onclick = spin;
+api.list().then(d => { items = d; renderSide(); });
+</script>

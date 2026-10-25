@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>Hours to Decimal</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0ea5e9;--w:780px}</style>
+<div class="wrap"><h1>Hours to Decimal</h1><p class="sub">Convert 7h 45m to 7.75 for payroll and invoices, and back again. Paste a whole list of times to total them.</p>
+<div class="g2"><div class="card"><h2>Hours:minutes → decimal</h2><label>Time (h:mm, e.g. 7:45)</label><input id="hm" value="7:45" style="font-size:22px" data-keep><div class="kpi gap"><small>Decimal hours</small><b id="d1"></b></div></div>
+<div class="card"><h2>Decimal → hours:minutes</h2><label>Decimal hours</label><input id="dc" type="number" step="any" value="7.75" style="font-size:22px" data-keep><div class="kpi gap"><small>Hours and minutes</small><b id="h1"></b></div></div></div>
+<div class="card gap"><h2>Total a list of times</h2><textarea id="ls" style="min-height:130px" data-keep placeholder="8:15&#10;7:50&#10;6:30&#10;1h 20m"></textarea>
+<div class="row gap"><div class="col"><label>Round each entry to</label><select id="rd" data-keep><option value="0">no rounding</option><option value="5">5 minutes</option><option value="6">6 minutes (tenth of an hour)</option><option value="15">15 minutes</option></select></div><div class="col"><label>Hourly rate ($, optional)</label><input id="rt" type="number" step="0.01" data-keep></div></div><div class="g4 gap" id="kp"></div></div>
+<div class="card"><h2>Quick reference</h2><div class="g4" id="ref"></div></div></div>
+<script>
+function mins(s){s=s.trim().toLowerCase();if(!s)return null;if(s.includes(':')){const p=s.split(':').map(Number);if(p.some(isNaN))return NaN;return p[0]*60+(p[1]||0)+(p[2]||0)/60}const m=[...s.matchAll(/([\d.]+)\s*(h|hr|hrs|m|min|mins)/g)];if(m.length)return m.reduce((n,[,v,u])=>n+parseFloat(v)*(u[0]==='h'?60:1),0);const n=parseFloat(s);return isNaN(n)?NaN:n*60}
+const hm=m=>`${Math.floor(m/60)}h ${pad2(Math.round(m%60))}m`;
+function run(){const a=mins($('#hm').value);$('#d1').textContent=a==null||isNaN(a)?'–':fmt(a/60,4).replace(/0+$/,'').replace(/\.$/,'');const d=num('dc');$('#h1').textContent=hm(d*60);
+  const r=+$('#rd').value,L=$('#ls').value.split('\n').map(mins).filter(x=>x!=null),good=L.filter(x=>!isNaN(x)).map(x=>r?Math.round(x/r)*r:x),T=good.reduce((n,x)=>n+x,0);
+  $('#kp').innerHTML=L.length?[['Entries',good.length+(L.length>good.length?` (+${L.length-good.length} unreadable)`:'')],['Total',hm(T)],['Decimal hours',fmt(T/60,2)],['Pay',num('rt')?money(T/60*num('rt')):'–']].map(([k,v])=>`<div class="kpi"><small>${k}</small><b style="font-size:17px">${v}</b></div>`).join(''):'';
+  $('#ref').innerHTML=[5,10,15,20,25,30,40,45,50,55].map(m=>`<div class="kpi"><small>${m} min</small><b style="font-size:16px">${fmt(m/60,3)}</b></div>`).join('')}
+document.addEventListener('input',run);remember().then(run);
+</script>

@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><title>Breakout</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#10122b;color:#cfd3ff;font-family:system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center}
+canvas{background:linear-gradient(#1a1d4a,#0b0d24);border:2px solid #4b53d6;box-shadow:0 0 40px #4b53d655;cursor:none}p{color:#7c83d9;margin:12px}</style>
+<canvas id="c" width="640" height="480"></canvas><p id="i">Mouse or ← → to move · click to launch</p>
+<script>
+const cv=$('#c'),g=cv.getContext('2d'),W=640,H=480,COL=['#ff5f6d','#ffa34d','#ffd23f','#5be39a','#4db3ff'];
+let px=W/2,ball,bricks,score,lives,state='ready',scores=[],keys={};
+function setup(){bricks=[];for(let r=0;r<5;r++)for(let c=0;c<10;c++)bricks.push({x:c*62+10,y:r*24+50,w:56,h:18,c:COL[r],on:1});score=0;lives=3;ready()}
+const ready=()=>{state='ready';ball={x:px,y:H-40,vx:0,vy:0}};
+function frame(){
+  if(keys.ArrowLeft)px-=8;if(keys.ArrowRight)px+=8;px=Math.max(45,Math.min(W-45,px));
+  if(state==='ready'){ball.x=px;ball.y=H-40}else if(state==='play'){ball.x+=ball.vx;ball.y+=ball.vy;
+    if(ball.x<8||ball.x>W-8)ball.vx*=-1;if(ball.y<8)ball.vy*=-1;
+    if(ball.vy>0&&ball.y>H-36&&ball.y<H-24&&Math.abs(ball.x-px)<50){ball.vy=-Math.abs(ball.vy);ball.vx=(ball.x-px)/7}   // bounce angle depends on where it hits the paddle
+    for(const b of bricks)if(b.on&&ball.x>b.x&&ball.x<b.x+b.w&&ball.y>b.y&&ball.y<b.y+b.h){b.on=0;ball.vy*=-1;score+=10}
+    if(ball.y>H){lives--;lives?ready():finish('over')}if(bricks.every(b=>!b.on))finish('won')}
+  g.clearRect(0,0,W,H);bricks.forEach(b=>{if(b.on){g.fillStyle=b.c;g.fillRect(b.x,b.y,b.w,b.h)}});
+  g.fillStyle='#fff';g.fillRect(px-45,H-28,90,10);g.beginPath();g.arc(ball.x,ball.y,7,0,7);g.fill();
+  g.font='16px system-ui';g.textAlign='left';g.fillText('Score '+score,12,26);g.textAlign='right';g.fillText('Lives '+'♥'.repeat(lives)+'   Best '+Math.max(0,...scores.map(s=>s.score)),W-12,26);
+  if(state==='over'||state==='won'){g.textAlign='center';g.font='34px system-ui';g.fillText(state==='won'?'CLEARED!':'GAME OVER',W/2,H/2);g.font='15px system-ui';g.fillText('click to play again',W/2,H/2+30)}
+  requestAnimationFrame(frame)}
+async function finish(s){state=s;scores.push(await api.add({score}))}
+cv.onmousemove=e=>px=e.clientX-cv.getBoundingClientRect().left;addEventListener('keydown',e=>keys[e.key]=1);addEventListener('keyup',e=>keys[e.key]=0);
+cv.onclick=()=>{if(state==='ready'){state='play';ball.vx=(Math.random()-.5)*4;ball.vy=-5.5}else if(state==='over'||state==='won')setup()};
+setup();frame();api.list().then(d=>scores=d);
+</script>

@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Unicode Inspector</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#7c3aed}</style>
+<div class="wrap"><h1>Unicode Inspector</h1><p class="sub">See every character's code point, UTF-8 bytes and escapes. Useful for hunting invisible characters.</p>
+<div class="card"><textarea id="t" data-keep style="min-height:90px" placeholder="Paste text, e.g. café 👩‍💻 ✓"></textarea><div class="g4 gap" id="kp"></div></div>
+<div class="card"><h2>Characters</h2><div style="overflow:auto;max-height:420px"><table id="tb"></table></div></div>
+<div class="card"><h2>Escaped</h2><div class="row"><div class="col"><label>JavaScript / JSON</label><div class="out" id="js"></div></div><div class="col"><label>HTML entities</label><div class="out" id="ht"></div></div></div></div></div>
+<script>
+const enc=new TextEncoder();
+const kind=cp=>cp<32||cp===127?'control':cp===32?'space':[0x200B,0x200C,0x200D,0x2060,0xFEFF].includes(cp)?'zero-width':cp===0xA0?'no-break space':cp>=0xFE00&&cp<=0xFE0F?'variation selector':cp>=0x300&&cp<=0x36F?'combining mark':cp>127?'non-ASCII':'ASCII';
+function run(){const s=$('#t').value,cps=[...s],bytes=enc.encode(s).length;$('#kp').innerHTML=[['Code points',cps.length],['UTF-16 units',s.length],['UTF-8 bytes',bytes],['Graphemes',typeof Intl.Segmenter==='function'?[...new Intl.Segmenter().segment(s)].length:'–']].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('');
+  $('#tb').innerHTML='<tr><th>Char</th><th>Code point</th><th>UTF-8</th><th>Kind</th></tr>'+cps.slice(0,400).map(c=>{const cp=c.codePointAt(0),k=kind(cp);return`<tr><td style="font-size:20px">${k==='ASCII'||k==='non-ASCII'||k==='combining mark'?esc(c):'·'}</td><td class="mono">U+${cp.toString(16).toUpperCase().padStart(4,'0')}</td><td class="mono">${[...enc.encode(c)].map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ')}</td><td class="${k.includes('zero')||k==='control'?'bad':'mut'}">${k}</td></tr>`}).join('');
+  $('#js').textContent=cps.map(c=>{const cp=c.codePointAt(0);return cp<127&&cp>31?c:cp>0xFFFF?`\\u{${cp.toString(16)}}`:'\\u'+cp.toString(16).padStart(4,'0')}).join('');$('#ht').textContent=cps.map(c=>{const cp=c.codePointAt(0);return cp<127&&cp>31?esc(c):`&#x${cp.toString(16).toUpperCase()};`}).join('')}
+$('#t').oninput=run;remember().then(run);
+</script>

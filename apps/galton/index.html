@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><title>Galton Board</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#f1ece1;color:#2a2a2a;font-family:Georgia,serif;display:flex;flex-direction:column;align-items:center;padding-top:22px}h1{margin:0;font-weight:400;font-size:34px}.sub{color:#7a6e58;margin:4px 0 8px;font-style:italic}
+canvas{background:#fffdf7;border:2px solid #2a2a2a;box-shadow:6px 6px 0 #2a2a2a}.bar{display:flex;gap:18px;margin-top:16px;align-items:center}button{font:inherit;padding:8px 18px;border:2px solid #2a2a2a;background:#fff;cursor:pointer}button.on{background:#e63946;color:#fff;border-color:#e63946}</style>
+<h1>Galton Board</h1><div class="sub" id="sub">Chance, one peg at a time.</div><canvas id="c" width="760" height="620"></canvas>
+<div class="bar"><button id="go" class="on">Pause</button><button id="burst">Drop 100</button><button id="rs">Reset totals</button></div>
+<script>
+const cv=$('#c'),g=cv.getContext('2d'),W=760,H=620,ROWS=14,BINS=ROWS+1,DX=40,TOP=70,DY=26,BOT=H-190;
+let balls=[],bins=Array(BINS).fill(0),total=0,run=true,doc=null,dirty=0;
+const binX=i=>W/2+(i-ROWS/2)*DX;
+// A ball falls through ROWS pegs; at each peg it goes left or right with equal chance, so landing spots follow a binomial (≈ bell) curve.
+function drop(){balls.push({r:0,k:0,x:W/2,y:20,tx:W/2,ty:TOP,step:0,path:Array.from({length:ROWS},()=>Math.random()<.5?1:0)})}
+function tick(){balls.forEach(b=>{b.x+=(b.tx-b.x)*.35;b.y+=(b.ty-b.y)*.35;if(Math.abs(b.x-b.tx)+Math.abs(b.y-b.ty)<2){if(b.r<ROWS){b.k+=b.path[b.r];b.r++;b.tx=W/2+(b.k-b.r/2)*DX;b.ty=b.r<ROWS?TOP+b.r*DY:BOT-10}else if(!b.done){b.done=1;bins[b.k]++;total++;dirty++}}});balls=balls.filter(b=>!b.done)}
+function draw(){g.clearRect(0,0,W,H);g.fillStyle='#2a2a2a';for(let r=0;r<ROWS;r++)for(let k=0;k<=r;k++){g.beginPath();g.arc(W/2+(k-r/2)*DX,TOP+r*DY+14,4,0,7);g.fill()}
+  const mx=Math.max(1,...bins);bins.forEach((n,i)=>{const h=n/mx*170,x=binX(i);g.fillStyle='#e63946';g.fillRect(x-DX/2+3,H-20-h,DX-6,h);g.strokeStyle='#2a2a2a';g.strokeRect(x-DX/2+3,H-20-170,DX-6,170);g.fillStyle='#2a2a2a';g.font='12px Georgia';g.textAlign='center';if(n)g.fillText(n,x,H-24-h)});
+  g.fillStyle='#457b9d';balls.forEach(b=>{g.beginPath();g.arc(b.x,b.y,6,0,7);g.fill()});$('#sub').textContent=`${total} balls dropped`}
+let n=0;(function loop(){if(run&&++n%6===0)drop();tick();draw();if(dirty>=25){dirty=0;save()}requestAnimationFrame(loop)})();
+async function save(){if(doc)api.upd(doc.id,{bins,total});else doc=await api.add({bins,total})}
+$('#go').onclick=()=>{run=!run;$('#go').textContent=run?'Pause':'Resume';$('#go').classList.toggle('on',run)};$('#burst').onclick=()=>{for(let i=0;i<100;i++)setTimeout(drop,i*25)};
+$('#rs').onclick=()=>{bins.fill(0);total=0;save()};
+api.list().then(d=>{if(d[0]){doc=d[0];bins=doc.bins;total=doc.total}});
+</script>

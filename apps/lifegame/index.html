@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8"><title>Life</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #f4f4f0; color: #111; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 26px; }
+  header { width: 840px; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 6px solid #111; padding-bottom: 8px; } h1 { margin: 0; font-size: 64px; font-weight: 900; letter-spacing: -.05em; line-height: .9; } h1 span { color: #e63946; } #gen { font: 700 22px monospace; }
+  canvas { margin-top: 14px; background: #fff; border: 2px solid #111; cursor: crosshair; } .bar { width: 840px; display: flex; gap: 8px; align-items: center; margin: 14px 0 6px; flex-wrap: wrap; }
+  button { font: 700 13px Helvetica, Arial; letter-spacing: .08em; text-transform: uppercase; background: #fff; border: 2px solid #111; padding: 8px 14px; cursor: pointer; } button.p { background: #e63946; color: #fff; border-color: #e63946; } button:hover { background: #111; color: #fff; }
+  label { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; margin-left: 12px; } input[type=range] { accent-color: #e63946; } input[type=text] { font: inherit; padding: 8px; border: 2px solid #111; width: 130px; }
+  .chips { width: 840px; display: flex; gap: 6px; flex-wrap: wrap; } .chip { border: 2px solid #111; padding: 4px 10px; font-size: 13px; cursor: pointer; font-weight: 700; } .chip i { font-style: normal; margin-left: 8px; opacity: .5; }
+</style>
+<header><h1>Game of <span>Life</span></h1><div id="gen">gen 0 · pop 0</div></header>
+<canvas id="c" width="840" height="560"></canvas>
+<div class="bar"><button class="p" id="play">Run</button><button id="step">Step</button><button id="rand">Random</button><button id="clear">Clear</button>
+  <label>Speed</label><input type="range" id="spd" min="1" max="40" value="12">
+  <label>Presets</label><button data-p="glider">Glider</button><button data-p="gun">Gun</button><button data-p="pulsar">Pulsar</button><button data-p="rpent">R-pentomino</button></div>
+<div class="bar"><input type="text" id="nm" placeholder="Pattern name"><button id="save">Save</button></div><div class="chips" id="chips"></div>
+<script>
+const W = 60, H = 40, S = 14, cv = $('#c'), g = cv.getContext('2d');
+let cells = new Uint8Array(W * H), gen = 0, run = null, painting = null, saved = [];
+const PRE = {
+  glider: ['.O.', '..O', 'OOO'], rpent: ['.OO', 'OO.', '.O.'],
+  pulsar: ['..OOO...OOO..', '.............', 'O....O.O....O', 'O....O.O....O', 'O....O.O....O', '..OOO...OOO..', '.............', '..OOO...OOO..', 'O....O.O....O', 'O....O.O....O', 'O....O.O....O', '.............', '..OOO...OOO..'],
+  gun: ['........................O...........', '......................O.O...........', '............OO......OO............OO', '...........O...O....OO............OO', 'OO........O.....O...OO..............', 'OO........O...O.OO....O.O...........', '..........O.....O.......O...........', '...........O...O....................', '............OO......................'],
+};
+// Torus-wrapped Conway step: live cell survives with 2–3 neighbours, dead cell is born with exactly 3.
+function step() {
+  const nx = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) n += cells[((y + dy + H) % H) * W + (x + dx + W) % W];
+    nx[y * W + x] = cells[y * W + x] ? (n === 2 || n === 3 ? 1 : 0) : (n === 3 ? 1 : 0);
+  }
+  cells = nx; gen++; draw();
+}
+function draw() {
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 840, 560); g.strokeStyle = '#eee'; g.lineWidth = 1; g.beginPath();
+  for (let x = 0; x <= W; x++) { g.moveTo(x * S + .5, 0); g.lineTo(x * S + .5, 560); } for (let y = 0; y <= H; y++) { g.moveTo(0, y * S + .5); g.lineTo(840, y * S + .5); } g.stroke();
+  let pop = 0; g.fillStyle = '#111'; for (let i = 0; i < cells.length; i++) if (cells[i]) { pop++; g.fillRect((i % W) * S + 1, Math.floor(i / W) * S + 1, S - 1, S - 1); }
+  $('#gen').textContent = `gen ${gen} · pop ${pop}`;
+}
+function loop() { if (!run) return; step(); run = setTimeout(loop, 1000 / $('#spd').value); }
+const toggle = () => { if (run) { clearTimeout(run); run = null; $('#play').textContent = 'Run'; } else { run = setTimeout(loop, 0); $('#play').textContent = 'Pause'; } };
+const at = e => { const r = cv.getBoundingClientRect(); return Math.floor((e.clientY - r.top) / S) * W + Math.floor((e.clientX - r.left) / S); };
+cv.onmousedown = e => { const i = at(e); painting = cells[i] ? 0 : 1; cells[i] = painting; draw(); };
+cv.onmousemove = e => { if (painting === null) return; const i = at(e); if (i >= 0 && i < cells.length) { cells[i] = painting; draw(); } }; addEventListener('mouseup', () => painting = null);
+function stamp(rows) { cells.fill(0); gen = 0; const ox = Math.floor((W - rows[0].length) / 2), oy = Math.floor((H - rows.length) / 2); rows.forEach((r, y) => [...r].forEach((c, x) => c === 'O' && (cells[(oy + y) * W + ox + x] = 1))); draw(); }
+document.querySelector('.bar:nth-of-type(1)').addEventListener('click', e => { if (e.target.dataset.p) stamp(PRE[e.target.dataset.p]); });
+$('#play').onclick = toggle; $('#step').onclick = step; $('#clear').onclick = () => { cells.fill(0); gen = 0; draw(); };
+$('#rand').onclick = () => { cells = cells.map(() => +(Math.random() < .25)); gen = 0; draw(); };
+$('#save').onclick = async () => { const live = []; cells.forEach((v, i) => v && live.push(i)); if (!live.length) return; saved.unshift(await api.add({ name: $('#nm').value || 'Pattern', live })); $('#nm').value = ''; chips(); };
+function chips() { $('#chips').innerHTML = saved.map(s => `<span class="chip" data-id="${s.id}">${esc(s.name)}<i data-del>×</i></span>`).join(''); }
+$('#chips').onclick = async e => { const c = e.target.closest('.chip'); if (!c) return; const s = saved.find(x => x.id === c.dataset.id); if (e.target.hasAttribute('data-del')) { await api.del(s.id); saved = saved.filter(x => x !== s); chips(); } else { cells.fill(0); gen = 0; s.live.forEach(i => cells[i] = 1); draw(); } };
+api.list().then(d => { saved = d; chips(); }); stamp(PRE.gun);
+</script>

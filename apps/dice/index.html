@@ -1,0 +1,49 @@
+<!doctype html><meta charset="utf-8"><title>Dice Tray</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 30%, #1f6b4a, #0e3a28 80%); color: #e9f5ec; font-family: Georgia, serif; display: flex; flex-direction: column; align-items: center; padding-top: 36px; }
+  h1 { margin: 0; font-weight: 400; font-size: 38px; letter-spacing: .12em; text-transform: uppercase; } .sub { color: #8fc5a5; font-style: italic; margin: 4px 0 20px; }
+  .pick { display: flex; gap: 14px; margin-bottom: 20px; }
+  .pick div { text-align: center; } .pick button { display: block; width: 74px; height: 74px; margin-bottom: 6px; background: #f6efd9; color: #3a2a12; border: none; font: 700 22px Georgia, serif; cursor: pointer; box-shadow: 0 4px 0 #b9ab85; }
+  .pick button:active { transform: translateY(3px); box-shadow: 0 1px 0 #b9ab85; } .pick b { font-size: 20px; color: #ffd76a; } .pick i { font-style: normal; cursor: pointer; color: #8fc5a5; padding: 0 6px; }
+  .shape4 { clip-path: polygon(50% 6%, 96% 92%, 4% 92%); } .shape6 { border-radius: 14px; } .shape8 { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); } .shape10 { clip-path: polygon(50% 0, 96% 38%, 50% 100%, 4% 38%); }
+  .shape12 { clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); } .shape20 { clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
+  .tray { width: 760px; min-height: 190px; background: #6b4423; border: 10px solid #4a2d14; border-radius: 16px; box-shadow: inset 0 0 40px #0008; padding: 20px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-content: center; }
+  .die { width: 78px; height: 78px; background: linear-gradient(145deg, #fff8e1, #e8dcb4); color: #3a2a12; display: flex; align-items: center; justify-content: center; font: 700 28px Georgia, serif; box-shadow: 0 6px 12px #0008; }
+  .die.roll { animation: tumble .12s linear infinite; } @keyframes tumble { 0% { transform: rotate(0) } 100% { transform: rotate(40deg) translateY(-4px) } }
+  .bar { display: flex; align-items: center; gap: 20px; margin: 20px 0; } #roll { font: 700 20px Georgia, serif; letter-spacing: .15em; text-transform: uppercase; background: #ffd76a; color: #3a2a12; border: none; padding: 14px 40px; cursor: pointer; border-radius: 4px; }
+  #total { font-size: 54px; min-width: 130px; } .mod input { width: 56px; font: inherit; padding: 6px; text-align: center; }
+  .hist { width: 760px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 30px; font-size: 14px; color: #bfe0cb; padding-bottom: 40px; } .hist div { display: flex; justify-content: space-between; border-bottom: 1px dashed #ffffff22; padding: 3px 0; }
+</style>
+<h1>Dice Tray</h1><p class="sub">Choose your dice, then roll.</p>
+<div class="pick" id="pick"></div>
+<div class="tray" id="tray"></div>
+<div class="bar"><label class="mod">Modifier <input id="mod" type="number" value="0"></label><button id="roll">Roll</button><div id="total">–</div></div>
+<div class="hist" id="hist"></div>
+<script>
+const SIDES = [4, 6, 8, 10, 12, 20];
+let count = { 4: 0, 6: 2, 8: 0, 10: 0, 12: 0, 20: 0 }, rolls = [], busy = false;
+const die = (s, v, cls = '') => `<div class="die shape${s} ${cls}">${v}</div>`;
+function pick() {
+  $('#pick').innerHTML = SIDES.map(s => `<div><button class="shape${s}" data-s="${s}">d${s}</button><i data-m="${s}">−</i><b>${count[s]}</b><i data-p="${s}">+</i></div>`).join('');
+  $('#tray').innerHTML = SIDES.flatMap(s => Array(count[s]).fill(0).map(() => die(s, '?'))).join('') || '<span style="opacity:.6">Add some dice</span>';
+}
+$('#pick').onclick = e => { const d = e.target.dataset; const s = d.s || d.p || d.m; if (!s) return; count[s] = Math.max(0, Math.min(8, count[s] + (d.m ? -1 : 1))); pick(); };
+// Tumble for ~0.9s showing random faces, then settle on the real results.
+function roll() {
+  if (busy) return; const dice = SIDES.flatMap(s => Array(count[s]).fill(s)); if (!dice.length) return; busy = true;
+  const final = dice.map(s => 1 + Math.floor(Math.random() * s)), t0 = performance.now();
+  const iv = setInterval(() => {
+    const done = performance.now() - t0 > 900;
+    $('#tray').innerHTML = dice.map((s, i) => die(s, done ? final[i] : 1 + Math.floor(Math.random() * s), done ? '' : 'roll')).join('');
+    if (!done) return; clearInterval(iv); busy = false;
+    const mod = +$('#mod').value || 0, total = final.reduce((a, b) => a + b, 0) + mod; $('#total').textContent = total;
+    const expr = SIDES.filter(s => count[s]).map(s => `${count[s]}d${s}`).join('+') + (mod ? (mod > 0 ? '+' : '') + mod : '');
+    api.add({ expr, total, faces: final }).then(r => { rolls.unshift(r); hist(); });
+  }, 70);
+}
+const hist = () => $('#hist').innerHTML = rolls.slice(0, 12).map(r => `<div><span>${esc(r.expr)} <small>[${r.faces.join(', ')}]</small></span><b>${r.total}</b></div>`).join('');
+$('#roll').onclick = roll; addEventListener('keydown', e => { if (e.code === 'Space' && e.target.tagName !== 'INPUT') { e.preventDefault(); roll(); } });
+pick(); api.list().then(d => { rolls = d; hist(); });
+</script>

@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Tier List</title><script src="/shared/lib.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#111;color:#fff;font-family:'Helvetica Neue',Arial;display:flex;flex-direction:column;align-items:center;padding-top:22px}h1{margin:0 0 14px;font-size:30px;font-weight:900;letter-spacing:.05em}
+.tiers{width:900px;border:2px solid #000}.t{display:flex;min-height:84px;background:#1e1e1e;border-bottom:2px solid #000}.lb{width:100px;display:flex;align-items:center;justify-content:center;font:900 34px Arial;color:#111;flex:none}.zone{flex:1;display:flex;flex-wrap:wrap;gap:4px;padding:4px;align-content:flex-start;min-height:84px}.zone.over{background:#2e2e2e}
+.pool{width:900px;margin-top:20px;background:#1e1e1e;border:2px solid #000;min-height:100px}.pool .zone{min-height:100px}.i{background:#fff;color:#111;padding:0 10px;height:72px;min-width:72px;max-width:160px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700;font-size:14px;cursor:grab;border-radius:2px;position:relative;line-height:1.1}.i:hover i{display:block}.i i{display:none;position:absolute;top:0;right:3px;font-style:normal;cursor:pointer;font-size:12px;color:#c33}
+form{display:flex;gap:8px;margin-top:16px}input{font:inherit;padding:9px 14px;background:#222;border:1px solid #444;color:#fff;outline:none;width:300px}button{font:inherit;background:#f0c040;border:none;padding:9px 20px;font-weight:700;cursor:pointer}</style>
+<h1>TIER LIST</h1><div class="tiers" id="tiers"></div><div class="pool"><div class="zone" data-t="pool" id="pool"></div></div><form id="f"><input id="n" placeholder="Add something to rank…" required><button>Add</button></form>
+<script>
+const TIERS=[['S','#ff7f7f'],['A','#ffbf7f'],['B','#ffdf7f'],['C','#ffff7f'],['D','#bfff7f']];let items=[],dragId=null;
+const chip=i=>`<div class="i" draggable="true" data-id="${i.id}">${esc(i.text)}<i data-del>✕</i></div>`;
+function render(){$('#tiers').innerHTML=TIERS.map(([k,c])=>`<div class="t"><div class="lb" style="background:${c}">${k}</div><div class="zone" data-t="${k}">${items.filter(i=>i.t===k).map(chip).join('')}</div></div>`).join('');$('#pool').innerHTML=items.filter(i=>i.t==='pool').map(chip).join('')}
+document.addEventListener('dragstart',e=>{const i=e.target.closest('.i');if(i)dragId=i.dataset.id});document.addEventListener('dragend',()=>document.querySelectorAll('.zone').forEach(z=>z.classList.remove('over')));
+document.addEventListener('dragover',e=>{const z=e.target.closest('.zone');if(z){e.preventDefault();document.querySelectorAll('.zone').forEach(x=>x.classList.toggle('over',x===z))}});
+// Dropping on a row just rewrites that item's tier.
+document.addEventListener('drop',e=>{const z=e.target.closest('.zone');if(!z||!dragId)return;e.preventDefault();const i=items.find(x=>x.id===dragId);i.t=z.dataset.t;api.upd(i.id,{t:i.t});dragId=null;render()});
+document.addEventListener('click',async e=>{if(!e.target.hasAttribute('data-del'))return;const id=e.target.closest('.i').dataset.id;await api.del(id);items=items.filter(i=>i.id!==id);render()});
+$('#f').onsubmit=async e=>{e.preventDefault();items.push(await api.add({text:$('#n').value,t:'pool'}));$('#n').value='';render()};
+api.list().then(d=>{items=d.sort((a,b)=>a.createdAt-b.createdAt);render()});
+</script>

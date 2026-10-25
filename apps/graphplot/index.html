@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>Function Plotter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#2563eb;--w:1000px}canvas{width:100%;height:480px;background:var(--card);border:1px solid var(--line);border-radius:12px;cursor:grab;touch-action:none}.fn{display:flex;gap:8px;align-items:center;margin-bottom:8px}.fn i{width:14px;height:14px;border-radius:50%;flex:none}.fn input{font-family:ui-monospace,monospace}.fn .e{color:var(--bad);font-size:12px;width:140px}</style>
+<div class="wrap"><h1>Function Plotter</h1><p class="sub">Plot up to four functions of x. Drag to pan, scroll to zoom. Try <code>sin(x)</code>, <code>x^2/4</code>, <code>1/x</code>, <code>exp(-x^2)</code>.</p>
+<div class="card"><div id="fns"></div><div class="row"><button class="s" id="add">+ Function</button><button class="s" id="rs">Reset view</button><label style="margin:0 0 9px"><input type="checkbox" id="deg"> trig in degrees</label></div></div>
+<div class="card"><canvas id="c" width="1000" height="480"></canvas><div class="mut gap" id="co"></div></div><div class="card"><h2>Saved plots</h2><div id="sv"></div></div></div>
+<script>
+const COL=['#2563eb','#dc2626','#16a34a','#f59e0b'];let fns=['sin(x)','x^2/10','cos(2x)/2'],V={cx:0,cy:0,s:50},drag=null;
+const cv=$('#c'),g=cv.getContext('2d');
+function paintFns(){$('#fns').innerHTML=fns.map((f,i)=>`<div class="fn"><i style="background:${COL[i]}"></i><span class="mut">y =</span><input data-i="${i}" value="${esc(f)}"><span class="e" id="e${i}"></span><button class="x" data-rm="${i}">✕</button></div>`).join('')}
+function draw(){const dpr=devicePixelRatio||1,r=cv.getBoundingClientRect();cv.width=r.width*dpr;cv.height=r.height*dpr;g.setTransform(dpr,0,0,dpr,0,0);const W=r.width,H=r.height,sx=x=>W/2+(x-V.cx)*V.s,sy=y=>H/2-(y-V.cy)*V.s,fg=getComputedStyle(document.body).color;
+  g.clearRect(0,0,W,H);const step=(()=>{const t=80/V.s,p=10**Math.floor(Math.log10(t)),m=t/p;return(m<2?1:m<5?2:5)*p})();g.lineWidth=1;g.font='11px system-ui';g.fillStyle=fg;g.globalAlpha=1;
+  const x0=Math.floor((V.cx-W/2/V.s)/step)*step,y0=Math.floor((V.cy-H/2/V.s)/step)*step;for(let x=x0;x<=V.cx+W/2/V.s;x+=step){g.strokeStyle='#8884';g.beginPath();g.moveTo(sx(x),0);g.lineTo(sx(x),H);g.stroke();if(Math.abs(x)>1e-9)g.fillText(+x.toPrecision(6),sx(x)+3,Math.min(H-4,Math.max(12,sy(0)+13)))}
+  for(let y=y0;y<=V.cy+H/2/V.s;y+=step){g.strokeStyle='#8884';g.beginPath();g.moveTo(0,sy(y));g.lineTo(W,sy(y));g.stroke();if(Math.abs(y)>1e-9)g.fillText(+y.toPrecision(6),Math.min(W-30,Math.max(4,sx(0)+4)),sy(y)-3)}
+  g.strokeStyle=fg;g.lineWidth=1.6;g.beginPath();g.moveTo(sx(0),0);g.lineTo(sx(0),H);g.moveTo(0,sy(0));g.lineTo(W,sy(0));g.stroke();
+  fns.forEach((src,i)=>{const e=$('#e'+i);if(e)e.textContent='';if(!src.trim())return;let f;try{f=compile(src,{deg:$('#deg').checked})}catch(er){if(e)e.textContent=er.message;return}
+    g.strokeStyle=COL[i];g.lineWidth=2.4;g.beginPath();let pen=false,py=0;for(let px=0;px<=W;px+=1){const x=V.cx+(px-W/2)/V.s;let y;try{y=f({x})}catch(er){if(e)e.textContent=er.message;break}
+      if(!isFinite(y)||Math.abs(y)>1e6){pen=false;continue}const Y=sy(y);if(!pen||Math.abs(Y-py)>H*1.5){g.moveTo(px,Y);pen=true}else g.lineTo(px,Y);py=Y}g.stroke()});
+  $('#co').textContent=`Centre (${+V.cx.toPrecision(5)}, ${+V.cy.toPrecision(5)}) · scale ${+V.s.toPrecision(4)} px/unit`}
+cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,cx:V.cx,cy:V.cy};cv.style.cursor='grabbing'};cv.onpointermove=e=>{if(!drag)return;V.cx=drag.cx-(e.clientX-drag.x)/V.s;V.cy=drag.cy+(e.clientY-drag.y)/V.s;draw()};cv.onpointerup=()=>{drag=null;cv.style.cursor='grab'};
+cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),mx=V.cx+(e.clientX-r.left-r.width/2)/V.s,my=V.cy-(e.clientY-r.top-r.height/2)/V.s;V.s=Math.min(5e5,Math.max(.01,V.s*(e.deltaY<0?1.2:1/1.2)));V.cx=mx-(e.clientX-r.left-r.width/2)/V.s;V.cy=my+(e.clientY-r.top-r.height/2)/V.s;draw()},{passive:false});
+$('#fns').oninput=e=>{const i=e.target.dataset.i;if(i!==undefined){fns[i]=e.target.value;draw()}};$('#fns').onclick=e=>{const r=e.target.dataset.rm;if(r!==undefined){fns.splice(+r,1);paintFns();draw()}};$('#add').onclick=()=>{if(fns.length<4){fns.push('');paintFns();$('#fns').lastChild.querySelector('input').focus()}};$('#rs').onclick=()=>{V={cx:0,cy:0,s:50};draw()};$('#deg').onchange=draw;addEventListener('resize',draw);
+savedBar($('#sv'),{get:()=>({fns:[...fns],V:{...V}}),set:d=>{fns=[...d.fns];V={...d.V};paintFns();draw()}});paintFns();draw();
+</script>

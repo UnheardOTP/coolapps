@@ -1,0 +1,51 @@
+<!doctype html><meta charset="utf-8"><title>Dream Cloud</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(170deg, #1a1040, #3d1a5e 55%, #6b2a6b); color: #efe6ff; font-family: 'Avenir Next', 'Helvetica Neue', system-ui, sans-serif; }
+  main { width: 880px; margin: 0 auto; padding: 36px 0 70px; } h1 { margin: 0; font-weight: 200; font-size: 44px; letter-spacing: .15em; } h1 b { font-weight: 700; color: #ffb3d9; } .sub { color: #b9a6dd; margin: 4px 0 18px; }
+  #cloud { position: relative; height: 380px; border-radius: 24px; background: #ffffff0a; border: 1px solid #ffffff18; overflow: hidden; margin-bottom: 18px; }
+  #cloud span { position: absolute; white-space: nowrap; cursor: pointer; font-weight: 700; line-height: 1; transition: transform .2s, opacity .2s; animation: fl 7s ease-in-out infinite; } #cloud span:hover { transform: scale(1.12); } #cloud span.off { opacity: .25; } @keyframes fl { 50% { margin-top: -5px; } }
+  .filter { height: 26px; color: #ffb3d9; margin-bottom: 8px; } .filter b { cursor: pointer; text-decoration: underline; }
+  form { margin-bottom: 26px; } textarea { width: 100%; height: 100px; background: #ffffff10; border: 1px solid #ffffff30; border-radius: 14px; color: inherit; padding: 14px; font: 16px/1.5 Georgia, serif; outline: none; resize: none; } form button { margin-top: 8px; font: inherit; background: #ffb3d9; color: #2a1048; border: none; padding: 10px 26px; border-radius: 20px; font-weight: 700; cursor: pointer; }
+  .en { padding: 14px 18px; background: #ffffff0d; border-radius: 12px; margin-bottom: 10px; line-height: 1.5; } .en small { display: block; color: #b9a6dd; margin-bottom: 4px; } .en mark { background: #ffb3d955; color: inherit; border-radius: 3px; } .en i { float: right; font-style: normal; color: #b9a6dd; cursor: pointer; }
+</style>
+<main><h1>Dream <b>Cloud</b></h1><p class="sub">Write your dreams down. The words that keep coming back grow larger.</p>
+  <div id="cloud"></div><div class="filter" id="flt"></div>
+  <form id="f"><textarea id="in" placeholder="Last night I dreamed…"></textarea><button>Add to the cloud</button></form><div id="list"></div></main>
+<script>
+const STOP = new Set('a about above after again all also am an and any are as at be because been before being below between both but by can could did do does doing down during each few for from further had has have having he her here hers him his how i if in into is it its just me more most my no nor not of off on once only or other our out over own same she should so some such than that the their them then there these they this those through to too under until up very was we were what when where which while who whom why will with would you your youre im ive id dont didnt was there like got get went one saw felt then suddenly'.split(' '));
+const COLORS = ['#ffb3d9', '#b9d0ff', '#ffe29a', '#b6f0d4', '#e0c1ff', '#ffc9b0'];
+let entries = [], active = null;
+function counts() {
+  const m = {}; entries.forEach(e => (e.text.toLowerCase().match(/[a-z']{3,}/g) || []).forEach(w => { w = w.replace(/'s$/, ''); if (!STOP.has(w)) m[w] = (m[w] || 0) + 1; }));
+  return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 48);
+}
+// Place words biggest-first along an outward spiral, skipping spots that overlap anything already placed.
+function cloud() {
+  const c = $('#cloud'), W = c.clientWidth, H = c.clientHeight, words = counts(), max = words[0]?.[1] || 1, placed = [];
+  c.innerHTML = ''; if (!words.length) return c.innerHTML = '<p style="text-align:center;margin-top:170px;color:#b9a6dd">Your cloud is empty.</p>';
+  words.forEach(([w, n], k) => {
+    const size = 15 + (n / max) * 48, bw = w.length * size * .64 + 10, bh = size * 1.1;
+    for (let t = 0; t < 600; t++) {
+      const a = t * .35, r = t * .9, x = W / 2 + Math.cos(a) * r * 1.7 - bw / 2, y = H / 2 + Math.sin(a) * r - bh / 2;
+      if (x < 4 || y < 4 || x + bw > W - 4 || y + bh > H - 4) continue;
+      if (placed.some(p => x < p.x + p.w && x + bw > p.x && y < p.y + p.h && y + bh > p.y)) continue;
+      placed.push({ x, y, w: bw, h: bh });
+      const s = document.createElement('span'); s.textContent = w; s.dataset.w = w; Object.assign(s.style, { left: x + 'px', top: y + 'px', fontSize: size + 'px', color: COLORS[k % COLORS.length], animationDelay: -k * .6 + 's' });
+      if (active && active !== w) s.classList.add('off'); c.append(s); break;
+    }
+  });
+}
+function list() {
+  const shown = active ? entries.filter(e => new RegExp('\\b' + active, 'i').test(e.text)) : entries;
+  $('#flt').innerHTML = active ? `Dreams mentioning “${esc(active)}” · <b id="clr">show all</b>` : '';
+  const hl = t => active ? esc(t).replace(new RegExp('(' + active.replace(/[^a-z']/g, '') + ')', 'ig'), '<mark>$1</mark>') : esc(t);
+  $('#list').innerHTML = shown.map(e => `<div class="en" data-id="${e.id}"><i data-del>✕</i><small>${new Date(e.createdAt).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</small>${hl(e.text)}</div>`).join('');
+  $('#clr')?.addEventListener('click', () => { active = null; cloud(); list(); });
+}
+$('#cloud').onclick = e => { const w = e.target.dataset.w; if (!w) return; active = active === w ? null : w; cloud(); list(); };
+$('#f').onsubmit = async e => { e.preventDefault(); const t = $('#in').value.trim(); if (!t) return; entries.unshift(await api.add({ text: t })); $('#in').value = ''; cloud(); list(); };
+$('#list').onclick = async e => { if (!e.target.hasAttribute('data-del')) return; const id = e.target.closest('.en').dataset.id; await api.del(id); entries = entries.filter(x => x.id !== id); cloud(); list(); };
+api.list().then(d => { entries = d; cloud(); list(); });
+</script>

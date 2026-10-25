@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>Sort Visualizer</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#101418;color:#d6e4ee;font-family:'Segoe UI',system-ui;display:flex;flex-direction:column;align-items:center;padding-top:24px}h1{margin:0;font-weight:200;letter-spacing:.3em}canvas{margin-top:14px;background:#0a0d10;border-radius:10px}
+.bar{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;justify-content:center}button,select{font:inherit;padding:8px 16px;background:#1b232b;color:#d6e4ee;border:1px solid #33424f;border-radius:6px;cursor:pointer}button.p{background:#3ddc97;color:#06130c;border-color:#3ddc97;font-weight:700}input[type=range]{accent-color:#3ddc97}table{margin-top:18px;border-collapse:collapse;font-size:14px;color:#9ab}td,th{padding:4px 18px;text-align:right;border-bottom:1px solid #1b232b}th{color:#d6e4ee}</style>
+<h1>SORT</h1><canvas id="c" width="900" height="380"></canvas>
+<div class="bar"><select id="alg"><option value="bubble">Bubble sort</option><option value="insertion">Insertion sort</option><option value="selection">Selection sort</option><option value="quick">Quick sort</option><option value="merge">Merge sort</option></select><label>Bars <input type="range" id="n" min="10" max="150" value="60"></label><label>Speed <input type="range" id="sp" min="1" max="100" value="60"></label><button id="sh">Shuffle</button><button class="p" id="go">Sort!</button></div>
+<div style="margin-top:8px;color:#8aa" id="info"></div><table id="tb"></table>
+<script>
+const cv=$('#c'),g=cv.getContext('2d');let a=[],hi={},stop=false,running=false,runs=[];
+const shuffle=()=>{a=Array.from({length:+$('#n').value},(_,i)=>i+1).sort(()=>Math.random()-.5);hi={};draw()};
+function draw(){g.clearRect(0,0,900,380);const w=900/a.length;a.forEach((v,i)=>{g.fillStyle=hi.sorted?.has?.(i)?'#3ddc97':hi.swap?.includes(i)?'#ff5d73':hi.cmp?.includes(i)?'#ffd23f':'#4d8fd6';g.fillRect(i*w+1,380-v/a.length*370,w-2,v/a.length*370)})}
+// Each algorithm is a generator that yields after every compare/swap, so the UI can animate it step by step.
+function*bubble(){for(let i=0;i<a.length;i++)for(let j=0;j<a.length-i-1;j++){hi={cmp:[j,j+1]};yield;if(a[j]>a[j+1]){[a[j],a[j+1]]=[a[j+1],a[j]];hi={swap:[j,j+1]};yield}}}
+function*insertion(){for(let i=1;i<a.length;i++){let j=i;while(j>0&&a[j-1]>a[j]){hi={swap:[j-1,j]};yield;[a[j-1],a[j]]=[a[j],a[j-1]];j--}}}
+function*selection(){for(let i=0;i<a.length;i++){let m=i;for(let j=i+1;j<a.length;j++){hi={cmp:[m,j]};yield;if(a[j]<a[m])m=j}[a[i],a[m]]=[a[m],a[i]];hi={swap:[i,m]};yield}}
+function*quick(lo=0,hi2=a.length-1){if(lo>=hi2)return;const p=a[hi2];let i=lo;for(let j=lo;j<hi2;j++){hi={cmp:[j,hi2]};yield;if(a[j]<p){[a[i],a[j]]=[a[j],a[i]];hi={swap:[i,j]};yield;i++}}[a[i],a[hi2]]=[a[hi2],a[i]];yield*quick(lo,i-1);yield*quick(i+1,hi2)}
+function*merge(lo=0,hi2=a.length-1){if(lo>=hi2)return;const m=lo+hi2>>1;yield*merge(lo,m);yield*merge(m+1,hi2);const L=a.slice(lo,m+1),R=a.slice(m+1,hi2+1);let i=0,j=0,k=lo;while(i<L.length||j<R.length){a[k]=j>=R.length||(i<L.length&&L[i]<=R[j])?L[i++]:R[j++];hi={swap:[k]};yield;k++}}
+const ALG={bubble,insertion,selection,quick,merge};
+async function run(){if(running){stop=true;return}running=true;stop=false;$('#go').textContent='Stop';const alg=$('#alg').value,it=ALG[alg]();let steps=0,t0=performance.now();
+  for(const _ of it){steps++;draw();if(stop)break;const d=101-$('#sp').value;if(d>3||steps%Math.ceil((100-d)/10)===0)await new Promise(r=>setTimeout(r,d>3?d/3:0))}
+  running=false;$('#go').textContent='Sort!';if(!stop){hi={sorted:new Set(a.map((_,i)=>i))};draw();runs.unshift(await api.add({alg,n:a.length,steps}));table()}hi=stop?{}:hi}
+const table=()=>{const best={};runs.forEach(r=>{if(r.n===+$('#n').value&&(!best[r.alg]||r.steps<best[r.alg]))best[r.alg]=r.steps});$('#info').textContent=`Fewest steps recorded at n=${$('#n').value}:`;$('#tb').innerHTML=Object.entries(best).map(([k,v])=>`<tr><th>${k}</th><td>${v.toLocaleString()} steps</td></tr>`).join('')||'<tr><td>none yet</td></tr>'};
+$('#sh').onclick=()=>{if(!running){shuffle();table()}};$('#n').oninput=()=>{if(!running){shuffle();table()}};$('#go').onclick=run;api.list().then(d=>{runs=d;table()});shuffle();
+</script>

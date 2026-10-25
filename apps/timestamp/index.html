@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>Timestamp Converter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#3b82f6}</style>
+<div class="wrap"><h1>Timestamp Converter</h1><p class="sub">Unix epoch ⇄ human dates, in your time zone and UTC.</p>
+<div class="card"><div class="row"><div><label>Now (seconds)</label><div class="big mono" id="now"></div></div><div class="right"><button class="s" id="use">Use now</button></div></div></div>
+<div class="g2"><div class="card"><h2>Epoch → date</h2><input id="ep" class="mono" placeholder="1700000000 or 1700000000000" data-keep><div class="mut gap" id="unit"></div><table class="gap" id="res"></table></div>
+<div class="card"><h2>Date → epoch</h2><label>Local date and time</label><input id="dt" type="datetime-local" step="1" data-keep><label class="gap">…or ISO / any date string</label><input id="iso" placeholder="2024-03-09T15:04:05Z" data-keep><table class="gap" id="res2"></table></div></div></div>
+<script>
+// Values below ~1e11 are treated as seconds, larger ones as milliseconds, so both common formats just work.
+const row=(k,v)=>`<tr><td class="mut" style="width:110px">${k}</td><td class="mono">${v}</td><td class="r"><button class="x" data-v="${esc(v)}">Copy</button></td></tr>`;
+function rel(ms){const s=(ms-Date.now())/1000,a=Math.abs(s),[v,u]=a<60?[a,'second']:a<3600?[a/60,'minute']:a<86400?[a/3600,'hour']:a<2592000?[a/86400,'day']:a<31536000?[a/2592000,'month']:[a/31536000,'year'],r=Math.round(v);return s>=0?`in ${r} ${u}${r===1?'':'s'}`:`${r} ${u}${r===1?'':'s'} ago`}
+function show(ms,el){const d=new Date(ms);if(isNaN(d))return el.innerHTML='<tr><td class="bad">Invalid date</td></tr>';
+  el.innerHTML=row('Local',d.toLocaleString(undefined,{dateStyle:'full',timeStyle:'long'}))+row('UTC',d.toUTCString())+row('ISO 8601',d.toISOString())+row('Seconds',Math.floor(ms/1000))+row('Milliseconds',ms)+row('Relative',rel(ms))}
+function fromEpoch(){const v=$('#ep').value.trim();if(!v){$('#res').innerHTML='';$('#unit').textContent='';return}const n=Number(v);if(isNaN(n)){$('#unit').textContent='';return $('#res').innerHTML='<tr><td class="bad">Not a number</td></tr>'}const ms=Math.abs(n)<1e11?n*1000:n;$('#unit').textContent=Math.abs(n)<1e11?'Interpreted as seconds':'Interpreted as milliseconds';show(ms,$('#res'))}
+function fromDate(){const v=$('#iso').value.trim()||$('#dt').value;if(!v){$('#res2').innerHTML='';return}show(new Date(v).getTime(),$('#res2'))}
+document.addEventListener('click',e=>{if(e.target.dataset.v)copy(e.target.dataset.v,e.target)});$('#ep').oninput=fromEpoch;$('#dt').oninput=()=>{$('#iso').value='';fromDate()};$('#iso').oninput=fromDate;
+$('#use').onclick=()=>{$('#ep').value=Math.floor(Date.now()/1000);fromEpoch();$('#ep').dispatchEvent(new Event('input',{bubbles:true}))};setInterval(()=>$('#now').textContent=Math.floor(Date.now()/1000),250);remember().then(()=>{fromEpoch();fromDate()});
+</script>

@@ -1,0 +1,49 @@
+<!doctype html><meta charset="utf-8"><title>Metronome</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(#e9e2d4, #cfc3ad); color: #3a2a18; font-family: Georgia, serif; display: flex; gap: 60px; align-items: center; justify-content: center; }
+  #bpmv { font-size: 84px; font-weight: 300; line-height: 1; } .panel { width: 340px; } h1 { margin: 0 0 10px; font-weight: 400; letter-spacing: .2em; text-transform: uppercase; font-size: 26px; } .lbl { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: #8a7456; margin: 18px 0 6px; }
+  input[type=range] { width: 100%; accent-color: #8a3b1a; } .row { display: flex; gap: 8px; flex-wrap: wrap; } button { font: inherit; background: #f6efdc; border: 1px solid #a08c66; padding: 9px 16px; cursor: pointer; border-radius: 4px; color: inherit; } button.on { background: #3a2a18; color: #f6efdc; } #go { background: #8a3b1a; color: #fff; border: none; font-size: 18px; letter-spacing: .1em; padding: 12px 30px; }
+  .dots { display: flex; gap: 10px; margin: 14px 0; } .dots i { width: 18px; height: 18px; border-radius: 50%; background: #c8bba0; } .dots i.on { background: #8a3b1a; box-shadow: 0 0 12px #8a3b1a99; } .dots i.acc.on { background: #d6a21c; box-shadow: 0 0 12px #d6a21c; }
+  input[type=text] { font: inherit; padding: 8px; border: 1px solid #a08c66; background: #fffaf0; width: 160px; } .chip { display: inline-block; padding: 5px 10px; margin: 4px 6px 0 0; border: 1px solid #a08c66; border-radius: 14px; cursor: pointer; } .chip i { font-style: normal; margin-left: 8px; color: #a88; }
+</style>
+<svg id="m" width="300" height="440" viewBox="0 0 300 440"><path d="M70 420 L110 40 L190 40 L230 420Z" fill="#7a4b24" stroke="#3a2210" stroke-width="3"/><path d="M96 400 L120 70 L180 70 L204 400Z" fill="#8a5a30"/><rect x="40" y="420" width="220" height="14" rx="4" fill="#3a2210"/>
+  <g id="rodg" transform="translate(150 400)"><rect x="-4" y="-340" width="8" height="350" fill="#d8c9a0" stroke="#7a6a40"/><rect id="wt" x="-16" y="-250" width="32" height="30" rx="4" fill="#b8860b" stroke="#6b4e08" stroke-width="2"/></g><circle cx="150" cy="400" r="12" fill="#3a2210"/></svg>
+<div class="panel"><h1>Metronome</h1><div id="bpmv">100</div><div class="lbl">Tempo</div><input type="range" id="bpm" min="40" max="208" value="100">
+  <div class="row" style="margin-top:8px"><button id="tap">Tap tempo</button><button data-d="-5">−5</button><button data-d="5">+5</button></div>
+  <div class="lbl">Beats per bar</div><div class="row" id="beats"></div><div class="dots" id="dots"></div><button id="go">Start</button>
+  <div class="lbl">Presets</div><div class="row"><input type="text" id="pn" placeholder="Name (e.g. Waltz)"><button id="ps">Save</button></div><div id="presets"></div></div>
+<script>
+let bpm = 100, beats = 4, running = false, t0 = 0, ac, timer, nextT = 0, count = 0, presets = [], taps = [];
+const SWING = 24;
+// Pendulum angle is derived from the audio clock, so what you see lines up with what you hear: one extreme per click.
+(function frame() {
+  if (running && ac) { const ph = (ac.currentTime - t0) / (60 / bpm); $('#rodg').setAttribute('transform', `translate(150 400) rotate(${SWING * Math.cos(Math.PI * ph) * -1})`); }
+  requestAnimationFrame(frame);
+})();
+function click(t, accent) {
+  const o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = accent ? 1500 : 1000;
+  g.gain.setValueAtTime(accent ? .25 : .14, t); g.gain.exponentialRampToValueAtTime(.001, t + .05); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + .06);
+}
+function sched() { while (nextT < ac.currentTime + .1) { const b = count % beats; click(nextT, b === 0); setTimeout(() => dots(b), Math.max(0, (nextT - ac.currentTime) * 1000)); nextT += 60 / bpm; count++; } }
+function dots(on) { document.querySelectorAll('#dots i').forEach((d, i) => d.classList.toggle('on', running && i === on)); }
+function draw() {
+  $('#bpmv').textContent = bpm; $('#bpm').value = bpm; $('#wt').setAttribute('y', -330 + (bpm - 40) / 168 * 190);
+  $('#beats').innerHTML = [2, 3, 4, 5, 6, 7].map(n => `<button data-n="${n}" class="${n === beats ? 'on' : ''}">${n}</button>`).join('');
+  $('#dots').innerHTML = Array.from({ length: beats }, (_, i) => `<i class="${i === 0 ? 'acc' : ''}"></i>`).join('');
+  $('#presets').innerHTML = presets.map(p => `<span class="chip" data-id="${p.id}">${esc(p.name)} ${p.bpm}<i data-del>×</i></span>`).join('');
+}
+$('#go').onclick = () => {
+  if (running) { running = false; clearInterval(timer); $('#go').textContent = 'Start'; dots(-1); return $('#rodg').setAttribute('transform', 'translate(150 400)'); }
+  ac ||= new AudioContext(); ac.resume(); running = true; count = 0; nextT = t0 = ac.currentTime + .05; timer = setInterval(sched, 25); $('#go').textContent = 'Stop';
+};
+// Tempo changes keep the swing continuous by re-basing the phase.
+function setBpm(v) { v = Math.max(40, Math.min(208, Math.round(v))); if (running) { const ph = (ac.currentTime - t0) / (60 / bpm); bpm = v; t0 = ac.currentTime - ph * (60 / bpm); nextT = Math.max(nextT, ac.currentTime); } else bpm = v; draw(); }
+$('#bpm').oninput = e => setBpm(+e.target.value);
+document.querySelector('.panel').addEventListener('click', e => { if (e.target.dataset.d) setBpm(bpm + +e.target.dataset.d); if (e.target.dataset.n) { beats = +e.target.dataset.n; count = 0; draw(); } });
+$('#tap').onclick = () => { const n = Date.now(); taps = taps.filter(t => n - t < 2500); taps.push(n); if (taps.length > 1) setBpm(60000 / ((taps[taps.length - 1] - taps[0]) / (taps.length - 1))); };
+$('#ps').onclick = async () => { presets.unshift(await api.add({ name: $('#pn').value || 'Preset', bpm, beats })); $('#pn').value = ''; draw(); };
+$('#presets').onclick = async e => { const c = e.target.closest('.chip'); if (!c) return; const p = presets.find(x => x.id === c.dataset.id); if (e.target.hasAttribute('data-del')) { await api.del(p.id); presets = presets.filter(x => x !== p); } else { beats = p.beats; setBpm(p.bpm); } draw(); };
+api.list().then(d => { presets = d; draw(); });
+</script>

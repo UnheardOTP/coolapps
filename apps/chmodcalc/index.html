@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>Chmod Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#16a34a}.perm td{text-align:center}.perm td:first-child{text-align:left;font-weight:600}.perm input{width:20px;height:20px}</style>
+<div class="wrap"><h1>Chmod Calculator</h1><p class="sub">Tick permissions or type an octal mode; get the symbolic form and the command.</p>
+<div class="g2"><div class="card"><table class="perm" id="t"><tr><th></th><th>Read (4)</th><th>Write (2)</th><th>Execute (1)</th></tr>
+<tr><td>Owner</td><td><input type="checkbox" data-b="8"></td><td><input type="checkbox" data-b="7"></td><td><input type="checkbox" data-b="6"></td></tr>
+<tr><td>Group</td><td><input type="checkbox" data-b="5"></td><td><input type="checkbox" data-b="4"></td><td><input type="checkbox" data-b="3"></td></tr>
+<tr><td>Others</td><td><input type="checkbox" data-b="2"></td><td><input type="checkbox" data-b="1"></td><td><input type="checkbox" data-b="0"></td></tr></table>
+<h2 class="gap">Special bits</h2><div class="row"><label style="margin:0"><input type="checkbox" id="su"> setuid</label><label style="margin:0"><input type="checkbox" id="sg"> setgid</label><label style="margin:0"><input type="checkbox" id="st"> sticky</label></div></div>
+<div class="card"><label>Octal</label><input id="oct" class="mono" style="font-size:26px;width:140px" value="644" maxlength="4" data-keep><div class="kpi gap"><small>Symbolic</small><b class="mono" id="sym"></b></div><div class="kpi gap"><small>Command</small><b class="mono" id="cmd"></b></div><button class="s gap" id="cp">Copy command</button></div></div>
+<div class="card"><h2>Common modes</h2><div class="chips" id="pre"></div></div></div>
+<script>
+const boxes=[...document.querySelectorAll('#t input')];
+const PRE=[[644,'file (rw-r--r--)'],[755,'program/dir (rwxr-xr-x)'],[600,'private file'],[700,'private dir'],[664,'group-writable'],[777,'everyone (avoid)'],[400,'read-only owner'],[1777,'/tmp sticky'],[4755,'setuid']];
+function setOct(n){const m=parseInt(n,8);boxes.forEach(b=>b.checked=!!(m>>b.dataset.b&1));$('#su').checked=!!(m&0o4000);$('#sg').checked=!!(m&0o2000);$('#st').checked=!!(m&0o1000)}
+function modeFromBoxes(){let m=0;boxes.forEach(b=>{if(b.checked)m|=1<<b.dataset.b});if($('#su').checked)m|=0o4000;if($('#sg').checked)m|=0o2000;if($('#st').checked)m|=0o1000;return m}
+function show(m){const o=m.toString(8).padStart(m>0o777?4:3,'0');if(document.activeElement!==$('#oct'))$('#oct').value=o;
+  const t=['r','w','x'];let s='';for(let i=8;i>=0;i--){const on=m>>i&1,c=t[(8-i)%3];s+=on?c:'-'}
+  const sp=(pos,bit,ch,chx)=>{if(m&bit){const x=s[pos]==='x';s=s.slice(0,pos)+(x?ch:chx)+s.slice(pos+1)}};sp(2,0o4000,'s','S');sp(5,0o2000,'s','S');sp(8,0o1000,'t','T');
+  $('#sym').textContent=s;$('#cmd').textContent=`chmod ${o} filename`}
+const sync=()=>show(modeFromBoxes());
+document.querySelectorAll('input[data-b],#su,#sg,#st').forEach(i=>i.onchange=sync);
+$('#oct').oninput=()=>{const v=$('#oct').value;if(/^[0-7]{3,4}$/.test(v)){setOct(v);show(parseInt(v,8))}};
+$('#pre').innerHTML=PRE.map(([o,l])=>`<span class="chip" data-o="${o}">${o} <span class="mut">${l}</span></span>`).join('');$('#pre').onclick=e=>{const o=e.target.closest('.chip')?.dataset.o;if(o){$('#oct').value=o;$('#oct').dispatchEvent(new Event('input',{bubbles:true}))}};
+$('#cp').onclick=e=>copy($('#cmd').textContent,e.target);remember().then(()=>{const v=$('#oct').value;/^[0-7]{3,4}$/.test(v)?(setOct(v),show(parseInt(v,8))):(setOct('644'),show(0o644))});
+</script>

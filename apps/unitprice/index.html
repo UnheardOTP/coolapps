@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>Unit Price Compare</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#65a30d;--w:860px}tr.best td{background:color-mix(in srgb,#16a34a 14%,transparent)}</style>
+<div class="wrap"><h1>Unit Price Compare</h1><p class="sub">Which size or brand is really cheaper? Enter price and amount for each option.</p>
+<div class="card"><div class="row"><div class="col"><label>Compare by</label><select id="kind" data-keep><option value="w">Weight (oz, lb, g, kg)</option><option value="v">Volume (fl oz, ml, L, gal)</option><option value="c">Count (each, dozen)</option><option value="l">Length (ft, m)</option></select></div><div class="col"><label>Show prices per</label><select id="base" data-keep></select></div></div>
+<table class="gap" id="tb"></table><button class="s gap" id="add">+ Add option</button></div></div>
+<script>
+// Each unit converts to a base unit (g, ml, each, m); the comparison is price ÷ base amount, scaled for display.
+const U={w:{g:1,kg:1000,oz:28.3495,lb:453.592},v:{ml:1,L:1000,'fl oz':29.5735,gal:3785.41,cup:236.588},c:{each:1,dozen:12,pack:1},l:{m:1,cm:.01,ft:.3048,in:.0254,yd:.9144}};
+const DEF={w:'oz',v:'fl oz',c:'each',l:'ft'};let rows=[{n:'Small',p:3.49,q:12,u:'oz'},{n:'Large',p:8.99,q:32,u:'oz'},{n:'Bulk',p:17.5,q:5,u:'lb'}];
+function kind(){const k=$('#kind').value;$('#base').innerHTML=Object.keys(U[k]).map(u=>`<option ${u===DEF[k]?'selected':''}>${u}</option>`).join('')}
+const calcRows=()=>{const k=$('#kind').value,bu=U[k][$('#base').value||DEF[k]];return rows.map(r=>{const q=(U[k][r.u]||1)*r.q;return{...r,per:q>0?r.p/q*bu:Infinity}})};
+const perCell=(r,best,n)=>`<b>${isFinite(r.per)?money(r.per):'–'}</b>${r.per===best&&n>1?' <span class="ok">★ best</span>':isFinite(r.per)&&isFinite(best)?` <span class="mut">+${fmt((r.per/best-1)*100,0)}%</span>`:''}`;
+// refresh() only rewrites the price-per-unit column and highlight, so typing in a field never loses focus.
+function refresh(){const c=calcRows(),best=Math.min(...c.map(x=>x.per).filter(isFinite));document.querySelectorAll('#tb tr[data-r]').forEach(tr=>{const i=+tr.dataset.r;tr.classList.toggle('best',c[i].per===best);tr.querySelector('.per').innerHTML=perCell(c[i],best,c.length)})}
+function render(){const k=$('#kind').value,base=$('#base').value||DEF[k],c=calcRows();
+  $('#tb').innerHTML='<tr><th>Option</th><th>Price ($)</th><th>Amount</th><th>Unit</th><th class="r">Per '+base+'</th><th></th></tr>'+c.map((r,i)=>`<tr data-r="${i}"><td><input data-i="${i}" data-k="n" value="${esc(r.n)}"></td><td><input data-i="${i}" data-k="p" type="number" step="0.01" value="${r.p}"></td><td><input data-i="${i}" data-k="q" type="number" step="any" value="${r.q}"></td><td><select data-i="${i}" data-k="u">${Object.keys(U[k]).map(u=>`<option ${u===r.u?'selected':''}>${u}</option>`).join('')}</select></td><td class="r per"></td><td><button class="x" data-rm="${i}">✕</button></td></tr>`).join('');refresh()}
+$('#tb').oninput=$('#tb').onchange=e=>{const i=e.target.dataset.i;if(i===undefined)return;const k=e.target.dataset.k;rows[i][k]=k==='n'||k==='u'?e.target.value:parseFloat(e.target.value)||0;refresh();save()};
+$('#tb').onclick=e=>{const r=e.target.dataset.rm;if(r!==undefined){rows.splice(+r,1);render();save()}};$('#add').onclick=()=>{rows.push({n:'Option '+(rows.length+1),p:0,q:1,u:DEF[$('#kind').value]});render();save()};
+$('#kind').onchange=()=>{kind();rows=rows.map(r=>({...r,u:DEF[$('#kind').value]}));render();save()};$('#base').onchange=()=>{render();save()};
+let doc=null,t;const save=()=>{clearTimeout(t);t=setTimeout(async()=>{const d={kind:'_state',state:{k:$('#kind').value,b:$('#base').value,rows}};if(doc)api.upd(doc.id,d);else doc=await api.add(d)},500)};
+api.list().then(d=>{doc=d.find(x=>x.kind==='_state')||null;const s=doc?.state;if(s){$('#kind').value=s.k;kind();$('#base').value=s.b;rows=s.rows}else kind();render()});
+</script>

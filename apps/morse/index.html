@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>Morse</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#1b1a14;color:#e9d9a6;font-family:'Courier New',monospace;display:flex;flex-direction:column;align-items:center;padding-top:30px}h1{margin:0;letter-spacing:.4em;font-weight:400}.lamp{width:110px;height:110px;border-radius:50%;margin:20px 0;background:#3a3420;border:4px solid #5a5028;transition:.04s}.lamp.on{background:#ffd23f;box-shadow:0 0 70px #ffd23f}
+textarea{width:620px;height:80px;background:#12110c;border:2px solid #5a5028;color:#ffe9a8;font:18px 'Courier New';padding:12px;outline:none;resize:none}#out{width:620px;min-height:60px;margin:10px 0;padding:12px;background:#12110c;border:2px dashed #5a5028;color:#ffd23f;font-size:22px;letter-spacing:.15em;word-break:break-all}
+button{font:inherit;background:#ffd23f;color:#1b1a14;border:none;padding:10px 24px;cursor:pointer;font-weight:700;margin:0 6px}button.g{background:none;border:2px solid #5a5028;color:#e9d9a6}.key{margin-top:24px;width:620px;text-align:center}#tap{width:100%;height:80px;font-size:20px;background:#2a2618;color:#ffd23f;border:2px solid #5a5028;cursor:pointer;user-select:none}#tap.dn{background:#ffd23f;color:#1b1a14}#dec{font-size:26px;min-height:36px;margin-top:10px;color:#9fe39a;letter-spacing:.1em}.chip{display:inline-block;margin:6px 6px 0 0;padding:3px 10px;border:1px solid #5a5028;border-radius:14px;cursor:pointer;font-size:13px}</style>
+<h1>MORSE</h1><div class="lamp" id="lamp"></div><textarea id="in" placeholder="Type a message…">SOS</textarea><div id="out"></div><div><button id="play">▶ Play</button><button class="g" id="sv">Save message</button></div><div id="chips"></div>
+<div class="key"><button id="tap">HOLD to send · space bar works too</button><div id="dec"></div><div style="color:#8a7d50;font-size:13px">Short press = dot · long press (&gt;250 ms) = dash · pause 0.7s = next letter</div></div>
+<script>
+const M={A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..',0:'-----',1:'.----',2:'..---',3:'...--',4:'....-',5:'.....',6:'-....',7:'--...',8:'---..',9:'----.'};const R=Object.fromEntries(Object.entries(M).map(([k,v])=>[v,k]));
+let saved=[],ac,playing=false;const UNIT=90;
+const enc=t=>[...t.toUpperCase()].map(c=>c===' '?'/':M[c]||'').filter(Boolean).join(' ');
+const show=()=>$('#out').textContent=enc($('#in').value);
+function beep(on){ac||=new AudioContext();if(!on)return;const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=620;g.gain.value=.2;o.connect(g).connect(ac.destination);o.start();return()=>o.stop()}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+// Standard timing: dot = 1 unit, dash = 3, gaps of 1/3/7 units between symbols/letters/words.
+async function play(){if(playing)return;playing=true;for(const sym of enc($('#in').value)){if(!playing)break;if(sym==='.'||sym==='-'){$('#lamp').classList.add('on');const s=beep(true);await wait(sym==='.'?UNIT:UNIT*3);s();$('#lamp').classList.remove('on');await wait(UNIT)}else await wait(sym==='/'?UNIT*4:UNIT*2)}playing=false}
+$('#in').oninput=show;$('#play').onclick=()=>playing?playing=false:play();
+$('#sv').onclick=async()=>{const t=$('#in').value.trim();if(t){saved.unshift(await api.add({t}));chips()}};
+const chips=()=>$('#chips').innerHTML=saved.map(s=>`<span class="chip" data-id="${s.id}">${esc(s.t.slice(0,20))}<i data-del style="font-style:normal;margin-left:6px;opacity:.5">×</i></span>`).join('');
+$('#chips').onclick=async e=>{const c=e.target.closest('.chip');if(!c)return;const s=saved.find(x=>x.id===c.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(s.id);saved=saved.filter(x=>x!==s)}else{$('#in').value=s.t;show()}chips()};
+// Straight key: measure how long you hold, classify as dot/dash, decode the letter after a pause.
+let t0=0,cur='',txt='',timer,stop;const down=()=>{if(t0)return;t0=performance.now();clearTimeout(timer);stop=beep(true);$('#tap').classList.add('dn');$('#lamp').classList.add('on')};
+const up=()=>{if(!t0)return;const d=performance.now()-t0;t0=0;stop&&stop();$('#tap').classList.remove('dn');$('#lamp').classList.remove('on');cur+=d>250?'-':'.';$('#dec').textContent=txt+' '+cur;timer=setTimeout(()=>{txt+=R[cur]||'?';cur='';$('#dec').textContent=txt},700)};
+$('#tap').onpointerdown=down;addEventListener('pointerup',up);addEventListener('keydown',e=>{if(e.code==='Space'&&e.target.tagName!=='TEXTAREA'){e.preventDefault();if(!e.repeat)down()}});addEventListener('keyup',e=>{if(e.code==='Space'&&e.target.tagName!=='TEXTAREA')up()});
+api.list().then(d=>{saved=d;chips()});show();
+</script>

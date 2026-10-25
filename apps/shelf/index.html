@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Bookshelf</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#3b2a20 repeating-linear-gradient(90deg,#0000 0 60px,#0001 60px 62px);color:#f3e6d0;font-family:Georgia,serif;display:flex;flex-direction:column;align-items:center;padding-top:26px}
+h1{margin:0;font-weight:400;letter-spacing:.2em;text-transform:uppercase;font-size:28px}form{display:flex;gap:8px;margin:14px 0 22px}input{font:inherit;padding:8px 12px;border:1px solid #7a5a3a;background:#2a1d15;color:#f3e6d0;outline:none}button{font:inherit;padding:8px 18px;background:#c9a24a;border:none;color:#2a1d15;cursor:pointer;font-weight:700}
+.case{width:860px;background:#5a3d28;padding:14px;border:8px solid #2e1f14;box-shadow:0 20px 40px #000a}.sh{display:flex;align-items:flex-end;gap:3px;height:260px;border-bottom:14px solid #3a2616;padding:0 10px;margin-bottom:10px;background:linear-gradient(#2a1d15,#35261a)}
+.b{flex:none;writing-mode:vertical-rl;text-align:center;font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:2px 2px 0 0;cursor:pointer;color:#fff;text-shadow:0 1px 0 #0006;box-shadow:inset -3px 0 0 #0003,inset 2px 0 0 #fff2;transition:transform .2s;overflow:hidden;padding:6px 0}.b:hover{transform:translateY(-10px)}.b.sel{transform:translateY(-22px)}.b.fin::after{content:'✓';position:absolute}
+#card{margin-top:22px;width:420px;background:#f3e6d0;color:#2a1d15;padding:18px 22px;min-height:100px;box-shadow:0 8px 20px #0008}#card b{font-size:22px}#card button{margin:10px 8px 0 0}.mt{color:#a99677;font-style:italic}</style>
+<h1>Bookshelf</h1><form id="f"><input id="t" placeholder="Title" required><input id="p" type="number" min="20" max="1200" placeholder="Pages" required style="width:90px"><button>Shelve</button></form>
+<div class="case" id="case"></div><div id="card" class="mt">Click a spine to pull it out.</div>
+<script>
+let books=[],sel=null;const hue=s=>[...s].reduce((a,c)=>a*31+c.charCodeAt(0),7)%360;
+// Spine size comes from the page count: thicker books are wider and taller. Spines wrap onto a new shelf at ~800px.
+function render(){const shelves=[[]];let w=0;books.forEach(b=>{const bw=Math.round(18+Math.min(b.pages,900)/900*40);if(w+bw>800){shelves.push([]);w=0}shelves.at(-1).push({b,bw});w+=bw+3});
+  while(shelves.length<3)shelves.push([]);
+  $('#case').innerHTML=shelves.map(s=>`<div class="sh">${s.map(({b,bw})=>`<div class="b ${sel===b.id?'sel':''} ${b.read?'fin':''}" data-id="${b.id}" style="width:${bw}px;height:${110+Math.min(b.pages,900)/900*120}px;background:hsl(${hue(b.title)},${b.read?30:48}%,${b.read?38:34}%)">${esc(b.title.slice(0,26))}</div>`).join('')}</div>`).join('');
+  const b=books.find(x=>x.id===sel);$('#card').className=b?'':'mt';$('#card').innerHTML=b?`<b>${esc(b.title)}</b><div>${b.pages} pages · ${b.read?'finished':'not read yet'}</div><button data-act="read">${b.read?'Mark unread':'Mark as read'}</button><button data-act="del" style="background:#b3402a;color:#fff">Remove</button>`:`${books.length} books · ${books.filter(x=>x.read).length} read. Click a spine to pull it out.`}
+$('#case').onclick=e=>{const b=e.target.closest('.b');sel=b?(sel===b.dataset.id?null:b.dataset.id):null;render()};
+$('#card').onclick=async e=>{const a=e.target.dataset.act,b=books.find(x=>x.id===sel);if(!a||!b)return;if(a==='read'){b.read=!b.read;api.upd(b.id,{read:b.read})}else{await api.del(b.id);books=books.filter(x=>x!==b);sel=null}render()};
+$('#f').onsubmit=async e=>{e.preventDefault();books.push(await api.add({title:$('#t').value,pages:+$('#p').value,read:false}));$('#t').value=$('#p').value='';render()};
+api.list().then(d=>{books=d.sort((a,b)=>a.createdAt-b.createdAt);render()});
+</script>

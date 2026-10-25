@@ -1,0 +1,80 @@
+<!doctype html><meta charset="utf-8"><title>Life Radar</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #eaf5f1; color: #12403c; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  main { display: flex; gap: 40px; justify-content: center; align-items: center; padding: 36px; }
+  h1 { margin: 0 0 4px; font-size: 40px; font-weight: 200; letter-spacing: -.03em; } h1 b { font-weight: 700; }
+  .sub { margin: 0 0 8px; color: #5e8883; }
+  svg { display: block; user-select: none; touch-action: none; }
+  .ring { fill: none; stroke: #12403c22; } .spoke { stroke: #12403c22; }
+  .lbl { font-size: 14px; font-weight: 500; fill: #12403c; text-anchor: middle; dominant-baseline: middle; }
+  .you { fill: #ff6f6155; stroke: #ff6f61; stroke-width: 3; stroke-linejoin: round; }
+  .snap { fill: none; stroke: #12403c; stroke-opacity: .22; stroke-width: 1.5; }
+  .snap.hl { stroke-opacity: 1; stroke-width: 2.5; stroke: #1b9aaa; }
+  .h { fill: #fff; stroke: #ff6f61; stroke-width: 3; cursor: grab; } .h:hover { fill: #ff6f61; }
+  .score { font-size: 12px; font-weight: 700; fill: #ff6f61; text-anchor: middle; }
+  .avg { font-size: 54px; font-weight: 200; text-anchor: middle; fill: #12403c33; }
+  side { display: block; width: 280px; }
+  .btn { width: 100%; font: inherit; font-weight: 600; padding: 13px; border: none; border-radius: 12px; background: #12403c; color: #fff; cursor: pointer; margin: 14px 0 22px; }
+  .delta { font-size: 13px; line-height: 1.8; margin-bottom: 18px; min-height: 44px; } .up { color: #1b9a6a; } .down { color: #e0483a; }
+  h2 { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: #5e8883; margin: 0 0 8px; }
+  .s { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 10px; cursor: default; font-size: 14px; }
+  .s:hover { background: #fff; } .s span { color: #5e8883; } .s i { font-style: normal; color: #9bb9b4; cursor: pointer; padding: 0 4px; } .s i:hover { color: #e0483a; }
+</style>
+<main>
+  <svg id="svg" width="600" height="600" viewBox="0 0 600 600"></svg>
+  <side>
+    <h1>Life <b>Radar</b></h1><p class="sub">Drag each point. Snapshot to track change over time.</p>
+    <button class="btn" id="snap">Take snapshot</button>
+    <div class="delta" id="delta"></div>
+    <h2>Snapshots</h2><div id="snaps"></div>
+  </side>
+</main>
+<script>
+const AREAS = ['Health', 'Career', 'Money', 'Friends', 'Family', 'Fun', 'Growth', 'Calm'];
+const CX = 300, CY = 300, R = 200, N = AREAS.length;
+let scores = Array(N).fill(5), snaps = [], hover = null, dragging = -1;
+// Point on spoke i at radius for value v (0–10). Spoke 0 points straight up.
+const pt = (i, v, extra = 0) => { const a = i / N * Math.PI * 2 - Math.PI / 2, r = v / 10 * R + extra; return [CX + Math.cos(a) * r, CY + Math.sin(a) * r]; };
+const poly = s => s.map((v, i) => pt(i, v).join(',')).join(' ');
+const avg = s => (s.reduce((a, b) => a + b, 0) / N).toFixed(1);
+
+function render() {
+  const g = [2, 4, 6, 8, 10].map(v => `<polygon class="ring" points="${poly(Array(N).fill(v))}"/>`).join('') +
+    AREAS.map((_, i) => `<line class="spoke" x1="${CX}" y1="${CY}" x2="${pt(i, 10)[0]}" y2="${pt(i, 10)[1]}"/>`).join('') +
+    AREAS.map((a, i) => `<text class="lbl" x="${pt(i, 10, 32)[0]}" y="${pt(i, 10, 32)[1]}">${a}</text>`).join('');
+  const old = snaps.slice(0, 8).map(s => `<polygon class="snap ${hover === s.id ? 'hl' : ''}" points="${poly(s.scores)}"/>`).join('');
+  const hs = scores.map((v, i) => `<circle class="h" data-i="${i}" cx="${pt(i, v)[0]}" cy="${pt(i, v)[1]}" r="9"/><text class="score" x="${pt(i, v, v >= 8 ? -22 : 22)[0]}" y="${pt(i, v, v >= 8 ? -22 : 22)[1] + 4}">${v}</text>`).join('');
+  $('#svg').innerHTML = g + `<text class="avg" x="${CX}" y="${CY + 18}">${avg(scores)}</text>` + old + `<polygon class="you" points="${poly(scores)}"/>` + hs;
+  delta(); side();
+}
+// Compare current scores to the latest snapshot.
+function delta() {
+  const last = snaps[0]; if (!last) return $('#delta').textContent = 'No snapshots yet.';
+  const d = scores.map((v, i) => [AREAS[i], v - last.scores[i]]).filter(x => x[1]);
+  $('#delta').innerHTML = d.length ? d.map(([a, n]) => `<span class="${n > 0 ? 'up' : 'down'}">${n > 0 ? '↑' : '↓'} ${a} ${n > 0 ? '+' : ''}${n}</span>`).join('<br>') : 'Same as your last snapshot.';
+}
+function side() {
+  $('#snaps').innerHTML = snaps.map(s => `<div class="s" data-id="${s.id}">${new Date(s.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}<span>avg ${avg(s.scores)}</span><i data-del>×</i></div>`).join('') || '<div class="s"><span>Nothing saved.</span></div>';
+}
+// Dragging a handle sets that spoke's score from the pointer's distance to center.
+const svg = $('#svg');
+svg.addEventListener('pointerdown', e => { if (e.target.dataset.i) { dragging = +e.target.dataset.i; svg.setPointerCapture(e.pointerId); } });
+svg.addEventListener('pointermove', e => {
+  if (dragging < 0) return;
+  const r = svg.getBoundingClientRect();
+  const d = Math.hypot(e.clientX - r.left - CX, e.clientY - r.top - CY);
+  const v = Math.max(0, Math.min(10, Math.round(d / R * 10)));
+  if (v !== scores[dragging]) { scores[dragging] = v; render(); }
+});
+svg.addEventListener('pointerup', () => dragging = -1);
+$('#snap').onclick = async () => { snaps.unshift(await api.add({ scores: [...scores] })); render(); };
+$('#snaps').onmouseover = e => { hover = e.target.closest('.s')?.dataset.id || null; render(); };
+$('#snaps').onmouseleave = () => { hover = null; render(); };
+$('#snaps').onclick = async e => {
+  const row = e.target.closest('.s'); if (!row || !e.target.hasAttribute('data-del')) return;
+  await api.del(row.dataset.id); snaps = snaps.filter(s => s.id !== row.dataset.id); render();
+};
+api.list().then(d => { snaps = d; if (d[0]) scores = [...d[0].scores]; render(); });
+</script>

@@ -1,0 +1,99 @@
+<!doctype html><meta charset="utf-8"><title>Sky Diary</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(160deg, #e0c3fc 0%, #8ec5fc 100%) fixed; color: #2b2a4c; font-family: 'Avenir Next', Nunito, 'Segoe UI', system-ui, sans-serif; }
+  main { width: 920px; margin: 0 auto; padding: 48px 0; }
+  .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  h1 { margin: 0; font-size: 52px; font-weight: 200; letter-spacing: -.03em; }
+  h1 b { font-weight: 700; }
+  .nav { display: flex; align-items: center; gap: 14px; font-size: 20px; font-weight: 300; }
+  .nav button { width: 38px; height: 38px; border-radius: 50%; border: none; background: #fff8; font-size: 18px; cursor: pointer; color: inherit; }
+  .nav button:hover { background: #fffd; }
+  .nav span { min-width: 170px; text-align: center; }
+  #sum { display: flex; gap: 18px; height: 28px; margin-bottom: 18px; font-size: 14px; }
+  #sum span { display: flex; align-items: center; gap: 6px; }
+  #sum i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+  .dow { text-align: center; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; opacity: .5; }
+  .day { position: relative; height: 104px; border-radius: 18px; padding: 10px 12px; cursor: pointer; overflow: hidden; background: #fff3; border: 1.5px dashed #fff9; transition: transform .15s; font-size: 13px; }
+  .day:hover { transform: translateY(-3px) scale(1.02); }
+  .day.set { border: none; color: #fff; box-shadow: 0 8px 18px #2b2a4c22; }
+  .day.today { outline: 3px solid #2b2a4c; outline-offset: 2px; }
+  .day svg { position: absolute; right: -6px; bottom: -6px; width: 84px; height: 84px; }
+  .day p { position: relative; margin: 6px 0 0; font-size: 11px; line-height: 1.3; opacity: .92; max-width: 62%; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  #modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: #2b2a4c66; backdrop-filter: blur(6px); }
+  #modal.open { display: flex; }
+  .sheet { width: 480px; background: #fffe; border-radius: 26px; padding: 28px; box-shadow: 0 30px 80px #0004; }
+  .sheet h2 { margin: 0 0 18px; font-weight: 300; font-size: 24px; }
+  .skies { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .sky { height: 78px; border-radius: 14px; cursor: pointer; position: relative; overflow: hidden; border: 3px solid transparent; color: #fff; font-size: 11px; display: flex; align-items: flex-end; padding: 6px 8px; }
+  .sky svg { position: absolute; right: -8px; top: -8px; width: 60px; height: 60px; }
+  .sky.on { border-color: #2b2a4c; }
+  textarea { width: 100%; height: 84px; border: none; border-radius: 14px; background: #2b2a4c0d; padding: 12px; font: inherit; outline: none; resize: none; }
+  .acts { display: flex; justify-content: space-between; margin-top: 16px; }
+  .acts button { font: inherit; border: none; border-radius: 20px; padding: 10px 24px; cursor: pointer; background: #2b2a4c14; color: inherit; }
+  .acts .go { background: #2b2a4c; color: #fff; }
+</style>
+<main>
+  <div class="top"><h1>Sky <b>Diary</b></h1><div class="nav"><button id="prev">‹</button><span id="month"></span><button id="next">›</button></div></div>
+  <div id="sum"></div>
+  <div class="cal" id="cal"></div>
+</main>
+<div id="modal"><div class="sheet"><h2 id="mt"></h2><div class="skies" id="skies"></div><textarea id="note" placeholder="How did it feel?"></textarea>
+  <div class="acts"><button id="clr">Clear day</button><span><button id="cancel">Cancel</button> <button class="go" id="ok">Save</button></span></div></div></div>
+<script>
+// Each sky = a gradient + a small SVG scene.
+const cloud = '<g fill="#fff" opacity=".92"><ellipse cx="42" cy="46" rx="22" ry="12"/><ellipse cx="62" cy="40" rx="17" ry="13"/><ellipse cx="28" cy="50" rx="14" ry="8"/></g>';
+const SKY = {
+  clear:  { n: 'Clear',  g: 'linear-gradient(160deg,#4facfe,#00c6fb)', s: '<circle cx="62" cy="38" r="17" fill="#fff7ae"/><circle cx="62" cy="38" r="26" fill="#fff7ae" opacity=".3"/>' },
+  cloudy: { n: 'Cloudy', g: 'linear-gradient(160deg,#a8b5c4,#7b8da0)', s: cloud },
+  rain:   { n: 'Rain',   g: 'linear-gradient(160deg,#5877b8,#243a6e)', s: cloud + '<path d="M34 64l-4 12M48 64l-4 12M62 64l-4 12" stroke="#cfe8ff" stroke-width="3" stroke-linecap="round"/>' },
+  storm:  { n: 'Storm',  g: 'linear-gradient(160deg,#3a3d4d,#16171f)', s: cloud.replace('#fff', '#9aa0b4') + '<polygon points="52,56 42,74 51,74 46,90 64,68 54,68 60,56" fill="#ffe14d"/>' },
+  snow:   { n: 'Snow',   g: 'linear-gradient(160deg,#b7cadb,#8fa8c0)', s: cloud + '<g fill="#fff"><circle cx="34" cy="68" r="3"/><circle cx="50" cy="74" r="3"/><circle cx="64" cy="66" r="3"/><circle cx="44" cy="84" r="2.5"/></g>' },
+  night:  { n: 'Night',  g: 'linear-gradient(160deg,#1c2b57,#0b1230)', s: '<path d="M62 22a22 22 0 1 0 18 34a17 17 0 0 1-18-34z" fill="#fff6c8"/><g fill="#fff"><circle cx="30" cy="30" r="1.8"/><circle cx="44" cy="62" r="1.4"/><circle cx="78" cy="70" r="1.8"/></g>' },
+  dusk:   { n: 'Sunset', g: 'linear-gradient(160deg,#ff9a8b,#a855f7)', s: '<circle cx="52" cy="70" r="22" fill="#ffd27d"/><rect x="0" y="70" width="100" height="30" fill="#a855f7" opacity=".55"/>' },
+  fog:    { n: 'Misty',  g: 'linear-gradient(160deg,#cfd6dc,#aab4bd)', s: '<g stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".85"><path d="M20 36h50M30 50h56M16 64h46M34 78h44"/></g>' },
+};
+const icon = k => `<svg viewBox="0 0 100 100">${SKY[k].s}</svg>`;
+const pad = n => String(n).padStart(2, '0');
+const dkey = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+let view = new Date(), entries = [], editing = null, chosen = null;
+
+function render() {
+  const y = view.getFullYear(), m = view.getMonth(), first = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate(), now = new Date();
+  $('#month').textContent = view.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  let h = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => `<div class="dow">${d}</div>`).join('') + '<div></div>'.repeat(first);
+  const counts = {};
+  for (let d = 1; d <= days; d++) {
+    const k = dkey(y, m, d), e = entries.find(x => x.date === k), today = now.getFullYear() === y && now.getMonth() === m && now.getDate() === d;
+    if (e) counts[e.sky] = (counts[e.sky] || 0) + 1;
+    h += `<div class="day ${e ? 'set' : ''} ${today ? 'today' : ''}" data-k="${k}" ${e ? `style="background:${SKY[e.sky].g}"` : ''}>${d}${e ? icon(e.sky) + `<p>${esc(e.note)}</p>` : ''}</div>`;
+  }
+  $('#cal').innerHTML = h;
+  $('#sum').innerHTML = Object.entries(counts).map(([k, n]) => `<span><i style="background:${SKY[k].g}"></i>${n} ${SKY[k].n.toLowerCase()}</span>`).join('');
+}
+function openDay(k) {
+  editing = k; const e = entries.find(x => x.date === k); chosen = e?.sky || null;
+  $('#mt').textContent = new Date(...k.split('-').map((v, i) => i === 1 ? v - 1 : +v)).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  $('#note').value = e?.note || ''; $('#clr').style.visibility = e ? 'visible' : 'hidden'; skies(); $('#modal').classList.add('open');
+}
+const skies = () => $('#skies').innerHTML = Object.entries(SKY).map(([k, s]) => `<div class="sky ${chosen === k ? 'on' : ''}" data-s="${k}" style="background:${s.g}">${icon(k)}${s.n}</div>`).join('');
+const close = () => $('#modal').classList.remove('open');
+
+$('#cal').onclick = e => { const d = e.target.closest('.day'); if (d) openDay(d.dataset.k); };
+$('#skies').onclick = e => { const s = e.target.closest('.sky'); if (s) { chosen = s.dataset.s; skies(); } };
+$('#cancel').onclick = close; $('#modal').onclick = e => e.target.id === 'modal' && close();
+// Upsert by date: patch the existing entry or create a new one.
+$('#ok').onclick = async () => {
+  if (!chosen) return;
+  const cur = entries.find(x => x.date === editing), data = { date: editing, sky: chosen, note: $('#note').value.trim() };
+  if (cur) Object.assign(cur, await api.upd(cur.id, data)); else entries.push(await api.add(data));
+  close(); render();
+};
+$('#clr').onclick = async () => { const cur = entries.find(x => x.date === editing); await api.del(cur.id); entries = entries.filter(x => x !== cur); close(); render(); };
+$('#prev').onclick = () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); render(); };
+$('#next').onclick = () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); render(); };
+addEventListener('keydown', e => e.key === 'Escape' && close());
+api.list().then(d => { entries = d; render(); });
+</script>

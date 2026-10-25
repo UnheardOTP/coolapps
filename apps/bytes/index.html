@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Data Size Converter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0d9488}</style>
+<div class="wrap"><h1>Data Size Converter</h1><p class="sub">Bytes to terabytes in both decimal (1000) and binary (1024) units, plus how long a transfer takes.</p>
+<div class="card"><div class="row"><div class="col"><label>Value</label><input id="v" type="number" value="1.5" step="any" data-keep></div><div class="col"><label>Unit</label><select id="u" data-keep></select></div></div></div>
+<div class="g2"><div class="card"><h2>Decimal (SI)</h2><table id="si"></table></div><div class="card"><h2>Binary (IEC)</h2><table id="iec"></table></div></div>
+<div class="card"><h2>Transfer time</h2><div class="row"><div class="col"><label>Connection speed</label><input id="sp" type="number" value="100" step="any" data-keep></div><div class="col"><label>Unit</label><select id="su" data-keep><option value="1e6">Mbit/s</option><option value="1e9">Gbit/s</option><option value="1e3">Kbit/s</option><option value="8e6">MB/s</option></select></div><div class="kpi col"><small>Takes about</small><b id="tt"></b></div></div></div></div>
+<script>
+const SI=['B','KB','MB','GB','TB','PB'],IEC=['B','KiB','MiB','GiB','TiB','PiB'];
+$('#u').innerHTML=[...SI.map((u,i)=>`<option value="${1000**i}">${u}</option>`),...IEC.slice(1).map((u,i)=>`<option value="${1024**(i+1)}">${u}</option>`)].join('');$('#u').value=String(1000**3);
+const nice=n=>n===0?'0':n>=1e6||n<1e-3?n.toExponential(3):n.toLocaleString(undefined,{maximumFractionDigits:4});
+function dur(s){if(s<1)return(s*1000).toFixed(0)+' ms';const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),x=Math.round(s%60);return[d&&d+' d',h&&h+' h',m&&m+' min',(x||!(d||h||m))&&x+' s'].filter(Boolean).join(' ')}
+function run(){const bytes=num('v')*+$('#u').value;const tab=(U,base)=>U.map((u,i)=>`<tr><td class="mut" style="width:60px">${u}</td><td class="mono">${nice(bytes/base**i)}</td><td class="r"><button class="x" data-v="${bytes/base**i}">Copy</button></td></tr>`).join('');
+  $('#si').innerHTML=`<tr><td class="mut">bits</td><td class="mono">${nice(bytes*8)}</td><td></td></tr>`+tab(SI,1000);$('#iec').innerHTML=tab(IEC,1024);const bps=num('sp')*+$('#su').value;$('#tt').textContent=bps>0?dur(bytes*8/bps):'–'}
+document.addEventListener('click',e=>{if(e.target.dataset.v)copy(e.target.dataset.v,e.target)});document.addEventListener('input',run);remember().then(run);
+</script>

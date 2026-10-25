@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>Fivers</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#121213;color:#fff;font-family:'Helvetica Neue',Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding-top:24px}
+h1{margin:0 0 14px;font-size:34px;letter-spacing:.3em;border-bottom:1px solid #3a3a3c;padding:0 30px 10px}#g{display:grid;grid-template-columns:repeat(5,60px);gap:6px}
+.t{width:60px;height:60px;border:2px solid #3a3a3c;font:700 30px Arial;display:flex;align-items:center;justify-content:center;text-transform:uppercase}.t.f{border-color:#818384}.g{background:#538d4e;border-color:#538d4e}.y{background:#b59f3b;border-color:#b59f3b}.b{background:#3a3a3c;border-color:#3a3a3c}
+.kb{margin-top:24px}.r{display:flex;gap:6px;justify-content:center;margin-bottom:6px}.r button{min-width:42px;height:54px;border:none;border-radius:4px;background:#818384;color:#fff;font:700 14px Arial;cursor:pointer;text-transform:uppercase}.r button.g{background:#538d4e}.r button.y{background:#b59f3b}.r button.b{background:#3a3a3c}
+#m{height:30px;margin-top:14px}#st{color:#818384;margin-top:6px}</style>
+<h1>FIVERS</h1><div id="g"></div><div id="m"></div><div class="kb" id="kb"></div><div id="st"></div>
+<script>
+const WORDS='about crane flame ghost house image jolly knife lemon money night ocean piano queen river stone trick under voice water young zebra apple beach chair dream earth field grape heart juice kiosk light mango noble olive peace quiet robot sugar tiger unity vivid wheat xerox yield zesty brave cloud drink eagle frost giant honey ivory jelly lunar magic nerve orbit pride quick radar shine toast'.split(' ');
+let ans,rows,cur,done,hist=[];
+// Score a guess like Wordle: greens first, then yellows limited by remaining letter counts.
+function score(g){const r=Array(5).fill('b'),left={};[...ans].forEach((c,i)=>{if(g[i]===c)r[i]='g';else left[c]=(left[c]||0)+1});[...g].forEach((c,i)=>{if(r[i]!=='g'&&left[c]>0){r[i]='y';left[c]--}});return r}
+function newGame(){ans=WORDS[Math.floor(Math.random()*WORDS.length)];rows=[];cur='';done=false;$('#m').textContent='';draw()}
+function draw(){const best={};rows.forEach(r=>[...r.w].forEach((c,i)=>{const s=r.s[i];if(!best[c]||'gyb'.indexOf(s)<'gyb'.indexOf(best[c]))best[c]=s}));
+let h='';for(let i=0;i<6;i++){const r=rows[i];for(let j=0;j<5;j++)h+=r?`<div class="t ${r.s[j]}">${r.w[j]}</div>`:`<div class="t ${i===rows.length&&cur[j]?'f':''}">${i===rows.length?cur[j]||'':''}</div>`}$('#g').innerHTML=h;
+$('#kb').innerHTML=['qwertyuiop','asdfghjkl','⏎zxcvbnm⌫'].map(r=>`<div class="r">${[...r].map(c=>`<button class="${best[c]||''}" data-k="${c}">${c}</button>`).join('')}</div>`).join('');
+$('#st').textContent=`Solved ${hist.filter(x=>x.won).length} of ${hist.length}`}
+async function key(k){if(done)return;if(k==='⌫')cur=cur.slice(0,-1);else if(k==='⏎'){if(cur.length<5)return $('#m').textContent='Need 5 letters';rows.push({w:cur,s:score(cur)});const won=cur===ans;cur='';$('#m').textContent='';
+if(won||rows.length===6){done=true;$('#m').textContent=won?'Brilliant!':`It was “${ans}”`;draw();hist.push(await api.add({ans,won,tries:rows.length}));}}else if(cur.length<5)cur+=k;draw()}
+$('#kb').onclick=e=>e.target.dataset.k&&key(e.target.dataset.k);addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;if(/^[a-z]$/i.test(e.key))key(e.key.toLowerCase());if(e.key==='Enter')key('⏎');if(e.key==='Backspace')key('⌫')});
+$('#m').onclick=()=>done&&newGame();api.list().then(d=>{hist=d;newGame()});
+</script>

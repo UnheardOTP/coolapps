@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><title>Cron Helper</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#14b8a6}</style>
+<div class="wrap"><h1>Cron Helper</h1><p class="sub">Explain a five-field cron expression and see when it will next run.</p>
+<div class="card"><label>Expression (minute hour day-of-month month day-of-week)</label><input id="c" class="mono" style="font-size:20px" value="*/15 9-17 * * 1-5" data-keep><div class="err" id="er"></div><div class="chips" id="ex"></div></div>
+<div class="g2"><div class="card"><h2>In plain English</h2><div id="en" style="font-size:17px"></div><table class="gap" id="fl"></table></div><div class="card"><h2>Next 8 runs</h2><div id="nx"></div></div></div></div>
+<script>
+const NAMES={mon:1,tue:2,wed:3,thu:4,fri:5,sat:6,sun:0,jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+const RANGE=[[0,59],[0,23],[1,31],[1,12],[0,6]],LAB=['minute','hour','day of month','month','day of week'];
+// Expand one field ("*/5", "1-5", "1,3,7", "MON-FRI") into the set of values it allows.
+function expand(f,[lo,hi]){const s=new Set();for(let part of f.toLowerCase().split(',')){let step=1;if(part.includes('/')){const[a,b]=part.split('/');part=a;step=+b;if(!(step>0))throw Error('bad step')}
+  let a,b;if(part==='*'){a=lo;b=hi}else if(part.includes('-')){[a,b]=part.split('-').map(x=>NAMES[x]??+x)}else{a=NAMES[part]??+part;b=step>1?hi:a}
+  if(isNaN(a)||isNaN(b)||a<lo||b>hi+(hi===6?1:0)||a>b)throw Error(`"${f}" is out of range ${lo}-${hi}`);for(let v=a;v<=b;v+=step)s.add(v===7&&hi===6?0:v)}return s}
+function parse(e){const p=e.trim().split(/\s+/);if(p.length!==5)throw Error('Need exactly 5 fields');return p.map((f,i)=>({raw:f,set:expand(f,RANGE[i])}))}
+const ord=n=>n+(['th','st','nd','rd'][(n%100-20)%10]||['th','st','nd','rd'][n%100]||'th');
+function english(F){const[m,h,dom,mon,dow]=F,all=(x,i)=>x.set.size===RANGE[i][1]-RANGE[i][0]+1,L=[];
+  if(m.raw==='*'&&h.raw==='*')L.push('Every minute');else if(m.raw.startsWith('*/')&&h.raw==='*')L.push(`Every ${m.raw.slice(2)} minutes`);else if(m.set.size===1&&h.set.size===1)L.push(`At ${pad2([...h.set][0])}:${pad2([...m.set][0])}`);
+  else{L.push(m.raw.startsWith('*/')?`Every ${m.raw.slice(2)} minutes`:m.set.size===1?`At minute ${[...m.set][0]}`:`At minutes ${[...m.set].join(', ')}`);if(!all(h,1))L.push(h.set.size===1?`past hour ${[...h.set][0]}`:`during hours ${h.raw}`)}
+  if(!all(dom,2))L.push(`on day${dom.set.size>1?'s':''} ${[...dom.set].map(ord).join(', ')} of the month`);if(!all(mon,3))L.push('in '+[...mon.set].map(x=>new Date(2000,x-1,1).toLocaleString('en',{month:'long'})).join(', '));
+  if(!all(dow,4))L.push('on '+[...dow.set].map(x=>['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][x]).join(', '));return L.join(', ')}
+// Walk forward one minute at a time (up to ~2 years) and collect minutes that satisfy every field. Standard cron rule: if both
+// day-of-month and day-of-week are restricted, either one matching is enough.
+function nextRuns(F,n){const[m,h,dom,mon,dow]=F,out=[],d=new Date();d.setSeconds(0,0);d.setMinutes(d.getMinutes()+1);const domAll=dom.set.size===31,dowAll=dow.set.size===7;
+  for(let i=0;i<1051200&&out.length<n;i++,d.setMinutes(d.getMinutes()+1)){if(!m.set.has(d.getMinutes())||!h.set.has(d.getHours())||!mon.set.has(d.getMonth()+1))continue;
+    const dm=dom.set.has(d.getDate()),dw=dow.set.has(d.getDay());if(!(domAll&&dowAll?true:domAll?dw:dowAll?dm:dm||dw))continue;out.push(new Date(d))}return out}
+function run(){$('#er').textContent='';try{const F=parse($('#c').value);$('#en').textContent=english(F);$('#fl').innerHTML=F.map((f,i)=>`<tr><td class="mut">${LAB[i]}</td><td class="mono">${esc(f.raw)}</td><td class="mut">${f.set.size} value${f.set.size===1?'':'s'}</td></tr>`).join('');
+  const r=nextRuns(F,8);$('#nx').innerHTML=r.map(d=>`<div class="gap">${d.toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`).join('')||'<span class="mut">Never within two years</span>'}catch(e){$('#er').textContent=e.message;$('#en').textContent='';$('#fl').innerHTML='';$('#nx').innerHTML=''}}
+$('#ex').innerHTML=[['*/5 * * * *','every 5 min'],['0 9 * * 1-5','weekdays 9am'],['0 0 1 * *','monthly'],['30 2 * * 0','Sun 2:30am'],['0 */6 * * *','every 6 h']].map(([c,l])=>`<span class="chip" data-c="${c}">${l}</span>`).join('');
+$('#ex').onclick=e=>{const c=e.target.dataset.c;if(c){$('#c').value=c;run();$('#c').dispatchEvent(new Event('input',{bubbles:true}))}};$('#c').oninput=run;remember().then(run);
+</script>

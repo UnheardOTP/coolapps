@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Text Snippets</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0f766e;--w:980px}.sn{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--card)}.sn pre{margin:6px 0 10px;white-space:pre-wrap;word-break:break-word;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;max-height:140px;overflow:auto;background:var(--soft);padding:10px;border-radius:8px}.gr{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}.tg{font-size:12px;color:var(--a);margin-right:6px}</style>
+<div class="wrap"><h1>Text Snippets</h1><p class="sub">Keep the replies, boilerplate and commands you paste over and over. Click Copy and go.</p>
+<div class="card"><div class="row"><div class="col"><label>Title</label><input id="ti" placeholder="Meeting follow-up"></div><div class="col"><label>Tags (comma separated)</label><input id="tg" placeholder="email, work"></div></div><label class="gap">Text</label><textarea id="tx"></textarea><div class="row gap"><button id="add">Save snippet</button><span class="mut" id="ed"></span></div></div>
+<div class="card"><input id="q" placeholder="Search snippets and tags…"><div class="chips" id="tags"></div></div><div class="gr" id="gr"></div></div>
+<script>
+let sn=[],tag='',editing=null;
+function paint(){const q=$('#q').value.toLowerCase(),all=[...new Set(sn.flatMap(s=>s.tags))].sort();$('#tags').innerHTML=all.map(t=>`<span class="chip" data-t="${esc(t)}" style="${t===tag?'border-color:var(--a)':''}">#${esc(t)}</span>`).join('');
+  const l=sn.filter(s=>(!tag||s.tags.includes(tag))&&(!q||(s.title+s.text+s.tags.join(' ')).toLowerCase().includes(q)));
+  $('#gr').innerHTML=l.map(s=>`<div class="sn" data-id="${s.id}"><b>${esc(s.title||'Untitled')}</b><div>${s.tags.map(t=>`<span class="tg">#${esc(t)}</span>`).join('')}</div><pre>${esc(s.text)}</pre><button class="s" data-cp>Copy</button> <button class="x" data-ed>Edit</button> <button class="x" data-rm>Delete</button></div>`).join('')||'<span class="mut">No snippets yet.</span>'}
+$('#add').onclick=async()=>{const d={kind:'sn',title:$('#ti').value.trim(),text:$('#tx').value,tags:$('#tg').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean)};if(!d.text)return;
+  if(editing){Object.assign(editing,d);await api.upd(editing.id,d);editing=null;$('#add').textContent='Save snippet';$('#ed').textContent=''}else sn.unshift(await api.add(d));$('#ti').value=$('#tx').value=$('#tg').value='';paint()};
+$('#gr').onclick=async e=>{const c=e.target.closest('.sn');if(!c)return;const s=sn.find(x=>x.id===c.dataset.id);if(e.target.hasAttribute('data-cp'))copy(s.text,e.target);
+  if(e.target.hasAttribute('data-rm')){await api.del(s.id);sn=sn.filter(x=>x!==s);paint()}if(e.target.hasAttribute('data-ed')){editing=s;$('#ti').value=s.title;$('#tx').value=s.text;$('#tg').value=s.tags.join(', ');$('#add').textContent='Update snippet';$('#ed').textContent='Editing “'+(s.title||'Untitled')+'”';scrollTo(0,0)}};
+$('#tags').onclick=e=>{const t=e.target.closest('.chip')?.dataset.t;if(t!==undefined){tag=tag===t?'':t;paint()}};$('#q').oninput=paint;api.list().then(d=>{sn=only(d,'sn');paint()});
+</script>

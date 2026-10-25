@@ -1,0 +1,13 @@
+# MongoDB plus a single hub container serving every app at http://localhost:4100/<app>/
+services:
+  mongo:
+    image: mongo:7
+    volumes: [mongo-data:/data/db]
+    healthcheck: { test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"], interval: 5s, retries: 10 }
+  hub:
+    build: .
+    ports: ["4100:3000"]
+    volumes: ["./apps:/srv/apps:ro", "./shared/public:/srv/shared/public:ro"]   # edit or add apps and shared assets live, no rebuild
+    depends_on: { mongo: { condition: service_healthy } }
+    restart: unless-stopped
+volumes: { mongo-data: {} }

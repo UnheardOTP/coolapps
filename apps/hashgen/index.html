@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>Hash Generator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#8b5cf6;--w:900px}</style>
+<div class="wrap"><h1>Hash Generator</h1><p class="sub">SHA-1, SHA-256, SHA-384 and SHA-512 of text or a file, computed locally in your browser.</p>
+<div class="card"><div class="tabs" id="tabs"><button data-m="t" class="on">Text</button><button data-m="f">File</button></div><div id="tm"><textarea id="in" data-keep placeholder="Type or paste text…"></textarea></div><div id="fm" class="hide"><input type="file" id="f"></div>
+<label class="gap">Output format</label><select id="fmt" style="width:160px" data-keep><option value="hex">Hex</option><option value="b64">Base64</option></select></div>
+<div class="card" id="res"></div><div class="card"><h2>Verify</h2><label>Paste an expected hash to compare</label><input id="exp" class="mono" placeholder="expected hash…"><div id="ver" class="gap"></div></div></div>
+<script>
+const ALG=['SHA-1','SHA-256','SHA-384','SHA-512'];let data=new Uint8Array(),mode='t',hashes={};
+const toHex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''),toB64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+async function calc(){if(!crypto.subtle){$('#res').innerHTML='<div class="err">Hashing needs a secure context (https or localhost).</div>';return}
+  if(mode==='t')data=new TextEncoder().encode($('#in').value);
+  for(const a of ALG){const d=await crypto.subtle.digest(a,data);hashes[a]=$('#fmt').value==='hex'?toHex(d):toB64(d)}
+  $('#res').innerHTML=ALG.map(a=>`<div class="gap"><label>${a}</label><div class="row" style="flex-wrap:nowrap"><div class="out col mono" style="min-height:0">${hashes[a]}</div><button class="s" data-c="${a}">Copy</button></div></div>`).join('');verify()}
+function verify(){const e=$('#exp').value.trim().replace(/\s/g,'');if(!e){$('#ver').innerHTML='';return}const m=ALG.find(a=>hashes[a]&&hashes[a].toLowerCase()===e.toLowerCase());$('#ver').innerHTML=m?`<span class="ok">✓ Match: ${m}</span>`:'<span class="bad">✗ No match</span>'}
+$('#res').onclick=e=>{const a=e.target.dataset.c;if(a)copy(hashes[a],e.target)};
+$('#tabs').onclick=e=>{const m=e.target.dataset.m;if(!m)return;mode=m;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b===e.target));$('#tm').classList.toggle('hide',m==='f');$('#fm').classList.toggle('hide',m==='t');if(m==='t')calc()};
+$('#f').onchange=async e=>{const f=e.target.files[0];if(f){data=new Uint8Array(await f.arrayBuffer());calc()}};
+$('#in').oninput=$('#fmt').onchange=calc;$('#exp').oninput=verify;remember().then(calc);
+</script>

@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>Age Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#db2777;--w:720px}</style>
+<div class="wrap"><h1>Age Calculator</h1><p class="sub">Exact age, how many days you've lived, and the countdown to the next birthday.</p>
+<div class="card"><div class="row"><div class="col"><label>Date of birth</label><input id="b" type="date" data-keep></div><div class="col"><label>Age on date</label><input id="o" type="date" data-keep></div><button class="s" id="td">Today</button></div></div>
+<div class="card"><div class="mut">Exact age</div><div class="big" id="age"></div><div class="g3 gap" id="kp"></div></div>
+<div class="card"><div class="mut">Next birthday</div><div class="big" style="font-size:26px" id="nb"></div><div class="bar gap"><i id="pb" style="width:0"></i></div><div class="mut" id="pt"></div></div></div>
+<script>
+const SIGNS=[['Capricorn',19],['Aquarius',18],['Pisces',20],['Aries',19],['Taurus',20],['Gemini',20],['Cancer',22],['Leo',22],['Virgo',22],['Libra',22],['Scorpio',21],['Sagittarius',21],['Capricorn',31]];
+function run(){if(!$('#o').value)$('#o').value=dkey(new Date());if(!$('#b').value){$('#age').textContent='Enter a date of birth';$('#kp').innerHTML='';$('#nb').textContent='';return}
+  const B=pdate($('#b').value),O=pdate($('#o').value);if(B>O){$('#age').textContent='Birth date is after the chosen date';$('#kp').innerHTML='';return}
+  const[y,m,d]=ymd(B,O);
+  const days=Math.round((O-B)/864e5);$('#age').textContent=`${y} years, ${m} months, ${d} days`;
+  $('#kp').innerHTML=[['Total days',days.toLocaleString()],['Total weeks',Math.floor(days/7).toLocaleString()],['Total months',(y*12+m).toLocaleString()],['Hours',(days*24).toLocaleString()],['Born on',B.toLocaleDateString(undefined,{weekday:'long'})],['Star sign',SIGNS[B.getMonth()][1]>=B.getDate()?SIGNS[B.getMonth()][0]:SIGNS[B.getMonth()+1][0]]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b style="font-size:17px">${v}</b></div>`).join('');
+  let nx=new Date(O.getFullYear(),B.getMonth(),B.getDate());if(nx<=O&&!(+nx===+O))nx=new Date(O.getFullYear()+1,B.getMonth(),B.getDate());const left=Math.round((nx-O)/864e5);
+  $('#nb').textContent=left===0?'It\'s today — happy birthday!':`${left} day${left===1?'':'s'} to go (${nx.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}, turning ${nx.getFullYear()-B.getFullYear()})`;const pr=new Date(nx.getFullYear()-1,B.getMonth(),B.getDate());$('#pb').style.width=Math.max(0,Math.min(100,(O-pr)/(nx-pr)*100))+'%';$('#pt').textContent=`${fmt((O-pr)/(nx-pr)*100,0)}% of the way through this year of life`}
+$('#td').onclick=()=>{$('#o').value=dkey(new Date());run()};document.addEventListener('input',run);remember().then(run);
+</script>

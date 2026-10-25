@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>Base64</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0ea5e9}</style>
+<div class="wrap"><h1>Base64</h1><p class="sub">Encode and decode text (full Unicode) or turn a file into a data URL.</p>
+<div class="card"><div class="tabs" id="tabs"><button data-m="enc" class="on">Encode</button><button data-m="dec">Decode</button><button data-m="file">File → data URL</button></div>
+<div id="textmode"><label>Input</label><textarea id="in" data-keep></textarea><div class="row gap"><label style="margin:0"><input type="checkbox" id="url" data-keep> URL-safe (- _ , no padding)</label></div><label class="gap">Output</label><div class="out" id="out"></div><div class="err" id="err"></div><button class="s" id="cp">Copy</button> <button class="s" id="sw">Use output as input</button></div>
+<div id="filemode" class="hide"><label>Pick a file</label><input type="file" id="f"><div class="mut gap" id="fi"></div><div class="out gap" id="fo" style="max-height:240px;overflow:auto"></div><button class="s gap" id="fcp">Copy data URL</button></div></div></div>
+<script>
+let mode='enc';
+// TextEncoder makes this safe for any Unicode, which plain btoa() is not.
+const enc=(s,u)=>{const b=[...new TextEncoder().encode(s)].map(c=>String.fromCharCode(c)).join(''),r=btoa(b);return u?r.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''):r};
+const dec=s=>{s=s.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const b=atob(s);return new TextDecoder().decode(Uint8Array.from(b,c=>c.charCodeAt(0)))};
+function run(){$('#err').textContent='';try{$('#out').textContent=mode==='enc'?enc($('#in').value,$('#url').checked):dec($('#in').value)}catch(e){$('#out').textContent='';if($('#in').value)$('#err').textContent='Not valid Base64'}}
+$('#tabs').onclick=e=>{const m=e.target.dataset.m;if(!m)return;mode=m;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b===e.target));$('#textmode').classList.toggle('hide',m==='file');$('#filemode').classList.toggle('hide',m!=='file');run()};
+$('#in').oninput=$('#url').onchange=run;$('#cp').onclick=e=>copy($('#out').textContent,e.target);$('#sw').onclick=()=>{$('#in').value=$('#out').textContent;run()};
+$('#f').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#fo').textContent=r.result;$('#fi').textContent=`${f.name} · ${f.type||'unknown type'} · ${f.size.toLocaleString()} bytes → ${r.result.length.toLocaleString()} characters`};r.readAsDataURL(f)};
+$('#fcp').onclick=e=>copy($('#fo').textContent,e.target);remember().then(run);
+</script>

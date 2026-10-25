@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>CSS Unit Converter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#8b5cf6;--w:820px}</style>
+<div class="wrap" style="max-width:820px"><h1>CSS Unit Converter</h1><p class="sub">Convert between px, rem, em, pt, %, vw and vh using your root font size, parent size and viewport.</p>
+<div class="card"><div class="g4"><div><label>Root font size (px)</label><input id="rf" type="number" value="16" data-keep></div><div><label>Parent font size (px)</label><input id="pf" type="number" value="16" data-keep></div><div><label>Viewport width (px)</label><input id="vw" type="number" value="1440" data-keep></div><div><label>Viewport height (px)</label><input id="vh" type="number" value="900" data-keep></div></div></div>
+<div class="card"><div class="row"><div class="col"><label>Value</label><input id="v" type="number" step="any" value="24" style="font-size:22px" data-keep></div><div class="col"><label>Unit</label><select id="u" data-keep><option>px</option><option>rem</option><option>em</option><option>pt</option><option>%</option><option>vw</option><option>vh</option></select></div></div><table class="gap" id="tb"></table></div>
+<div class="card"><h2>Common px → rem</h2><div class="g4" id="cm"></div></div></div>
+<script>
+const toPx=(v,u)=>({px:v,rem:v*num('rf'),em:v*num('pf'),pt:v*96/72,'%':v/100*num('pf'),vw:v/100*num('vw'),vh:v/100*num('vh')})[u];
+const fromPx=(px,u)=>({px:px,rem:px/num('rf'),em:px/num('pf'),pt:px*72/96,'%':px/num('pf')*100,vw:px/num('vw')*100,vh:px/num('vh')*100})[u];
+const n4=x=>+x.toFixed(4)+'';
+function run(){const px=toPx(num('v'),$('#u').value);$('#tb').innerHTML=['px','rem','em','pt','%','vw','vh'].map(u=>`<tr><td class="mut" style="width:60px">${u}</td><td class="mono"><b>${n4(fromPx(px,u))}${u}</b></td><td class="r"><button class="x" data-v="${n4(fromPx(px,u))}${u}">Copy</button></td></tr>`).join('');
+  $('#cm').innerHTML=[10,12,14,16,18,20,24,28,32,40,48,64].map(p=>`<div class="kpi" style="cursor:pointer" data-v="${n4(p/num('rf'))}rem"><small>${p}px</small><b style="font-size:16px">${n4(p/num('rf'))}rem</b></div>`).join('')}
+document.addEventListener('click',e=>{const d=e.target.closest('[data-v]');if(d)copy(d.dataset.v,d.querySelector('b')||d)});document.addEventListener('input',run);remember().then(run);
+</script>

@@ -1,0 +1,125 @@
+<!doctype html><meta charset="utf-8"><title>Beat Box</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 0%, #1c0f33, #08060f 70%); color: #d9d2ee; font: 14px 'Helvetica Neue', Arial, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 44px 24px; }
+  h1 { margin: 0; font-size: 34px; letter-spacing: .3em; font-weight: 300; text-transform: uppercase; }
+  h1 b { color: #ff2d75; font-weight: 800; text-shadow: 0 0 18px #ff2d75; }
+  .bar { display: flex; align-items: center; gap: 22px; margin: 28px 0; }
+  #play { width: 64px; height: 64px; border-radius: 50%; border: 2px solid #ff2d75; background: transparent; color: #ff2d75; font-size: 22px; cursor: pointer; box-shadow: 0 0 20px #ff2d7566; }
+  #play.on { background: #ff2d75; color: #08060f; }
+  .bpm { display: flex; align-items: center; gap: 12px; color: #8b82a8; } .bpm b { font-size: 28px; color: #fff; width: 52px; font-variant-numeric: tabular-nums; }
+  input[type=range] { accent-color: #ff2d75; width: 200px; }
+  .grid { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; align-items: center; gap: 14px; }
+  .row label { width: 62px; font-size: 11px; letter-spacing: .2em; color: var(--c); text-align: right; }
+  .pads { display: flex; gap: 6px; flex: 1; }
+  .pad { flex: 1; height: 46px; border-radius: 8px; background: #17122a; border: 1px solid #2a2347; cursor: pointer; transition: background .08s, box-shadow .08s; }
+  .pad:nth-child(4n+1) { margin-left: 10px; } .pad:first-child { margin-left: 0; }
+  .pad.on { background: var(--c); border-color: var(--c); box-shadow: 0 0 14px var(--c); }
+  .pad.now { border-color: #fff; }
+  .pad.on.now { filter: brightness(1.7); }
+  .tools { display: flex; gap: 10px; margin: 28px 0 14px; align-items: center; }
+  button.s, input.n { font: inherit; background: #17122a; color: #d9d2ee; border: 1px solid #2a2347; border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+  input.n { cursor: text; width: 180px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid #2a2347; border-radius: 20px; padding: 6px 8px 6px 14px; cursor: pointer; color: #b8afd6; }
+  .chip:hover { border-color: #ff2d75; } .chip i { font-style: normal; margin-left: 10px; color: #6a6190; }
+  .muted { color: #5d5580; }
+</style>
+<main>
+  <h1><b>Beat</b> Box</h1>
+  <div class="bar">
+    <button id="play">▶</button>
+    <div class="bpm"><input type="range" id="bpm" min="60" max="180" value="104"><b id="bpmv">104</b>BPM</div>
+    <button class="s" id="rand">Randomize</button><button class="s" id="clear">Clear</button>
+    <span class="muted">Space to play / stop</span>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="tools"><input class="n" id="name" placeholder="Pattern name"><button class="s" id="save">Save pattern</button></div>
+  <div class="chips" id="saved"></div>
+</main>
+<script>
+const TRACKS = [['KICK', '#ff2d75'], ['SNARE', '#ffb800'], ['HAT', '#00e5ff'], ['CLAP', '#9d5cff'], ['TOM', '#2dff8a'], ['BELL', '#ff6b3d']];
+let grid = TRACKS.map(() => Array(16).fill(0)), step = 0, playing = false, saved = [], timer, nextTime, queue = [], ac, noise;
+
+// ---- Synthesis: every drum is a few oscillators / filtered noise bursts scheduled on the audio clock ----
+function audio() {
+  if (!ac) {
+    ac = new AudioContext();
+    noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+    noise.getChannelData(0).forEach((_, i, d) => d[i] = Math.random() * 2 - 1);
+  }
+  ac.resume(); return ac;
+}
+function env(g, t, peak, dur) { g.gain.setValueAtTime(peak, t); g.gain.exponentialRampToValueAtTime(.001, t + dur); }
+function osc(type, f0, f1, t, peak, dur) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * .6);
+  env(g, t, peak, dur); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur);
+}
+function hiss(type, freq, t, peak, dur) {
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = noise; f.type = type; f.frequency.value = freq; env(g, t, peak, dur);
+  s.connect(f).connect(g).connect(ac.destination); s.start(t, Math.random() * .5); s.stop(t + dur);
+}
+const VOICES = [
+  t => osc('sine', 160, 40, t, 1, .4),
+  t => { hiss('highpass', 1200, t, .5, .2); osc('triangle', 220, 120, t, .35, .12); },
+  t => hiss('highpass', 7500, t, .3, .05),
+  t => [0, .012, .024].forEach(d => hiss('bandpass', 1600, t + d, .45, d === .024 ? .18 : .02)),
+  t => osc('sine', 220, 90, t, .8, .35),
+  t => { osc('triangle', 1175, 1170, t, .18, .7); osc('sine', 1760, 1750, t, .1, .5); },
+];
+
+// ---- Scheduler: look 100ms ahead on the audio clock so timing stays tight even if the UI stutters ----
+function tick() {
+  while (nextTime < ac.currentTime + .1) {
+    grid.forEach((row, i) => row[step] && VOICES[i](nextTime));
+    queue.push({ step, t: nextTime });
+    nextTime += 60 / $('#bpm').value / 4; step = (step + 1) % 16;
+  }
+}
+function toggle() {
+  audio(); playing = !playing;
+  $('#play').classList.toggle('on', playing); $('#play').textContent = playing ? '■' : '▶';
+  if (playing) { step = 0; nextTime = ac.currentTime + .05; timer = setInterval(tick, 25); }
+  else { clearInterval(timer); queue = []; highlight(-1); }
+}
+// Follow the audio clock to light up the playing column.
+(function loop() {
+  while (queue.length && queue[0].t <= (ac?.currentTime ?? 0)) highlight(queue.shift().step);
+  requestAnimationFrame(loop);
+})();
+const highlight = s => document.querySelectorAll('.pad').forEach(p => p.classList.toggle('now', +p.dataset.s === s));
+
+function render() {
+  $('#grid').innerHTML = TRACKS.map(([n, c], r) => `<div class="row" style="--c:${c}"><label>${n}</label><div class="pads">${
+    grid[r].map((v, s) => `<div class="pad ${v ? 'on' : ''}" data-r="${r}" data-s="${s}"></div>`).join('')}</div></div>`).join('');
+  $('#saved').innerHTML = saved.length ? saved.map(p => `<div class="chip" data-id="${p.id}">${esc(p.name)} <span class="muted">${p.bpm}</span><i data-del>×</i></div>`).join('') : '<span class="muted">Saved patterns appear here.</span>';
+}
+$('#grid').onmousedown = e => {
+  const p = e.target.closest('.pad'); if (!p) return;
+  grid[p.dataset.r][p.dataset.s] ^= 1; p.classList.toggle('on');
+  if (grid[p.dataset.r][p.dataset.s]) { audio(); VOICES[p.dataset.r](ac.currentTime); }
+};
+$('#play').onclick = toggle;
+$('#bpm').oninput = e => $('#bpmv').textContent = e.target.value;
+$('#clear').onclick = () => { grid = TRACKS.map(() => Array(16).fill(0)); render(); };
+// Random pattern with sensible densities per instrument.
+$('#rand').onclick = () => { const d = [.25, .15, .5, .15, .12, .1]; grid = grid.map((_, r) => Array.from({ length: 16 }, (_, s) => +(Math.random() < d[r] + (r === 0 && s % 4 === 0 ? .6 : 0)))); render(); };
+$('#save').onclick = async () => {
+  saved.unshift(await api.add({ name: $('#name').value || 'untitled', bpm: +$('#bpm').value, rows: grid.map(r => r.join('')) }));
+  $('#name').value = ''; render();
+};
+$('#saved').onclick = async e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  const p = saved.find(x => x.id === c.dataset.id);
+  if (e.target.hasAttribute('data-del')) { await api.del(p.id); saved = saved.filter(x => x !== p); }
+  else { grid = p.rows.map(r => [...r].map(Number)); $('#bpm').value = p.bpm; $('#bpmv').textContent = p.bpm; }
+  render();
+};
+addEventListener('keydown', e => { if (e.code === 'Space' && e.target.tagName !== 'INPUT') { e.preventDefault(); toggle(); } });
+api.list().then(d => { saved = d; render(); });
+</script>

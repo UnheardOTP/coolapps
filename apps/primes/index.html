@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>Prime Tools</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#059669;--w:860px}.pl{display:flex;flex-wrap:wrap;gap:6px;max-height:220px;overflow:auto}.pl span{background:var(--soft);border-radius:7px;padding:3px 9px;font-family:ui-monospace,monospace;font-size:13px}</style>
+<div class="wrap"><h1>Prime Tools</h1><p class="sub">Primality, factorization, neighbouring primes, GCD/LCM, and a prime list.</p>
+<div class="card"><label>Number (up to 9 quadrillion)</label><input id="n" type="number" value="360360" style="font-size:22px" data-keep><div class="g2 gap" id="kp"></div></div>
+<div class="g2"><div class="card"><h2>GCD &amp; LCM</h2><div class="row"><div class="col"><input id="a" type="number" value="84" data-keep></div><div class="col"><input id="b" type="number" value="126" data-keep></div></div><div class="g2 gap" id="gl"></div></div><div class="card"><h2>Primes up to…</h2><div class="row"><div class="col"><input id="m" type="number" value="100" max="100000" data-keep></div></div><div class="mut gap" id="pc"></div><div class="pl gap" id="pl"></div></div></div></div>
+<script>
+const MAXI=Number.MAX_SAFE_INTEGER;
+function isPrime(n){if(n<2)return false;if(n<4)return true;if(n%2===0||n%3===0)return false;for(let i=5;i*i<=n;i+=6)if(n%i===0||n%(i+2)===0)return false;return true}
+// Trial division to √n using the 6k±1 wheel — instant for anything up to ~10^15.
+function factor(n){const f=[];for(let p of[2,3]){while(n%p===0){f.push(p);n/=p}}for(let i=5;i*i<=n;i+=6){for(const p of[i,i+2])while(n%p===0){f.push(p);n/=p}}if(n>1)f.push(n);return f}
+const nextP=n=>{n=Math.floor(n)+1;while(!isPrime(n))n++;return n},prevP=n=>{n=Math.ceil(n)-1;while(n>1&&!isPrime(n))n--;return n>1?n:null};
+const gcd=(a,b)=>b?gcd(b,a%b):a;
+function run(){const n=Math.floor(num('n')),a=Math.floor(num('a')),b=Math.floor(num('b')),m=Math.min(100000,Math.floor(num('m')));
+  if(n>=2&&n<=MAXI){const f=factor(n),c={};f.forEach(p=>c[p]=(c[p]||0)+1),pr=f.length===1,div=(()=>{let d=1;Object.values(c).forEach(e=>d*=e+1);return d})();
+    $('#kp').innerHTML=[['Prime?',pr?`<span class="ok">Yes, ${n.toLocaleString()} is prime</span>`:`<span class="bad">No — composite</span>`],['Prime factors',pr?'—':Object.entries(c).map(([p,e])=>e>1?`${p}<sup>${e}</sup>`:p).join(' × ')],['Previous / next prime',`${prevP(n)??'—'} / ${nextP(n)}`],['Number of divisors',div.toLocaleString()]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b style="font-size:16px">${v}</b></div>`).join('')}else $('#kp').innerHTML='<div class="kpi" style="grid-column:1/-1"><b>Enter an integer ≥ 2</b></div>';
+  if(a>0&&b>0){const g=gcd(a,b);$('#gl').innerHTML=[['GCD',g],['LCM',(a/g*b).toLocaleString()]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('')}else $('#gl').innerHTML='';
+  if(m>=2){const s=new Uint8Array(m+1),pr=[];for(let i=2;i<=m;i++){if(!s[i]){pr.push(i);for(let j=i*i;j<=m;j+=i)s[j]=1}}$('#pc').textContent=`${pr.length.toLocaleString()} primes ≤ ${m.toLocaleString()}`;$('#pl').innerHTML=pr.slice(0,2000).map(p=>`<span>${p}</span>`).join('')+(pr.length>2000?'<span>…</span>':'')}}
+document.addEventListener('input',run);remember().then(run);
+</script>

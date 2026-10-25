@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Tile &amp; Flooring Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#78716c;--w:800px}.pv{display:grid;gap:1px;background:#a8a29e;border:2px solid #57534e;margin:8px 0;max-width:100%}.pv div{background:#e7e5e4}</style>
+<div class="wrap"><h1>Tile &amp; Flooring Calculator</h1><p class="sub">How many tiles (or planks) and boxes do you need, including waste?</p>
+<div class="card"><div class="g4"><div><label>Units</label><select id="un" data-keep><option value="in">Feet / inches</option><option value="cm">Metres / cm</option></select></div><div><label>Room length (<span class="lu">ft</span>)</label><input id="L" type="number" step="any" value="12" data-keep></div><div><label>Room width (<span class="lu">ft</span>)</label><input id="W" type="number" step="any" value="10" data-keep></div><div><label>Waste (%)</label><input id="ws" type="number" value="10" data-keep></div>
+<div><label>Tile length (<span class="tu">in</span>)</label><input id="tl" type="number" step="any" value="12" data-keep></div><div><label>Tile width (<span class="tu">in</span>)</label><input id="tw" type="number" step="any" value="12" data-keep></div><div><label>Grout gap (<span class="gu">in</span>)</label><input id="gp" type="number" step="any" value="0.125" data-keep></div><div><label>Tiles per box</label><input id="pb" type="number" value="11" data-keep></div></div></div>
+<div class="g4" id="kp"></div><div class="card gap"><h2>Layout preview</h2><div id="pv"></div></div></div>
+<script>
+function run(){const m=$('#un').value==='cm';document.querySelectorAll('.lu').forEach(e=>e.textContent=m?'m':'ft');document.querySelectorAll('.tu,.gu').forEach(e=>e.textContent=m?'cm':'in');
+  const L=num('L')*(m?100:12),W=num('W')*(m?100:12),tl=num('tl')+num('gp'),tw=num('tw')+num('gp');if(!(tl>0&&tw>0&&L>0&&W>0))return;
+  const cols=Math.ceil(L/tl),rows=Math.ceil(W/tw),net=cols*rows,total=Math.ceil(net*(1+num('ws')/100)),boxes=Math.ceil(total/Math.max(1,num('pb')));
+  $('#kp').innerHTML=[['Room area',m?fmt(L*W/1e4,2)+' m²':fmt(L*W/144,1)+' sq ft'],['Tiles (no waste)',net.toLocaleString()],['Tiles to buy',total.toLocaleString()],['Boxes',boxes]].map(([k,v],i)=>`<div class="kpi"><small>${k}</small><b ${i>1?'style="color:var(--a)"':''}>${v}</b></div>`).join('');
+  const pc=Math.min(cols,40),pr=Math.min(rows,40),cw=Math.max(4,Math.min(22,Math.floor(560/pc)));$('#pv').innerHTML=`<div class="pv" style="grid-template-columns:repeat(${pc},${cw}px);width:max-content">${'<div style="height:'+cw*tw/tl+'px"></div>'.repeat(pc*pr)}</div><div class="mut">${cols} × ${rows} tiles${cols>40||rows>40?' (preview truncated)':''}</div>`}
+document.addEventListener('input',run);remember().then(run);
+</script>

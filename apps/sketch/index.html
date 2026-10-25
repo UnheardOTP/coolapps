@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>Sketchbook</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#e9e4da;font-family:'Helvetica Neue',Arial;color:#2b2b2b;display:flex;gap:20px;justify-content:center;padding:24px}
+canvas{background:#fff;box-shadow:0 8px 30px #0003;cursor:crosshair;touch-action:none}.tools{width:150px;display:flex;flex-direction:column;gap:10px}h1{margin:0 0 6px;font-size:22px}.sw{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.sw i{aspect-ratio:1;border-radius:50%;cursor:pointer;border:3px solid #fff;box-shadow:0 0 0 1px #0003}.sw i.on{box-shadow:0 0 0 3px #2b2b2b}
+button{font:inherit;padding:8px;border:1px solid #bbb;background:#fff;cursor:pointer;border-radius:6px}button.p{background:#2b2b2b;color:#fff}input[type=range]{width:100%}#gal{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:300px;overflow:auto}.th{position:relative;cursor:pointer}.th img{width:100%;display:block;border:1px solid #ccc}.th b{position:absolute;top:0;right:3px;font-size:12px;opacity:0}.th:hover b{opacity:1}</style>
+<canvas id="c" width="800" height="560"></canvas>
+<div class="tools"><h1>Sketchbook</h1><div class="sw" id="sw"></div><label>Size <input type="range" id="sz" min="1" max="40" value="5"></label><button id="er">Eraser</button><button id="un">Undo</button><button id="cl">Clear</button><button class="p" id="sv">Save to gallery</button><div id="gal"></div></div>
+<script>
+const cv=$('#c'),g=cv.getContext('2d'),COL=['#111','#e63946','#f4a261','#e9c46a','#2a9d8f','#457b9d','#6a4c93','#fff'];let col=COL[0],er=false,down=null,undo=[],art=[];
+g.fillStyle='#fff';g.fillRect(0,0,800,560);g.lineCap=g.lineJoin='round';
+$('#sw').innerHTML=COL.map((c,i)=>`<i data-c="${c}" class="${i?'':'on'}" style="background:${c}"></i>`).join('');
+$('#sw').onclick=e=>{if(!e.target.dataset.c)return;col=e.target.dataset.c;er=false;document.querySelectorAll('#sw i').forEach(i=>i.classList.toggle('on',i===e.target))};
+const pt=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
+// Each stroke snapshots the canvas first so Undo can restore it (last 25 strokes).
+cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);undo.push(g.getImageData(0,0,800,560));if(undo.length>25)undo.shift();down=pt(e);stroke(down,down)};
+cv.onpointermove=e=>{if(!down)return;const p=pt(e);stroke(down,p);down=p};cv.onpointerup=()=>down=null;
+function stroke(a,b){g.strokeStyle=er?'#fff':col;g.lineWidth=$('#sz').value;g.beginPath();g.moveTo(...a);g.lineTo(b[0]+.01,b[1]);g.stroke()}
+$('#er').onclick=()=>er=!er;$('#un').onclick=()=>undo.length&&g.putImageData(undo.pop(),0,0);$('#cl').onclick=()=>{undo.push(g.getImageData(0,0,800,560));g.fillStyle='#fff';g.fillRect(0,0,800,560)};
+$('#sv').onclick=async()=>{const t=document.createElement('canvas');t.width=240;t.height=168;t.getContext('2d').drawImage(cv,0,0,240,168);art.unshift(await api.add({img:cv.toDataURL('image/jpeg',.7),th:t.toDataURL('image/jpeg',.7)}));gal()};
+const gal=()=>$('#gal').innerHTML=art.map(a=>`<div class="th" data-id="${a.id}"><img src="${a.th}"><b data-del>✕</b></div>`).join('');
+$('#gal').onclick=async e=>{const t=e.target.closest('.th');if(!t)return;const a=art.find(x=>x.id===t.dataset.id);if(e.target.hasAttribute('data-del')){await api.del(a.id);art=art.filter(x=>x!==a);gal()}else{const im=new Image();im.onload=()=>{undo.push(g.getImageData(0,0,800,560));g.drawImage(im,0,0)};im.src=a.img}};
+api.list().then(d=>{art=d;gal()});
+</script>

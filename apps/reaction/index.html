@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>Reaction</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;font-family:system-ui;color:#fff;display:flex;flex-direction:column}
+#pad{flex:1;min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;user-select:none;background:#2b87d1;transition:background .1s}
+#pad.wait{background:#c0392b}#pad.go{background:#27ae60}#pad.early{background:#8e44ad}#pad h1{font-size:68px;margin:0;font-weight:300}#pad p{font-size:20px;opacity:.85}
+.stats{background:#111;padding:18px 40px;display:flex;gap:50px;align-items:flex-end;min-height:130px}.stats div b{display:block;font-size:30px}.bars{display:flex;gap:4px;align-items:flex-end;height:80px;flex:1}.bars i{flex:1;background:#2b87d1;min-width:6px;border-radius:2px 2px 0 0}</style>
+<div id="pad"><h1>Click to start</h1><p>When it turns green, click as fast as you can.</p></div>
+<div class="stats"><div>Last<b id="l">–</b></div><div>Average (10)<b id="a">–</b></div><div>Best<b id="b">–</b></div><div class="bars" id="bars"></div></div>
+<script>
+let state='idle',t0,to,runs=[];const pad=$('#pad');
+const set=(c,h,p)=>{pad.className=c;pad.innerHTML=`<h1>${h}</h1><p>${p}</p>`};
+function stats(){const ms=runs.map(r=>r.ms),l=ms[0],last10=ms.slice(0,10);$('#l').textContent=l?l+' ms':'–';$('#a').textContent=last10.length?Math.round(last10.reduce((a,b)=>a+b,0)/last10.length)+' ms':'–';$('#b').textContent=ms.length?Math.min(...ms)+' ms':'–';
+const mx=Math.max(400,...ms.slice(0,30));$('#bars').innerHTML=ms.slice(0,30).reverse().map(m=>`<i style="height:${m/mx*100}%" title="${m} ms"></i>`).join('')}
+// Red → random 1–4s wait → green. Clicking early is a false start.
+pad.onmousedown=async()=>{
+  if(state==='idle'||state==='done'||state==='early'){state='wait';set('wait','Wait for green…','Don\'t click yet');to=setTimeout(()=>{state='go';t0=performance.now();set('go','CLICK!','')},1000+Math.random()*3000)}
+  else if(state==='wait'){clearTimeout(to);state='early';set('early','Too soon!','Click to try again')}
+  else if(state==='go'){const ms=Math.round(performance.now()-t0);state='done';set('','${ms} ms'.replace('${ms}',ms),'Click to go again');runs.unshift(await api.add({ms}));stats()}};
+api.list().then(d=>{runs=d.sort((a,b)=>b.createdAt-a.createdAt);stats()});
+</script>

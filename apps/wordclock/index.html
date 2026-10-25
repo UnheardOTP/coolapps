@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>Word Clock</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#0b0b0b;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Helvetica Neue',Arial}
+.plate{background:#161616;padding:40px 46px;border-radius:12px;box-shadow:0 30px 60px #000,inset 0 0 0 2px #222}.g{display:grid;grid-template-columns:repeat(11,52px);gap:6px}.g span{width:52px;height:52px;display:flex;align-items:center;justify-content:center;font:600 30px 'Helvetica Neue';color:#2a2a2a;transition:color .6s,text-shadow .6s}.g span.on{color:var(--c);text-shadow:0 0 18px var(--c)}
+.sw{display:flex;gap:12px;margin-top:26px}.sw i{width:26px;height:26px;border-radius:50%;cursor:pointer;border:3px solid #0b0b0b;box-shadow:0 0 0 1px #444}.sw i.on{box-shadow:0 0 0 3px #fff}</style>
+<div class="plate"><div class="g" id="g"></div></div><div class="sw" id="sw"></div>
+<script>
+// The grid is fixed; each word is a (row, start column, length) run that lights up for the current time.
+const ROWS=['ITLISASAMPM','ACQUARTERDC','TWENTYFIVEX','HALFBTENFTO','PASTERUNINE','ONESIXTHREE','FOURFIVETWO','EIGHTELEVEN','SEVENTWELVE','TENSEOCLOCK'];
+const W={IT:[0,0,2],IS:[0,3,2],QUARTER:[1,2,7],TWENTY:[2,0,6],FIVEM:[2,6,4],HALF:[3,0,4],TENM:[3,5,3],TO:[3,9,2],PAST:[4,0,4],NINE:[4,7,4],ONE:[5,0,3],SIX:[5,3,3],THREE:[5,6,5],FOUR:[6,0,4],FIVE:[6,4,4],TWO:[6,8,3],EIGHT:[7,0,5],ELEVEN:[7,5,6],SEVEN:[8,0,5],TWELVE:[8,5,6],TEN:[9,0,3],OCLOCK:[9,5,6]};
+const HRS=['TWELVE','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN','ELEVEN'];const COLS=['#ffd23f','#4dd0e1','#ff6b9d','#7cff6b','#ffffff'];let ci=0,doc=null;
+function words(d){let h=d.getHours()%12,m=Math.floor(d.getMinutes()/5)*5;const w=['IT','IS'];if(m>=35){h=(h+1)%12}
+  if(m===0)w.push('OCLOCK');else if(m===5)w.push('FIVEM','PAST');else if(m===10)w.push('TENM','PAST');else if(m===15)w.push('QUARTER','PAST');else if(m===20)w.push('TWENTY','PAST');else if(m===25)w.push('TWENTY','FIVEM','PAST');else if(m===30)w.push('HALF','PAST');
+  else if(m===35)w.push('TWENTY','FIVEM','TO');else if(m===40)w.push('TWENTY','TO');else if(m===45)w.push('QUARTER','TO');else if(m===50)w.push('TENM','TO');else w.push('FIVEM','TO');w.push(HRS[h]);return w}
+function render(){const on=new Set();words(new Date()).forEach(k=>{const[r,c,l]=W[k];for(let i=0;i<l;i++)on.add(r*11+c+i)});
+  $('#g').style.setProperty('--c',COLS[ci]);$('#g').innerHTML=ROWS.join('').split('').map((ch,i)=>`<span class="${on.has(i)?'on':''}">${ch}</span>`).join('');
+  $('#sw').innerHTML=COLS.map((c,i)=>`<i data-i="${i}" class="${i===ci?'on':''}" style="background:${c}"></i>`).join('')}
+$('#sw').onclick=e=>{if(e.target.dataset.i===undefined)return;ci=+e.target.dataset.i;render();doc?api.upd(doc.id,{ci}):api.add({ci}).then(d=>doc=d)};
+api.list().then(d=>{if(d[0]){doc=d[0];ci=doc.ci}render()});render();setInterval(render,10000);
+</script>

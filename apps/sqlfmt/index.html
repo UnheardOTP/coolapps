@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8"><title>SQL Formatter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#2563eb;--w:1000px}</style>
+<div class="wrap"><h1>SQL Formatter</h1><p class="sub">Tidy a query: one clause per line, keywords upper-cased, joins and conditions indented.</p>
+<div class="card"><div class="g2"><div><label>SQL</label><textarea id="in" style="min-height:300px" data-keep placeholder="select u.id,u.name from users u join orders o on o.user_id=u.id where o.total>100 and u.active=1 order by o.total desc limit 10;"></textarea></div><div><label>Formatted</label><textarea id="out" style="min-height:300px" readonly></textarea></div></div>
+<div class="row gap"><label style="margin:0 0 9px"><input type="checkbox" id="up" data-keep checked> Uppercase keywords</label><div><label>Indent</label><select id="ind" style="width:90px" data-keep><option>2</option><option selected>4</option></select></div><button class="s right" id="mn">Minify</button><button class="s" id="cp">Copy</button></div></div>
+<div class="card"><h2>Saved queries</h2><div id="sv"></div></div></div>
+<script>
+const KW='select|from|where|and|or|not|in|is|null|as|join|inner|left|right|full|outer|cross|on|group|by|order|having|limit|offset|union|all|distinct|insert|into|values|update|set|delete|create|table|alter|drop|index|case|when|then|else|end|like|between|exists|asc|desc|with|over|partition|primary|key|foreign|references|default|returning'.split('|');
+const BREAK=['select','from','where','group by','order by','having','limit','offset','union all','union','insert into','values','update','set','delete from','returning'];
+// Tokenise so string literals, quoted identifiers and comments are never touched by the formatter.
+function tokens(s){const t=[];const re=/('(?:[^']|'')*'|"[^"]*"|`[^`]*`|--[^\n]*|\/\*[\s\S]*?\*\/)|([A-Za-z_][\w.$]*)|(\d[\d.]*)|(<>|<=|>=|!=|\|\||[(),;=<>+\-*\/%])|(\s+)/g;let m;while((m=re.exec(s)))t.push(m[1]?['q',m[1]]:m[2]?['w',m[2]]:m[3]?['n',m[3]]:m[4]?['p',m[4]]:['s',' ']);return t}
+const KWS=new Set(KW),JOINW=['inner','left','right','full','cross','outer'];
+// Top-level clauses start a new line; commas in a select/set list and AND/OR in conditions get their own indented lines.
+// Everything inside parentheses stays inline so subqueries and function calls are left compact.
+function format(sql,up,ind){const T=tokens(sql).filter(x=>x[0]!=='s'),pad=' '.repeat(ind),lines=[],low=i=>(T[i]?.[1]||'').toLowerCase();
+  let cur='',depth=0,clause='',lvl=0,prev=null;const flush=()=>{if(cur.trim())lines.push(pad.repeat(lvl)+cur.trim());cur='';prev=null};
+  const add=(tok,text)=>{const v=tok[1];let sp=' ';if(!cur||cur.endsWith('('))sp='';else if(v===','||v===')'||v===';')sp='';else if(v==='('){sp=(prev&&prev[0]==='w'&&!KWS.has(prev[1].toLowerCase())||prev&&prev[1]===')')?'':' '}cur+=sp+text;prev=tok};
+  for(let i=0;i<T.length;i++){const tok=T[i],[k,v]=tok,l=v.toLowerCase();
+    if(depth===0&&k==='w'){let two=null;if((l==='group'||l==='order')&&low(i+1)==='by')two=l+' by';else if(l==='union'&&low(i+1)==='all')two='union all';else if(l==='insert'&&low(i+1)==='into')two='insert into';else if(l==='delete'&&low(i+1)==='from')two='delete from';
+      const c=two||l;if(BREAK.includes(c)){flush();lvl=0;clause=c;cur=up?c.toUpperCase():c;if(two)i++;prev=['w',c];continue}
+      if(['join','inner','left','right','full','cross'].includes(l)&&!JOINW.includes(low(i-1))){flush();lvl=0;clause='join';add(tok,up?v.toUpperCase():v);continue}
+      if((l==='and'||l==='or')&&['where','on','having'].includes(clause)){flush();lvl=1;add(tok,up?v.toUpperCase():v);continue}
+      if(l==='on')clause='on'}
+    if(v==='(')depth++;if(v===')')depth=Math.max(0,depth-1);
+    if(v===','&&depth===0&&['select','set','group by','order by'].includes(clause)){add(tok,',');flush();lvl=1;continue}
+    if(v===';'){add(tok,';');flush();lvl=0;clause='';continue}
+    add(tok,k==='w'&&KWS.has(l)&&up?v.toUpperCase():v)}
+  flush();return lines.join('\n')}
+function run(){const s=$('#in').value;$('#out').value=s.trim()?format(s,$('#up').checked,+$('#ind').value):''}
+$('#mn').onclick=()=>{$('#out').value=tokens($('#in').value).filter(x=>x[0]!=='s').map(x=>x[1]).join(' ').replace(/ ([,;)])/g,'$1').replace(/\( /g,'(')};['#in','#up','#ind'].forEach(s=>$(s).oninput=run);$('#cp').onclick=e=>copy($('#out').value,e.target);
+savedBar($('#sv'),{get:()=>({q:$('#in').value}),set:d=>{$('#in').value=d.q;run()}});remember().then(run);
+</script>

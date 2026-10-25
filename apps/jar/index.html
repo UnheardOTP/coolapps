@@ -1,0 +1,73 @@
+<!doctype html><meta charset="utf-8"><title>Worry Jar</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 0%, #1d4a52, #0b2226 70%); color: #d4efe9; font-family: 'Avenir Next', Nunito, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 28px; }
+  h1 { margin: 0; font-weight: 300; font-size: 36px; letter-spacing: .04em; } h1 b { font-weight: 800; color: #ffb4a2; }
+  p { margin: 4px 0 14px; color: #7fb3aa; }
+  canvas { cursor: pointer; }
+  form { display: flex; gap: 8px; margin-top: 12px; }
+  input { width: 280px; font: inherit; padding: 11px 16px; border-radius: 24px; border: 1px solid #3b7a76; background: #0b222699; color: inherit; outline: none; }
+  button { font: inherit; padding: 11px 20px; border-radius: 24px; border: none; cursor: pointer; background: #ffb4a2; color: #0b2226; font-weight: 700; }
+  button.g { background: #1d4a52; color: #d4efe9; }
+  #tip { height: 22px; margin-top: 10px; color: #ffb4a2; }
+</style>
+<h1>Worry <b>Jar</b></h1><p id="count"></p>
+<canvas id="c" width="520" height="620"></canvas>
+<div id="tip"></div>
+<form id="f"><input id="in" placeholder="What's on your mind?" maxlength="60" autocomplete="off"><button>Drop in</button><button type="button" class="g" id="shake">Shake</button></form>
+<script>
+const COL = ['#ffb4a2', '#ffcb77', '#a8e6cf', '#9ad1f5', '#d4a5f5', '#f7a8c8'];
+const L = 62, R = 458, B = 588, T = 40, G = .55;
+let balls = [], bits = [], hover = null;
+const cv = $('#c'), g = cv.getContext('2d');
+const radius = t => 30 + Math.min(t.length, 14) * 1.4;
+const spawn = (item, i = 0) => balls.push({ id: item.id, text: item.text, r: radius(item.text), x: L + 60 + Math.random() * (R - L - 120), y: T - 30 - i * 60, vx: 0, vy: 0, c: COL[(item.createdAt || i) % COL.length] });
+
+// One physics step: gravity, wall bounces, then a few passes of circle-vs-circle separation.
+function step() {
+  for (const b of balls) {
+    b.vy += G; b.x += b.vx; b.y += b.vy; b.vx *= .995;
+    if (b.x < L + b.r) { b.x = L + b.r; b.vx *= -.4; } if (b.x > R - b.r) { b.x = R - b.r; b.vx *= -.4; }
+    if (b.y > B - b.r) { b.y = B - b.r; b.vy *= -.35; b.vx *= .96; }
+  }
+  for (let k = 0; k < 4; k++) for (let i = 0; i < balls.length; i++) for (let j = i + 1; j < balls.length; j++) {
+    const a = balls[i], b = balls[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || .01, over = a.r + b.r - d;
+    if (over <= 0) continue;
+    const nx = dx / d, ny = dy / d;
+    a.x -= nx * over / 2; a.y -= ny * over / 2; b.x += nx * over / 2; b.y += ny * over / 2;
+    const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+    if (rel < 0) { const p = rel * .6; a.vx += nx * p; a.vy += ny * p; b.vx -= nx * p; b.vy -= ny * p; }
+  }
+  bits.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .3; p.life--; }); bits = bits.filter(p => p.life > 0);
+}
+function draw() {
+  g.clearRect(0, 0, 520, 620);
+  // jar body
+  g.beginPath(); g.moveTo(L + 20, T); g.lineTo(L, T + 40); g.lineTo(L, B - 30); g.quadraticCurveTo(L, B + 8, L + 40, B + 8); g.lineTo(R - 40, B + 8); g.quadraticCurveTo(R, B + 8, R, B - 30); g.lineTo(R, T + 40); g.lineTo(R - 20, T);
+  g.fillStyle = '#ffffff10'; g.fill(); g.lineWidth = 4; g.strokeStyle = '#cfeee8aa'; g.stroke();
+  g.fillStyle = '#cfeee855'; g.fillRect(L + 14, T - 12, R - L - 28, 10);
+  for (const b of balls) {
+    g.beginPath(); g.arc(b.x, b.y, b.r, 0, 7); g.fillStyle = b.c; g.fill();
+    g.lineWidth = b === hover ? 4 : 0; g.strokeStyle = '#fff'; b === hover && g.stroke();
+    g.beginPath(); g.arc(b.x - b.r * .3, b.y - b.r * .35, b.r * .25, 0, 7); g.fillStyle = '#ffffff55'; g.fill();
+    g.fillStyle = '#0b2226'; g.font = '700 12px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(b.text.length > 13 ? b.text.slice(0, 12) + '…' : b.text, b.x, b.y);
+  }
+  bits.forEach(p => { g.fillStyle = p.c; g.globalAlpha = p.life / 30; g.fillRect(p.x, p.y, 5, 5); }); g.globalAlpha = 1;
+}
+(function loop() { step(); draw(); requestAnimationFrame(loop); })();
+
+const at = e => { const r = cv.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top; return [...balls].reverse().find(b => Math.hypot(b.x - x, b.y - y) < b.r); };
+cv.onmousemove = e => { hover = at(e); $('#tip').textContent = hover ? hover.text + '  — click to let it go' : ''; };
+// Popping a worry removes it from the jar and the database, with a little burst.
+cv.onclick = async e => {
+  const b = at(e); if (!b) return;
+  for (let i = 0; i < 24; i++) bits.push({ x: b.x, y: b.y, vx: (Math.random() - .5) * 10, vy: -Math.random() * 8, c: b.c, life: 30 });
+  balls = balls.filter(x => x !== b); count(); api.del(b.id);
+};
+const count = () => $('#count').textContent = balls.length ? `${balls.length} worr${balls.length === 1 ? 'y' : 'ies'} in the jar. Click one to let it go.` : 'The jar is empty. Breathe.';
+$('#f').onsubmit = async e => { e.preventDefault(); const t = $('#in').value.trim(); if (!t) return; $('#in').value = ''; spawn(await api.add({ text: t })); count(); };
+$('#shake').onclick = () => balls.forEach(b => { b.vx += (Math.random() - .5) * 24; b.vy -= 8 + Math.random() * 14; });
+api.list().then(d => { d.forEach(spawn); count(); });
+</script>

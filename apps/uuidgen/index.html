@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>UUID Generator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#ec4899}</style>
+<div class="wrap"><h1>UUID Generator</h1><p class="sub">Random (v4) and time-ordered (v7) UUIDs, in bulk.</p>
+<div class="card"><div class="row"><div class="col"><label>Version</label><select id="v" data-keep><option value="4">v4 · random</option><option value="7">v7 · time-ordered</option></select></div><div class="col"><label>How many</label><input id="n" type="number" min="1" max="500" value="5" data-keep></div><label style="margin:0 0 9px"><input type="checkbox" id="up" data-keep> UPPERCASE</label><label style="margin:0 0 9px"><input type="checkbox" id="nd" data-keep> no dashes</label><button id="go">Generate</button></div></div>
+<div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0">Results</h2><button class="x right" id="cpa">Copy all</button></div><div class="out" id="out" style="user-select:all"></div></div></div>
+<script>
+const rb=n=>crypto.getRandomValues(new Uint8Array(n)),hex=b=>[...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+const fmtU=h=>`${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+function v4(){const b=rb(16);b[6]=b[6]&15|64;b[8]=b[8]&63|128;return fmtU(hex(b))}
+// v7: 48-bit millisecond timestamp, then version/variant bits and random data, so IDs sort by creation time.
+function v7(){const b=rb(16),t=BigInt(Date.now());for(let i=0;i<6;i++)b[i]=Number(t>>BigInt(8*(5-i))&255n);b[6]=b[6]&15|112;b[8]=b[8]&63|128;return fmtU(hex(b))}
+function gen(){const n=Math.max(1,Math.min(500,+$('#n').value||1));let l=Array.from({length:n},()=>$('#v').value==='7'?v7():v4());if($('#up').checked)l=l.map(s=>s.toUpperCase());if($('#nd').checked)l=l.map(s=>s.replace(/-/g,''));$('#out').textContent=l.join('\n')}
+$('#go').onclick=gen;$('#cpa').onclick=e=>copy($('#out').textContent,e.target);remember().then(gen);
+</script>

@@ -1,0 +1,39 @@
+<!doctype html><meta charset="utf-8"><title>Bingo</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #ffefd6; background-image: radial-gradient(#ffd9a3 2px, transparent 2px); background-size: 28px 28px; color: #2a2a2a; font-family: 'Trebuchet MS', 'Helvetica Neue', sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 24px; }
+  h1 { margin: 0; font-size: 70px; letter-spacing: .12em; color: #ff5a4f; text-shadow: 4px 4px 0 #2a2a2a; line-height: 1; } .bar { display: flex; gap: 10px; align-items: center; margin: 16px 0; flex-wrap: wrap; justify-content: center; }
+  .chip { padding: 7px 14px; background: #fff; border: 3px solid #2a2a2a; border-radius: 22px; cursor: pointer; font-weight: 700; box-shadow: 3px 3px 0 #2a2a2a; } .chip.on { background: #2ec4b6; } .chip i { font-style: normal; margin-left: 8px; opacity: .5; }
+  button { font: 700 15px 'Trebuchet MS'; padding: 9px 18px; background: #ffc93c; border: 3px solid #2a2a2a; border-radius: 22px; box-shadow: 3px 3px 0 #2a2a2a; cursor: pointer; }
+  #card { display: grid; grid-template-columns: repeat(5, 124px); gap: 8px; padding: 14px; background: #2ec4b6; border: 4px solid #2a2a2a; border-radius: 20px; box-shadow: 8px 8px 0 #2a2a2a; } .hd { text-align: center; font: 900 46px 'Trebuchet MS'; color: #fff; text-shadow: 3px 3px 0 #2a2a2a; }
+  .c { height: 110px; background: #fff; border: 3px solid #2a2a2a; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; font-weight: 700; font-size: 14px; cursor: pointer; position: relative; line-height: 1.15; transition: transform .1s; } .c:hover { transform: scale(1.04); }
+  .c.m { background: #ff5a4f; color: #fff; } .c.m::after { content: '✖'; position: absolute; font-size: 70px; opacity: .25; } .c.line { background: #ffc93c; color: #2a2a2a; } .c.free { background: #2a2a2a; color: #ffc93c; font-size: 18px; }
+  .c textarea { width: 100%; height: 100%; border: none; resize: none; text-align: center; font: inherit; background: none; outline: none; } #msg { height: 40px; margin-top: 18px; font: 900 30px 'Trebuchet MS'; color: #ff5a4f; text-shadow: 2px 2px 0 #2a2a2a; }
+</style>
+<h1>BINGO</h1><div class="bar" id="chips"></div>
+<div class="bar"><button id="edit">Edit squares</button><button id="new">New card</button><button id="reset">Clear marks</button></div>
+<div id="card"></div><div id="msg"></div>
+<script>
+const SAMPLE = ['Says "synergy"', 'Camera is off', 'Someone is on mute', '"Can everyone see my screen?"', 'Dog barks', 'Meeting could have been an email', 'Awkward silence', 'Joins late', 'Shares wrong window', '"You\'re on mute"', 'Echo / feedback', 'Takes it offline', 'Lunch mention', 'Over time', 'Wifi complaint', '"Let\'s circle back"', 'Kid walks in', 'Pretends to be listening', 'Coffee refill', 'Calendar clash', 'Eats on camera', 'Typing noises', 'Agenda ignored', 'New action item'];
+const LINES = [...Array(5)].flatMap((_, i) => [[0, 1, 2, 3, 4].map(j => i * 5 + j), [0, 1, 2, 3, 4].map(j => j * 5 + i)]).concat([[0, 6, 12, 18, 24], [4, 8, 12, 16, 20]]);
+let cards = [], cur = null, editing = false;
+const shuffle = a => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
+const blank = () => { const c = shuffle(SAMPLE).slice(0, 24); c.splice(12, 0, 'FREE'); return c; };
+function render() {
+  $('#chips').innerHTML = cards.map((c, i) => `<div class="chip ${c.id === cur ? 'on' : ''}" data-id="${c.id}">Card ${cards.length - i}<i data-del>×</i></div>`).join('');
+  const c = cards.find(x => x.id === cur); if (!c) { $('#card').innerHTML = ''; return $('#msg').textContent = 'Make a new card!'; }
+  const won = LINES.filter(l => l.every(i => c.marked[i] || i === 12)), inLine = new Set(won.flat());
+  $('#card').innerHTML = [...'BINGO'].map(l => `<div class="hd">${l}</div>`).join('') + c.cells.map((t, i) => i === 12 ? `<div class="c free m" style="background:#2a2a2a;color:#ffc93c">FREE</div>` :
+    editing ? `<div class="c"><textarea data-i="${i}">${esc(t)}</textarea></div>` : `<div class="c ${c.marked[i] ? 'm' : ''} ${inLine.has(i) ? 'line' : ''}" data-i="${i}">${esc(t)}</div>`).join('');
+  $('#msg').textContent = won.length ? (won.length > 1 ? `${won.length} BINGOS!!` : 'BINGO!') : '';
+  $('#edit').textContent = editing ? 'Done editing' : 'Edit squares';
+}
+$('#card').onclick = async e => { if (editing) return; const s = e.target.closest('.c[data-i]'); if (!s) return; const c = cards.find(x => x.id === cur), i = +s.dataset.i; c.marked[i] = !c.marked[i]; render(); api.upd(c.id, { marked: c.marked }); };
+$('#card').onchange = e => { if (e.target.tagName !== 'TEXTAREA') return; const c = cards.find(x => x.id === cur); c.cells[+e.target.dataset.i] = e.target.value; api.upd(c.id, { cells: c.cells }); };
+$('#edit').onclick = () => { editing = !editing; render(); };
+$('#new').onclick = async () => { const c = await api.add({ cells: blank(), marked: Array(25).fill(false) }); cards.unshift(c); cur = c.id; editing = false; render(); };
+$('#reset').onclick = () => { const c = cards.find(x => x.id === cur); if (!c) return; c.marked = Array(25).fill(false); api.upd(c.id, { marked: c.marked }); render(); };
+$('#chips').onclick = async e => { const c = e.target.closest('.chip'); if (!c) return; if (e.target.hasAttribute('data-del')) { await api.del(c.dataset.id); cards = cards.filter(x => x.id !== c.dataset.id); if (cur === c.dataset.id) cur = cards[0]?.id; } else cur = c.dataset.id; render(); };
+api.list().then(async d => { cards = d; if (!d.length) { const c = await api.add({ cells: blank(), marked: Array(25).fill(false) }); cards.push(c); } cur = cards[0].id; render(); });
+</script>

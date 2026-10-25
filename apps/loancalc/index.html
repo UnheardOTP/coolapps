@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>Loan Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#2563eb;--w:960px}.ch{display:flex;height:150px;align-items:flex-end;gap:3px;margin:6px 0}.ch div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-width:2px}.ch i{display:block}.ch .p{background:var(--a)}.ch .n{background:#f59e0b}</style>
+<div class="wrap"><h1>Loan Calculator</h1><p class="sub">Monthly payment, total interest, and a full amortization schedule. Add extra payments to see how much you save.</p>
+<div class="card"><div class="g4"><div><label>Loan amount ($)</label><input id="p" type="number" value="25000" data-keep></div><div><label>Interest rate (% APR)</label><input id="r" type="number" value="6.5" step="0.01" data-keep></div><div><label>Term (years)</label><input id="y" type="number" value="5" step="0.5" data-keep></div><div><label>Extra per month ($)</label><input id="x" type="number" value="0" data-keep></div></div></div>
+<div class="g4" id="kp"></div>
+<div class="card gap"><h2>Principal vs interest each month</h2><div class="ch" id="ch"></div><div class="mut"><span style="color:var(--a)">■</span> principal &nbsp; <span style="color:#f59e0b">■</span> interest</div></div>
+<div class="card"><h2>Schedule</h2><div style="max-height:360px;overflow:auto"><table id="tb"></table></div></div><div class="card"><h2>Saved scenarios</h2><div id="sv"></div></div></div>
+<script>
+// Standard fixed-payment amortization: pay = P·i / (1 − (1+i)^−n). Extra payments shorten the term.
+function schedule(P,apr,years,extra){const n=Math.round(years*12),i=apr/1200,base=i?P*i/(1-(1+i)**-n):P/n,rows=[];let bal=P,tot=0;
+  for(let m=1;m<=n&&bal>0.005;m++){const int=bal*i;let pay=Math.min(base+extra,bal+int);const pr=pay-int;bal-=pr;tot+=int;rows.push({m,pay,pr,int,bal:Math.max(0,bal)})}return{rows,base,tot}}
+function run(){const P=num('p'),r=num('r'),y=num('y'),x=num('x');if(P<=0||y<=0){$('#kp').innerHTML='';return}const s=schedule(P,r,y,x),s0=schedule(P,r,y,0),last=s.rows.at(-1);
+  $('#kp').innerHTML=[['Monthly payment',money(s.base+x)],['Total interest',money(s.tot)],['Total paid',money(P+s.tot)],['Payoff',x>0?`${s.rows.length} mo · saves ${money(s0.tot-s.tot)}`:`${s.rows.length} months`]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('');
+  const mx=Math.max(...s.rows.map(r=>r.pay));$('#ch').innerHTML=s.rows.map(r=>`<div title="Month ${r.m}: principal ${money(r.pr)}, interest ${money(r.int)}"><i class="n" style="height:${r.int/mx*100}%"></i><i class="p" style="height:${r.pr/mx*100}%"></i></div>`).join('');
+  $('#tb').innerHTML='<tr><th>#</th><th class="r">Payment</th><th class="r">Principal</th><th class="r">Interest</th><th class="r">Balance</th></tr>'+s.rows.map(r=>`<tr><td>${r.m}</td><td class="r">${money(r.pay)}</td><td class="r">${money(r.pr)}</td><td class="r">${money(r.int)}</td><td class="r">${money(r.bal)}</td></tr>`).join('')}
+document.addEventListener('input',run);const ids=['p','r','y','x'];savedBar($('#sv'),{get:()=>Object.fromEntries(ids.map(i=>[i,$('#'+i).value])),set:d=>{ids.forEach(i=>$('#'+i).value=d[i]);run()}});remember().then(run);
+</script>

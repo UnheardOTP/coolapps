@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Birthday Reminders</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#f43f5e;--w:820px}.b{display:flex;gap:14px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line)}.b .d{flex:none;width:76px;text-align:center;border-radius:12px;padding:6px 0;background:var(--soft)}.b .d b{display:block;font-size:22px;line-height:1.1}.b.today{background:color-mix(in srgb,var(--a) 12%,transparent);border-radius:12px}.b.today .d{background:var(--a);color:#fff}.b .i{flex:1}.mo{font-size:12px;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;padding:14px 4px 2px}</style>
+<div class="wrap"><h1>Birthday Reminders</h1><p class="sub">Never forget one again. Sorted by who's next, with the age they're turning.</p>
+<div class="card"><div class="row"><div class="col" style="flex:2"><label>Name</label><input id="n"></div><div class="col"><label>Birthday</label><input id="d" type="date"></div><label style="margin:0 0 9px"><input type="checkbox" id="ny"> year unknown</label><button id="add">Add</button></div></div>
+<div class="card" id="ls"></div></div>
+<script>
+let it=[];
+function nextB(i){const[y,m,d]=i.d.split('-').map(Number),now=new Date();now.setHours(0,0,0,0);let n=new Date(now.getFullYear(),m-1,d);if(m===2&&d===29&&n.getMonth()!==1)n=new Date(now.getFullYear(),1,28);if(n<now)n=new Date(now.getFullYear()+1,m-1,d);return n}
+function paint(){const now=new Date();now.setHours(0,0,0,0);const l=it.map(i=>({i,n:nextB(i)})).sort((a,b)=>a.n-b.n);let last='';
+  $('#ls').innerHTML=l.map(({i,n})=>{const days=Math.round((n-now)/864e5),mo=n.toLocaleDateString(undefined,{month:'long',year:'numeric'}),h=mo!==last?`<div class="mo">${mo}</div>`:'';last=mo;const age=i.ny?null:n.getFullYear()-+i.d.slice(0,4);
+    return h+`<div class="b ${days===0?'today':''}" data-id="${i.id}"><div class="d"><b>${n.getDate()}</b>${n.toLocaleDateString(undefined,{weekday:'short'})}</div><div class="i"><b>${esc(i.n)}</b><div class="mut">${days===0?'🎂 Today!':days===1?'Tomorrow':`in ${days} days`}${age!=null?` · turns ${age}`:''}</div></div><button class="x" data-rm>✕</button></div>`}).join('')||'<span class="mut">Add your first birthday above.</span>'}
+$('#add').onclick=async()=>{const n=$('#n').value.trim();if(!n||!$('#d').value)return;it.push(await api.add({kind:'bd',n,d:$('#d').value,ny:$('#ny').checked}));$('#n').value='';paint()};
+$('#ls').onclick=async e=>{if(!e.target.hasAttribute('data-rm'))return;const id=e.target.closest('.b').dataset.id;await api.del(id);it=it.filter(x=>x.id!==id);paint()};api.list().then(d=>{it=only(d,'bd');paint()});
+</script>

@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>Gantt</title><script src="/shared/lib.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f7f8fa;color:#1f2933;font-family:'Inter',system-ui;padding:28px 40px}h1{margin:0 0 4px;font-size:26px}.sub{color:#7b8794;margin:0 0 16px}form{display:flex;gap:8px;margin-bottom:16px}input{font:inherit;padding:8px 12px;border:1px solid #cbd2d9;border-radius:8px;outline:none;width:260px}button{font:inherit;background:#2f6fed;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer}
+.g{position:relative;background:#fff;border:1px solid #e4e7eb;border-radius:12px;overflow:hidden;margin-left:0}.hd{display:flex;height:44px;border-bottom:1px solid #e4e7eb;position:relative;margin-left:180px}.hd div{width:var(--d);flex:none;text-align:center;font-size:11px;color:#7b8794;padding-top:6px;border-left:1px solid #f0f2f5}.hd b{display:block;color:#1f2933;font-size:13px}.we{background:#f7f8fa}
+.row{position:relative;height:42px;border-bottom:1px solid #f0f2f5}.row .nm{position:absolute;left:0;width:180px;padding:11px 14px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff;z-index:2;border-right:1px solid #e4e7eb}
+.bar{position:absolute;top:7px;height:28px;border-radius:7px;background:var(--c);color:#fff;font-size:12px;padding:6px 10px;cursor:grab;white-space:nowrap;overflow:hidden;box-shadow:0 1px 3px #0003}.bar::after{content:'';position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize;background:#fff4}.bar i{position:absolute;right:12px;top:4px;font-style:normal;cursor:pointer;opacity:.7}
+.today{position:absolute;top:0;bottom:0;width:2px;background:#e5484d;z-index:1;margin-left:180px}</style>
+<h1>Gantt</h1><p class="sub">Drag a bar to move it, drag its right edge to change the duration.</p><form id="f"><input id="n" placeholder="New task" required><button>Add task</button></form><div class="g" id="g"></div>
+<script>
+const DAYS=35,DW=34,COL=['#2f6fed','#12b886','#f59f00','#e5484d','#7950f2','#0ca678'];let tasks=[],start=new Date();start.setHours(0,0,0,0);start.setDate(start.getDate()-3);
+const day=i=>new Date(start.getTime()+i*864e5);
+function render(){const todayIdx=Math.round((new Date().setHours(0,0,0,0)-start)/864e5);
+  $('#g').style.setProperty('--d',DW+'px');
+  $('#g').innerHTML=`<div class="hd">${Array.from({length:DAYS},(_,i)=>{const d=day(i),w=d.getDay()%6===0;return`<div class="${w?'we':''}"><b>${d.getDate()}</b>${d.toLocaleDateString(undefined,{weekday:'narrow'})}</div>`}).join('')}</div><div class="today" style="left:${todayIdx*DW+DW/2}px;top:44px"></div>`+
+  tasks.map((t,i)=>`<div class="row" data-id="${t.id}"><div class="nm">${esc(t.name)}</div><div class="bar" style="--c:${COL[i%COL.length]};left:${180+t.s*DW}px;width:${t.d*DW-2}px">${t.d}d<i data-del>✕</i></div></div>`).join('')}
+// Pointer drag: the right 8px of a bar resizes it, anywhere else moves it; both snap to whole days.
+let drag=null;
+document.addEventListener('pointerdown',e=>{const bar=e.target.closest('.bar');if(!bar||e.target.hasAttribute('data-del'))return;const t=tasks.find(x=>x.id===bar.closest('.row').dataset.id),r=bar.getBoundingClientRect();drag={t,x:e.clientX,s:t.s,d:t.d,resize:e.clientX>r.right-9}});
+document.addEventListener('pointermove',e=>{if(!drag)return;const dd=Math.round((e.clientX-drag.x)/DW);if(drag.resize)drag.t.d=Math.max(1,drag.d+dd);else drag.t.s=Math.max(0,Math.min(DAYS-drag.d,drag.s+dd));render()});
+document.addEventListener('pointerup',()=>{if(drag){api.upd(drag.t.id,{s:drag.t.s,d:drag.t.d});drag=null}});
+document.addEventListener('click',async e=>{if(!e.target.hasAttribute('data-del'))return;const id=e.target.closest('.row').dataset.id;await api.del(id);tasks=tasks.filter(t=>t.id!==id);render()});
+$('#f').onsubmit=async e=>{e.preventDefault();tasks.push(await api.add({name:$('#n').value,s:Math.min(DAYS-4,tasks.length*2+3),d:4}));$('#n').value='';render()};
+api.list().then(d=>{tasks=d.sort((a,b)=>a.createdAt-b.createdAt);render()});
+</script>

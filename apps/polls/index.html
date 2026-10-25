@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Quick Polls</title><script src="/shared/lib.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f6f4ff;color:#1e1b3a;font-family:'Inter',system-ui;display:flex;gap:30px;justify-content:center;padding:34px 20px}.col{width:440px}h1{margin:0 0 16px;font-weight:800;letter-spacing:-.03em}
+.card{background:#fff;border-radius:18px;padding:20px;margin-bottom:16px;box-shadow:0 6px 20px #4b3fd422}.card h2{margin:0 0 14px;font-size:19px}.opt{position:relative;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;margin-bottom:8px;border-radius:10px;background:#f0eeff;cursor:pointer;overflow:hidden;font-weight:600}.opt:hover{background:#e6e2ff}
+.opt i{position:absolute;left:0;top:0;bottom:0;background:#b9b0ff;z-index:0;transition:width .6s cubic-bezier(.3,1.2,.5,1);border-radius:10px}.opt span{position:relative;z-index:1}.opt.win i{background:#7c6cff}.opt.win span{color:#fff}.meta{color:#8a86b0;font-size:13px;display:flex;justify-content:space-between}.meta u{cursor:pointer;text-decoration:none}
+form.n{background:#fff;border-radius:18px;padding:20px;box-shadow:0 6px 20px #4b3fd422;position:sticky;top:20px;height:fit-content}input{width:100%;font:inherit;padding:10px 12px;border:1px solid #d9d5ff;border-radius:10px;margin-bottom:8px;outline:none}button{width:100%;font:inherit;font-weight:700;padding:11px;border:none;border-radius:10px;background:#5b4cff;color:#fff;cursor:pointer}button.g{background:#eeecff;color:#5b4cff;margin-bottom:8px}</style>
+<div class="col"><h1>Polls</h1><div id="list"></div></div>
+<form class="n" id="f" style="width:300px"><h2 style="margin-top:0">New poll</h2><input id="q" placeholder="Your question" required><div id="os"><input class="o" placeholder="Option 1" required><input class="o" placeholder="Option 2" required></div><button type="button" class="g" id="more">+ option</button><button>Create poll</button></form>
+<script>
+let polls=[];const voted=JSON.parse(localStorage.getItem('voted')||'{}');
+function render(){$('#list').innerHTML=polls.map(p=>{const tot=p.opts.reduce((n,o)=>n+o.v,0),mx=Math.max(...p.opts.map(o=>o.v));return`<div class="card" data-id="${p.id}"><h2>${esc(p.q)}</h2>${p.opts.map((o,i)=>`<div class="opt ${tot&&o.v===mx?'win':''}" data-i="${i}"><i style="width:${tot?o.v/tot*100:0}%"></i><span>${esc(o.t)}</span><span>${tot?Math.round(o.v/tot*100):0}% · ${o.v}</span></div>`).join('')}<div class="meta"><span>${tot} vote${tot===1?'':'s'}</span><u data-del>delete</u></div></div>`}).join('')||'<p style="color:#8a86b0">No polls yet. Make one →</p>'}
+// Votes are PATCHed back as the whole options array; each browser votes once per poll.
+$('#list').onclick=async e=>{const c=e.target.closest('.card');if(!c)return;const p=polls.find(x=>x.id===c.dataset.id);
+  if(e.target.hasAttribute('data-del')){await api.del(p.id);polls=polls.filter(x=>x!==p);return render()}
+  const o=e.target.closest('.opt');if(!o)return;p.opts[+o.dataset.i].v++;render();api.upd(p.id,{opts:p.opts})};
+$('#more').onclick=()=>{const i=document.createElement('input');i.className='o';i.placeholder='Option '+($('#os').children.length+1);$('#os').append(i)};
+$('#f').onsubmit=async e=>{e.preventDefault();const opts=[...document.querySelectorAll('.o')].map(i=>i.value.trim()).filter(Boolean).map(t=>({t,v:0}));polls.unshift(await api.add({q:$('#q').value,opts}));$('#q').value='';document.querySelectorAll('.o').forEach(i=>i.value='');render()};
+api.list().then(d=>{polls=d;render()});
+</script>

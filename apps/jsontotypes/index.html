@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>JSON to Types</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#3178c6;--w:1100px}</style>
+<div class="wrap"><h1>JSON to Types</h1><p class="sub">Paste a JSON sample and get TypeScript interfaces, Go structs or Python dataclasses. Arrays of objects are merged, and fields missing from some items become optional.</p>
+<div class="card"><div class="row"><div class="col"><label>Root name</label><input id="rn" value="Root" data-keep></div><div class="tabs" id="tabs" style="margin:0 0 0 auto"></div></div>
+<div class="g2 gap"><div><label>JSON sample</label><textarea id="in" style="min-height:360px" data-keep></textarea></div><div><div class="row" style="margin-bottom:5px"><label style="margin:0">Output</label><button class="x right" id="cp">Copy</button></div><textarea id="out" style="min-height:360px" readonly></textarea></div></div><div class="err" id="er"></div></div></div>
+<script>
+let lang='TypeScript';const cap=s=>s.replace(/[^A-Za-z0-9]+(.)?/g,(_,c)=>(c||'').toUpperCase()).replace(/^./,c=>c.toUpperCase())||'Item';
+// Infer a type tree: primitives by typeof, arrays by merging every element, objects keep per-key types plus whether the key was always present.
+function infer(v){if(v===null)return{t:'null'};if(Array.isArray(v)){const items=v.map(infer);return{t:'array',of:items.length?items.reduce(merge):{t:'any'}}}if(typeof v==='object')return{t:'object',f:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,{...infer(x),opt:false}]))};return{t:Number.isInteger(v)?'int':typeof v==='number'?'float':typeof v}}
+function merge(a,b){if(a.t==='object'&&b.t==='object'){const f={};for(const k of new Set([...Object.keys(a.f),...Object.keys(b.f)])){f[k]=a.f[k]&&b.f[k]?{...merge(a.f[k],b.f[k]),opt:a.f[k].opt||b.f[k].opt}:{...(a.f[k]||b.f[k]),opt:true}}return{t:'object',f}}
+  if(a.t==='array'&&b.t==='array')return{t:'array',of:merge(a.of,b.of)};if(a.t===b.t)return a;if((a.t==='int'&&b.t==='float')||(a.t==='float'&&b.t==='int'))return{t:'float'};return{t:'union',u:[...(a.u||[a]),...(b.u||[b])].filter((x,i,l)=>l.findIndex(y=>y.t===x.t)===i)}}
+const TS={int:'number',float:'number',string:'string',boolean:'boolean',null:'null',any:'unknown'},GO={int:'int',float:'float64',string:'string',boolean:'bool',null:'interface{}',any:'interface{}'},PY={int:'int',float:'float',string:'str',boolean:'bool',null:'None',any:'Any'};
+function gen(root,L){const defs=[],used=new Set();const name=(n)=>{let x=cap(n),i=2;while(used.has(x))x=cap(n)+i++;used.add(x);return x};
+  const ty=(t,hint)=>{if(t.t==='object'){const nm=name(hint);const fields=Object.entries(t.f).map(([k,f])=>[k,ty(f,k),f.opt]);defs.push({nm,fields});return nm}
+    if(t.t==='array')return L==='TypeScript'?(x=>x.includes('|')?`(${x})[]`:x+'[]')(ty(t.of,hint.replace(/s$/,''))):L==='Go'?'[]'+ty(t.of,hint.replace(/s$/,'')):`list[${ty(t.of,hint.replace(/s$/,''))}]`;
+    if(t.t==='union')return t.u.map(x=>ty(x,hint)).join(L==='Go'?'':' | ');return({TypeScript:TS,Go:GO,Python:PY}[L])[t.t]};
+  const top=ty(root,$('#rn').value||'Root');let out='';
+  if(L==='TypeScript')out=defs.map(d=>`interface ${d.nm} {\n${d.fields.map(([k,t,o])=>`  ${/^[A-Za-z_$][\w$]*$/.test(k)?k:JSON.stringify(k)}${o?'?':''}: ${t};`).join('\n')}\n}`).reverse().join('\n\n')+(root.t!=='object'?`\n\ntype ${$('#rn').value||'Root'} = ${top};`:'');
+  else if(L==='Go')out=defs.map(d=>`type ${d.nm} struct {\n${d.fields.map(([k,t,o])=>`\t${cap(k)} ${o&&!t.startsWith('[]')?'*':''}${t} \`json:"${k}${o?',omitempty':''}"\``).join('\n')}\n}`).reverse().join('\n\n');
+  else out=(defs.length?'from dataclasses import dataclass\nfrom typing import Any, Optional\n\n':'')+defs.map(d=>`@dataclass\nclass ${d.nm}:\n${d.fields.map(([k,t,o])=>`    ${k.replace(/\W/g,'_')}: ${o?`Optional[${t}] = None`:t}`).sort((a,b)=>a.includes('= None')-b.includes('= None')).join('\n')||'    pass'}`).join('\n\n');return out||'// (root is not an object)'}
+function run(){$('#er').textContent='';$('#tabs').innerHTML=['TypeScript','Go','Python'].map(l=>`<button data-l="${l}" class="${l===lang?'on':''}">${l}</button>`).join('');if(!$('#in').value.trim()){$('#out').value='';return}
+  try{$('#out').value=gen(infer(JSON.parse($('#in').value)),lang)}catch(e){$('#out').value='';$('#er').textContent=e.message}}
+$('#tabs').onclick=e=>{if(e.target.dataset.l){lang=e.target.dataset.l;run()}};document.addEventListener('input',run);$('#cp').onclick=e=>copy($('#out').value,e.target);
+remember().then(()=>{if(!$('#in').value)$('#in').value=JSON.stringify({id:1,name:'Ada',tags:['math','code'],address:{city:'London',zip:null},orders:[{sku:'A1',qty:2,price:9.5},{sku:'B2',qty:1,gift:true}]},null,2);run()});
+</script>

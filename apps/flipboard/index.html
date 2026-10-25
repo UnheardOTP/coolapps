@@ -1,0 +1,61 @@
+<!doctype html><meta charset="utf-8"><title>Flip Board</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #121212; color: #ddd; font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 44px; }
+  .board { background: #1c1c1c; padding: 26px; border-radius: 10px; box-shadow: 0 30px 60px #000a, inset 0 0 0 2px #2a2a2a; }
+  .line { display: flex; gap: 5px; margin-bottom: 8px; }
+  .c { position: relative; width: 44px; height: 64px; background: #0b0b0b; border-radius: 4px; color: #f6c744; font: 700 44px/64px 'Courier New', monospace; text-align: center; box-shadow: inset 0 -2px 0 #000; overflow: hidden; }
+  .c::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: #000; }
+  .c.f span { display: block; animation: flip .09s ease-out; } @keyframes flip { from { transform: scaleY(.15); } to { transform: scaleY(1); } }
+  .ctl { width: 940px; margin-top: 34px; display: flex; gap: 40px; }
+  .ctl > div { flex: 1; } h2 { margin: 0 0 10px; font-size: 11px; letter-spacing: .25em; text-transform: uppercase; color: #777; font-weight: 400; }
+  input { display: block; width: 100%; margin-bottom: 6px; font: 16px 'Courier New', monospace; text-transform: uppercase; letter-spacing: .1em; padding: 8px 10px; background: #1c1c1c; border: 1px solid #333; color: #f6c744; outline: none; }
+  button { font: inherit; background: #f6c744; color: #000; border: none; padding: 9px 18px; font-weight: 700; cursor: pointer; margin-right: 8px; text-transform: uppercase; letter-spacing: .1em; font-size: 12px; } button.g { background: #2a2a2a; color: #ccc; }
+  .msg { display: flex; justify-content: space-between; padding: 9px 12px; background: #1c1c1c; margin-bottom: 6px; cursor: pointer; font: 14px 'Courier New', monospace; color: #f6c744; text-transform: uppercase; } .msg:hover { background: #262626; } .msg i { font-style: normal; color: #666; }
+  label { font-size: 13px; color: #999; display: inline-flex; gap: 6px; align-items: center; margin-left: 4px; }
+</style>
+<div class="board" id="board"></div>
+<div class="ctl">
+  <div><h2>Compose</h2><div id="ins"></div><button id="show">Show</button><button class="g" id="save">Save</button><label><input type="checkbox" id="cyc" style="width:auto;margin:0"> cycle saved</label></div>
+  <div><h2>Saved messages</h2><div id="saved"></div></div>
+</div>
+<script>
+const CH = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?-:', ROWS = 4, COLS = 18;
+let cur = Array.from({ length: ROWS * COLS }, () => 0), target = [...cur], wait = [], msgs = [], ac, idx = 0;
+// Build the board and the input boxes.
+$('#board').innerHTML = Array.from({ length: ROWS }, (_, r) => `<div class="line">${Array.from({ length: COLS }, (_, c) => `<div class="c" id="c${r * COLS + c}"><span>&nbsp;</span></div>`).join('')}</div>`).join('');
+$('#ins').innerHTML = Array.from({ length: ROWS }, () => '<input maxlength="18" autocomplete="off">').join('');
+const inputs = () => [...document.querySelectorAll('#ins input')].map(i => i.value);
+
+// Point every cell at a new character; each flaps through the alphabet with a left-to-right stagger.
+function show(lines) {
+  lines.forEach((l, r) => { const s = l.toUpperCase().padEnd(COLS).slice(0, COLS); [...s].forEach((ch, c) => { const i = r * COLS + c; target[i] = Math.max(0, CH.indexOf(ch)); wait[i] = c * 2 + r * 3; }); });
+}
+function tick() {                                                     // global 50ms flap clock
+  let moved = false;
+  cur.forEach((v, i) => {
+    if (v === target[i]) return;
+    if (wait[i] > 0) { wait[i]--; return; }
+    cur[i] = (v + 1) % CH.length; moved = true;
+    const el = $('#c' + i); el.firstChild.textContent = CH[cur[i]] === ' ' ? ' ' : CH[cur[i]]; el.classList.remove('f'); void el.offsetWidth; el.classList.add('f');
+  });
+  if (moved && ac) click();
+}
+setInterval(tick, 50);
+// Soft mechanical tick, once audio is unlocked by a button press.
+function click() { const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = 900 + Math.random() * 200; g.gain.setValueAtTime(.03, t); g.gain.exponentialRampToValueAtTime(.001, t + .03); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + .04); }
+
+function list() {
+  $('#saved').innerHTML = msgs.map(m => `<div class="msg" data-id="${m.id}"><span>${esc(m.lines.find(Boolean) || '(blank)')}</span><i data-del>×</i></div>`).join('') || '<div style="color:#555">Nothing saved yet.</div>';
+}
+$('#show').onclick = () => { ac ||= new AudioContext(); show(inputs()); };
+$('#save').onclick = async () => { if (!inputs().some(Boolean)) return; msgs.unshift(await api.add({ lines: inputs() })); list(); };
+$('#saved').onclick = async e => {
+  const m = e.target.closest('.msg'); if (!m) return; const msg = msgs.find(x => x.id === m.dataset.id);
+  if (e.target.hasAttribute('data-del')) { await api.del(msg.id); msgs = msgs.filter(x => x !== msg); list(); }
+  else { ac ||= new AudioContext(); document.querySelectorAll('#ins input').forEach((el, i) => el.value = msg.lines[i] || ''); show(msg.lines); }
+};
+setInterval(() => { if ($('#cyc').checked && msgs.length) { show(msgs[idx++ % msgs.length].lines); } }, 7000);
+api.list().then(d => { msgs = d; list(); show(['', ' FLIP BOARD', ' TYPE A MESSAGE', ' PRESS SHOW']); });
+</script>

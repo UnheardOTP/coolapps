@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Due Date Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#ec4899;--w:820px}.tri{display:flex;height:16px;border-radius:8px;overflow:hidden;margin:10px 0 4px}.tri div{height:100%}.ms{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)}.ms.past{color:var(--mut)}.ms.now{font-weight:700;color:var(--a)}</style>
+<div class="wrap"><h1>Due Date Calculator</h1><p class="sub">Estimate a due date from the first day of the last period (Naegele's rule, adjusted for cycle length). An estimate only: only about 5% of babies arrive on the due date.</p>
+<div class="card"><div class="row"><div class="col"><label>First day of last period</label><input id="l" type="date" data-keep></div><div class="col"><label>Average cycle length (days)</label><input id="c" type="number" value="28" min="20" max="45" data-keep></div></div></div>
+<div class="card" id="r"></div><div class="card"><h2>Milestones</h2><div id="ms"></div></div></div>
+<script>
+const add=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x},fd=d=>d.toLocaleDateString(undefined,{weekday:'short',month:'long',day:'numeric',year:'numeric'});
+function run(){if(!$('#l').value){$('#r').innerHTML='<span class="mut">Choose the first day of your last period.</span>';$('#ms').innerHTML='';return}
+  const lmp=pdate($('#l').value),due=add(lmp,280+(num('c')-28)),now=new Date();now.setHours(0,0,0,0);const dayN=Math.round((now-lmp)/864e5),wk=Math.floor(dayN/7),d=dayN%7,left=Math.round((due-now)/864e5);
+  const pc=Math.max(0,Math.min(100,dayN/(280+(num('c')-28))*100)),tri=dayN<0?'—':wk<13?'First':wk<27?'Second':'Third';
+  $('#r').innerHTML=`<div class="mut">Estimated due date</div><div class="big">${fd(due)}</div><div class="tri"><div style="width:${13/40*100}%;background:#f9a8d4"></div><div style="width:${14/40*100}%;background:#f472b6"></div><div style="width:${13/40*100}%;background:#db2777"></div></div><div class="bar"><i style="width:${pc}%;background:var(--fg)"></i></div>
+  <div class="g3 gap">${[['Gestational age',dayN<0?'not started':dayN>300?'past estimate':`${wk} wk ${d} d`],['Trimester',tri],[left>=0?'Days to go':'Days past',Math.abs(left)]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b style="font-size:18px">${v}</b></div>`).join('')}</div>`;
+  const M=[['Conception window (approx.)',add(lmp,Math.round(num('c')/2)-2)],['Positive test possible',add(lmp,num('c')+0)],['End of first trimester (13 wk)',add(lmp,91)],['Anatomy scan (~20 wk)',add(lmp,140)],['Viability milestone (24 wk)',add(lmp,168)],['Third trimester begins (28 wk)',add(lmp,196)],['Full term begins (37 wk)',add(lmp,259)],['Due date (40 wk)',due]];
+  $('#ms').innerHTML=M.map(([k,dt],i)=>{const past=dt<now,next=!past&&M.slice(0,i).every(x=>x[1]<now);return`<div class="ms ${past?'past':next?'now':''}"><span>${k}</span><span>${dt.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</span></div>`}).join('')}
+document.addEventListener('input',run);remember().then(run);
+</script>

@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>ROI &amp; CAGR Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0d9488;--w:820px}</style>
+<div class="wrap"><h1>ROI &amp; CAGR Calculator</h1><p class="sub">Return on investment, the compound annual growth rate, and how long money takes to double.</p>
+<div class="card"><div class="g4"><div><label>Amount invested ($)</label><input id="i" type="number" step="any" value="10000" data-keep></div><div><label>Final value ($)</label><input id="f" type="number" step="any" value="16500" data-keep></div><div><label>Years held</label><input id="y" type="number" step="any" value="4.5" data-keep></div><div><label>Extra costs / fees ($)</label><input id="c" type="number" step="any" value="0" data-keep></div></div></div>
+<div class="g4" id="kp"></div><div class="card gap"><h2>Rule of 72</h2><div class="row"><div class="col"><label>Annual return (%)</label><input id="rr" type="number" step="any" value="8" data-keep></div><div class="kpi col"><small>Years to double</small><b id="d72"></b></div><div class="kpi col"><small>Exact</small><b id="dx"></b></div></div></div>
+<div class="card"><h2>What return do I need?</h2><div class="row"><div class="col"><label>Target value ($)</label><input id="tv" type="number" step="any" value="50000" data-keep></div><div class="col"><label>In years</label><input id="ty" type="number" step="any" value="10" data-keep></div><div class="kpi col"><small>Required annual return</small><b id="req"></b></div></div></div></div>
+<script>
+function run(){const I=num('i')+num('c'),F=num('f'),Y=num('y');if(!(I>0)){$('#kp').innerHTML='';return}const roi=(F-I)/I,cagr=Y>0&&F>0?(F/I)**(1/Y)-1:NaN;
+  $('#kp').innerHTML=[['Profit / loss',money(F-I)],['ROI',fmt(roi*100,2)+'%'],['Annualised (CAGR)',isFinite(cagr)?fmt(cagr*100,2)+'%':'–'],['Multiple',fmt(F/I,2)+'×']].map(([k,v],i)=>`<div class="kpi"><small>${k}</small><b class="${(i<2&&F-I<0)?'bad':i<2?'ok':''}">${v}</b></div>`).join('');
+  const r=num('rr');$('#d72').textContent=r>0?fmt(72/r,1)+' yrs':'–';$('#dx').textContent=r>0?fmt(Math.log(2)/Math.log(1+r/100),2)+' yrs':'–';const tv=num('tv'),ty=num('ty');$('#req').textContent=tv>0&&ty>0&&I>0?fmt(((tv/I)**(1/ty)-1)*100,2)+'% / yr':'–'}
+document.addEventListener('input',run);remember().then(run);
+</script>

@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Margin &amp; Markup Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#2563eb;--w:760px}.b3{display:flex;height:34px;border-radius:9px;overflow:hidden;margin:12px 0}.b3 div{display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}</style>
+<div class="wrap"><h1>Margin &amp; Markup Calculator</h1><p class="sub">Enter any two of cost, price, margin % or markup % and the rest is worked out. Margin is profit as a share of the price; markup is profit as a share of the cost.</p>
+<div class="card"><div class="g4"><div><label>Cost ($)</label><input id="c" type="number" step="any" data-f="c" value="40" data-keep></div><div><label>Price ($)</label><input id="p" type="number" step="any" data-f="p" value="" data-keep></div><div><label>Margin (%)</label><input id="m" type="number" step="any" data-f="m" value="" data-keep></div><div><label>Markup (%)</label><input id="u" type="number" step="any" data-f="u" value="25" data-keep></div></div>
+<div class="mut gap" id="hint"></div></div>
+<div class="card"><div class="g3" id="kp"></div><div class="b3" id="bar"></div></div><div class="card"><h2>Margin vs markup</h2><table id="tb"></table></div></div>
+<script>
+let order=['c','u'];   // the two most recently edited fields are the "known" ones; the other two are derived
+const get=id=>{const v=document.getElementById(id).value;return v===''?null:parseFloat(v)};
+function solve(k){const[a,b]=k,v=Object.fromEntries(k.map(x=>[x,get(x)])),has=(x,y)=>(a===x&&b===y)||(a===y&&b===x);let c,p;
+  if(has('c','p')){c=v.c;p=v.p}else if(has('c','m')){c=v.c;p=c/(1-v.m/100)}else if(has('c','u')){c=v.c;p=c*(1+v.u/100)}else if(has('p','m')){p=v.p;c=p*(1-v.m/100)}else if(has('p','u')){p=v.p;c=p/(1+v.u/100)}else{const m=v.m/100,u=v.u/100;return null}
+  return{c,p,m:(p-c)/p*100,u:(p-c)/c*100}}
+function run(e){if(e&&e.target.dataset.f){const f=e.target.dataset.f;order=[f,...order.filter(x=>x!==f)].slice(0,2)}const r=solve(order);const names={c:'cost',p:'price',m:'margin',u:'markup'};
+  $('#hint').textContent=`Using ${names[order[0]]} + ${names[order[1]]}; the other two fields are calculated.`;if(!r||!isFinite(r.p)){$('#kp').innerHTML='<div class="kpi" style="grid-column:1/-1"><b>Enter two values.</b></div>';$('#bar').innerHTML='';return}
+  for(const k of['c','p','m','u'])if(!order.includes(k))document.getElementById(k).value=+r[k].toFixed(4);
+  $('#kp').innerHTML=[['Profit per unit',money(r.p-r.c)],['Margin',fmt(r.m,2)+'%'],['Markup',fmt(r.u,2)+'%']].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('');
+  $('#bar').innerHTML=`<div style="width:${Math.max(0,Math.min(100,100-r.m))}%;background:#64748b">Cost ${money(r.c)}</div><div style="width:${Math.max(0,Math.min(100,r.m))}%;background:var(--a)">Profit ${money(r.p-r.c)}</div>`;KV.save({order,c:$('#c').value,p:$('#p').value,m:$('#m').value,u:$('#u').value})}
+$('#tb').innerHTML='<tr><th>Markup</th><th class="r">Margin</th><th>Margin</th><th class="r">Markup needed</th></tr>'+[10,20,25,30,40,50,60,75,100].map((x,i)=>`<tr><td>${x}%</td><td class="r"><b>${fmt(x/(100+x)*100,1)}%</b></td><td class="mut">${[10,20,30,40,50,60,70,80,90][i]}%</td><td class="r">${fmt([10,20,30,40,50,60,70,80,90][i]/(100-[10,20,30,40,50,60,70,80,90][i])*100,1)}%</td></tr>`).join('');
+document.addEventListener('input',run);KV.load().then(s=>{if(s.order){order=s.order;for(const k of['c','p','m','u'])if(s[k]!==undefined)document.getElementById(k).value=s[k]}run()});
+</script>

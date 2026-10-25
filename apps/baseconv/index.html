@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Number Base Converter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#7c3aed;--w:860px}.bits{display:flex;flex-wrap:wrap;gap:3px;margin-top:8px}.bits span{width:22px;height:30px;text-align:center;line-height:30px;border-radius:5px;background:var(--soft);font-family:ui-monospace,monospace;cursor:pointer;user-select:none}.bits span.on{background:var(--a);color:#fff}.bits i{width:10px}</style>
+<div class="wrap"><h1>Number Base Converter</h1><p class="sub">Convert between binary, octal, decimal, hex and any base up to 36. Arbitrarily large integers work (BigInt).</p>
+<div class="card"><div class="row"><div class="col" style="flex:3"><label>Value</label><input id="v" class="mono" style="font-size:20px" value="255" data-keep></div><div class="col"><label>Input base</label><select id="b" data-keep></select></div></div><div class="err" id="er"></div></div>
+<div class="card"><table id="tb"></table></div><div class="card"><h2>Bits (click to flip, 32-bit view)</h2><div class="bits" id="bits"></div><div class="mut gap" id="tc"></div></div></div>
+<script>
+$('#b').innerHTML=Array.from({length:35},(_,i)=>i+2).map(b=>`<option value="${b}" ${b===10?'selected':''}>${b}${b===2?' · binary':b===8?' · octal':b===10?' · decimal':b===16?' · hex':b===36?' · base36':''}</option>`).join('');
+const DIG='0123456789abcdefghijklmnopqrstuvwxyz';
+function parse(s,b){s=s.trim().toLowerCase().replace(/[_\s]/g,'');let neg=false;if(s[0]==='-'){neg=true;s=s.slice(1)}if(b===16)s=s.replace(/^0x/,'');if(b===2)s=s.replace(/^0b/,'');if(b===8)s=s.replace(/^0o/,'');if(!s)throw Error('Enter a value');let n=0n;const B=BigInt(b);for(const c of s){const d=DIG.indexOf(c);if(d<0||d>=b)throw Error(`"${c}" is not a valid base-${b} digit`);n=n*B+BigInt(d)}return neg?-n:n}
+const toBase=(n,b)=>n.toString(b);const group=(s,k)=>s.replace(new RegExp(`\\B(?=(\\w{${k}})+(?!\\w))`,'g'),' ');
+let cur=0n;
+function run(){$('#er').textContent='';try{cur=parse($('#v').value,+$('#b').value)}catch(e){$('#tb').innerHTML='';$('#bits').innerHTML='';$('#tc').textContent='';return $('#er').textContent=e.message}
+  const rows=[['Binary (2)',group(toBase(cur,2),4)],['Octal (8)',toBase(cur,8)],['Decimal (10)',cur.toLocaleString('en-US')],['Hexadecimal (16)',toBase(cur,16).toUpperCase()],['Base 32',toBase(cur,32)],['Base 36',toBase(cur,36)]];
+  $('#tb').innerHTML=rows.map(([k,v])=>`<tr><td class="mut" style="width:150px">${k}</td><td class="mono" style="word-break:break-all">${v}</td><td class="r"><button class="x" data-v="${v.replace(/[ ,]/g,'')}">Copy</button></td></tr>`).join('');
+  const u=BigInt.asUintN(32,cur);$('#bits').innerHTML=Array.from({length:32},(_,i)=>{const bit=31-i;return`${i&&i%8===0?'<i></i>':''}<span class="${u>>BigInt(bit)&1n?'on':''}" data-b="${bit}">${u>>BigInt(bit)&1n}</span>`}).join('');
+  $('#tc').textContent=`Unsigned 32-bit: ${u}  ·  Signed (two's complement): ${BigInt.asIntN(32,cur)}${cur>0xFFFFFFFFn||cur<-0x80000000n?'  ·  (value exceeds 32 bits; showing low 32)':''}`}
+$('#bits').onclick=e=>{const b=e.target.dataset.b;if(b===undefined)return;const u=BigInt.asUintN(32,cur)^(1n<<BigInt(b));$('#b').value=10;$('#v').value=u.toString();run();$('#v').dispatchEvent(new Event('input',{bubbles:true}))};$('#tb').onclick=e=>{if(e.target.dataset.v)copy(e.target.dataset.v,e.target)};document.addEventListener('input',run);remember().then(run);
+</script>

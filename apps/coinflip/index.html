@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Coin Flip</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:radial-gradient(#2b4a5a,#0f1e26);color:#e8f1f5;font-family:'Avenir Next',system-ui;display:flex;flex-direction:column;align-items:center;padding-top:40px}h1{margin:0;font-weight:200;letter-spacing:.4em}
+.scene{perspective:900px;height:240px;margin:50px 0 30px}.coin{width:180px;height:180px;position:relative;transform-style:preserve-3d;transition:transform 1.6s cubic-bezier(.2,.6,.3,1)}.face{position:absolute;inset:0;border-radius:50%;backface-visibility:hidden;display:flex;align-items:center;justify-content:center;font:700 70px Georgia;color:#6b4a0a;background:radial-gradient(circle at 35% 30%,#fff1b0,#e0b030 55%,#a67a10);border:8px solid #c99a1c;box-shadow:inset 0 0 20px #8a620088,0 10px 30px #000a}.face.t{transform:rotateY(180deg);background:radial-gradient(circle at 35% 30%,#f0f0f0,#b8bcc4 55%,#80858f);border-color:#9aa0aa;color:#4a4f58}
+#r{font-size:36px;height:48px;letter-spacing:.2em}button{font:inherit;font-size:18px;letter-spacing:.2em;text-transform:uppercase;background:#ffd23f;border:none;color:#0f1e26;padding:14px 50px;border-radius:30px;cursor:pointer;margin-top:10px}
+.st{display:flex;gap:40px;margin-top:34px;text-align:center}.st b{display:block;font-size:34px;font-weight:300}.st small{color:#8fb0be;letter-spacing:.15em;text-transform:uppercase}.strip{display:flex;gap:4px;margin-top:20px}.strip i{width:14px;height:14px;border-radius:50%}.strip i.H{background:#e0b030}.strip i.T{background:#b8bcc4}</style>
+<h1>COIN FLIP</h1><div class="scene"><div class="coin" id="coin"><div class="face">H</div><div class="face t">T</div></div></div><div id="r"></div><button id="go">Flip</button>
+<div class="st"><div><b id="h">0</b><small>Heads</small></div><div><b id="t">0</b><small>Tails</small></div><div><b id="p">–</b><small>Heads %</small></div><div><b id="s">0</b><small>Longest streak</small></div></div><div class="strip" id="strip"></div>
+<script>
+let flips=[],spin=0,busy=false;
+function stats(){const h=flips.filter(f=>f.r==='H').length,t=flips.length-h;let best=0,run=0,prev=null;[...flips].reverse().forEach(f=>{run=f.r===prev?run+1:1;prev=f.r;best=Math.max(best,run)});
+$('#h').textContent=h;$('#t').textContent=t;$('#p').textContent=flips.length?Math.round(h/flips.length*100)+'%':'–';$('#s').textContent=best;$('#strip').innerHTML=flips.slice(0,40).map(f=>`<i class="${f.r}"></i>`).join('')}
+// The result is decided first, then the coin spins a few full turns to land on it (an extra half-turn for tails).
+$('#go').onclick=async()=>{if(busy)return;busy=true;$('#r').textContent='';const r=Math.random()<.5?'H':'T';spin+=360*(4+Math.floor(Math.random()*3));const cur=spin%360;spin+=((r==='H'?0:180)-cur+360)%360;$('#coin').style.transform=`rotateX(${spin}deg)`;
+  await new Promise(x=>setTimeout(x,1700));$('#r').textContent=r==='H'?'HEADS':'TAILS';flips.unshift(await api.add({r}));stats();busy=false};
+api.list().then(d=>{flips=d;stats()});
+</script>

@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8"><title>Breathe</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(170deg, #0f2b3d, #2a2d6e 60%, #4a2c6b); color: #e6eaff; font-family: 'Avenir Next', 'Helvetica Neue', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 40px; }
+  h1 { margin: 0; font-weight: 200; font-size: 30px; letter-spacing: .4em; text-transform: uppercase; opacity: .85; }
+  .stage { position: relative; width: 420px; height: 420px; margin: 34px 0 20px; display: flex; align-items: center; justify-content: center; }
+  .orb { position: absolute; width: 360px; height: 360px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #cbe8ff, #7aa7ff 45%, #6a4cff 100%); box-shadow: 0 0 80px #7aa7ff88, 0 0 160px #6a4cff55; transform: scale(.45); }
+  .ring { position: absolute; border-radius: 50%; border: 1px solid #ffffff22; }
+  .txt { position: relative; text-align: center; text-shadow: 0 2px 16px #0008; } .txt b { display: block; font-size: 34px; font-weight: 300; letter-spacing: .1em; } .txt span { font-size: 56px; font-weight: 200; }
+  .modes { display: flex; gap: 10px; margin-bottom: 20px; }
+  button { font: inherit; border: 1px solid #ffffff44; background: #ffffff10; color: inherit; padding: 9px 18px; border-radius: 24px; cursor: pointer; backdrop-filter: blur(4px); } button.on { background: #fff; color: #2a2d6e; }
+  #go { padding: 14px 44px; font-size: 16px; letter-spacing: .15em; text-transform: uppercase; }
+  .log { margin-top: 36px; width: 420px; font-size: 14px; color: #b9c1ee; } .log h2 { font-size: 11px; letter-spacing: .25em; text-transform: uppercase; font-weight: 400; margin: 0 0 8px; }
+  .log div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #ffffff14; }
+</style>
+<h1>Breathe</h1>
+<div class="stage"><div class="ring" style="inset:0"></div><div class="ring" style="inset:-24px"></div><div class="orb" id="orb"></div><div class="txt"><b id="phase">Ready</b><span id="count"></span></div></div>
+<div class="modes" id="modes"></div>
+<button id="go">Begin</button>
+<div class="log"><h2 id="today"></h2><div id="runs"></div></div>
+<script>
+// Each pattern is a list of [label, seconds, target fullness 0..1].
+const PATTERNS = {
+  'Box 4-4-4-4': [['Inhale', 4, 1], ['Hold', 4, 1], ['Exhale', 4, 0], ['Hold', 4, 0]],
+  '4-7-8': [['Inhale', 4, 1], ['Hold', 7, 1], ['Exhale', 8, 0]],
+  'Calm 5.5': [['Inhale', 5.5, 1], ['Exhale', 5.5, 0]],
+};
+let pattern = 'Box 4-4-4-4', running = false, t0 = 0, runs = [];
+const ease = x => (1 - Math.cos(Math.PI * x)) / 2;
+
+// Where in the cycle are we? Returns the phase and how far through it.
+function at(sec) {
+  const P = PATTERNS[pattern], total = P.reduce((n, p) => n + p[1], 0); let t = sec % total, prev = 0;
+  for (let i = 0; i < P.length; i++) { if (t < P[i][1]) return { p: P[i], f: t / P[i][1], from: P[(i + P.length - 1) % P.length][2], left: P[i][1] - t }; t -= P[i][1]; }
+}
+(function frame(now) {
+  if (running) {
+    const s = at((now - t0) / 1000), lvl = s.p[2] === s.from ? s.p[2] : s.from + (s.p[2] - s.from) * ease(s.f);
+    $('#orb').style.transform = `scale(${.45 + .55 * lvl})`; $('#phase').textContent = s.p[0]; $('#count').textContent = Math.ceil(s.left);
+  }
+  requestAnimationFrame(frame);
+})(0);
+async function toggle() {
+  if (!running) { running = true; t0 = performance.now(); $('#go').textContent = 'Finish'; return; }
+  running = false; const secs = Math.round((performance.now() - t0) / 1000);
+  $('#go').textContent = 'Begin'; $('#phase').textContent = 'Well done'; $('#count').textContent = ''; $('#orb').style.transform = 'scale(.45)';
+  if (secs >= 10) { runs.unshift(await api.add({ pattern, secs })); log(); }
+}
+function log() {
+  const day = new Date().toDateString(), mins = Math.round(runs.filter(r => new Date(r.createdAt).toDateString() === day).reduce((n, r) => n + r.secs, 0) / 60);
+  $('#today').textContent = `Today: ${mins} min`;
+  $('#runs').innerHTML = runs.slice(0, 6).map(r => `<div><span>${esc(r.pattern)}</span><span>${Math.floor(r.secs / 60)}m ${r.secs % 60}s · ${new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span></div>`).join('');
+}
+$('#modes').innerHTML = Object.keys(PATTERNS).map(k => `<button data-k="${k}" class="${k === pattern ? 'on' : ''}">${k}</button>`).join('');
+$('#modes').onclick = e => { const k = e.target.dataset.k; if (!k || running) return; pattern = k; $('#modes').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.k === k)); };
+$('#go').onclick = toggle;
+api.list().then(d => { runs = d; log(); });
+</script>

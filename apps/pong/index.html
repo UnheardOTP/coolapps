@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>Pong</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#000;color:#fff;font-family:'Courier New',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center}
+canvas{border:4px solid #fff;cursor:none}p{color:#888;margin:14px}#rec{color:#aaa}</style>
+<canvas id="c" width="720" height="440"></canvas><p>Move the mouse (or ↑ ↓) · first to 7 · click to serve</p><div id="rec"></div>
+<script>
+const cv=$('#c'),g=cv.getContext('2d'),W=720,H=440,PH=80;let py=H/2,cy=H/2,b,ps=0,cs=0,state='ready',hist=[],keys={};
+const serve=d=>b={x:W/2,y:H/2,vx:5*d,vy:(Math.random()*4-2)};
+function frame(){
+  if(keys.ArrowUp)py-=7;if(keys.ArrowDown)py+=7;py=Math.max(PH/2,Math.min(H-PH/2,py));
+  if(state==='play'){b.x+=b.vx;b.y+=b.vy;if(b.y<6||b.y>H-6)b.vy*=-1;
+    cy+=Math.max(-4.2,Math.min(4.2,b.y-cy));                                   // computer tracks the ball at a capped speed
+    for(const[px,py2,dir]of[[28,py,1],[W-28,cy,-1]])if(Math.abs(b.x-px)<10&&Math.abs(b.y-py2)<PH/2+6&&b.vx*dir<0){b.vx=-b.vx*1.06;b.vy+=(b.y-py2)/8}
+    if(b.x<0||b.x>W){b.x<0?cs++:ps++;if(ps===7||cs===7)end();else{state='ready';serve(b.x<0?1:-1)}}}
+  g.fillStyle='#000';g.fillRect(0,0,W,H);g.fillStyle='#fff';for(let y=8;y<H;y+=24)g.fillRect(W/2-2,y,4,12);
+  g.fillRect(20,py-PH/2,8,PH);g.fillRect(W-28,cy-PH/2,8,PH);g.fillRect(b.x-6,b.y-6,12,12);g.font='56px Courier New';g.textAlign='center';g.fillText(ps,W/2-70,64);g.fillText(cs,W/2+70,64);
+  if(state==='over'){g.font='30px Courier New';g.fillText(ps>cs?'YOU WIN':'YOU LOSE',W/2,H/2+40);g.font='16px Courier New';g.fillText('click to play again',W/2,H/2+70)}
+  requestAnimationFrame(frame)}
+async function end(){state='over';hist.push(await api.add({you:ps,cpu:cs}));rec()}
+const rec=()=>$('#rec').textContent=`Matches won ${hist.filter(h=>h.you>h.cpu).length} / ${hist.length}`;
+cv.onmousemove=e=>{py=e.clientY-cv.getBoundingClientRect().top};addEventListener('keydown',e=>keys[e.key]=1);addEventListener('keyup',e=>keys[e.key]=0);
+cv.onclick=()=>{if(state==='over'){ps=cs=0;serve(1)}if(state!=='play')state='play'};
+serve(1);frame();api.list().then(d=>{hist=d;rec()});
+</script>

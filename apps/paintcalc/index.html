@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>Paint Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0ea5e9;--w:900px}</style>
+<div class="wrap"><h1>Paint Calculator</h1><p class="sub">Add your rooms and see how much paint to buy.</p>
+<div class="card"><div class="g4"><div><label>Units</label><select id="un" data-keep><option value="ft">Feet (gallons)</option><option value="m">Metres (litres)</option></select></div><div><label>Coats</label><input id="co" type="number" value="2" min="1" data-keep></div><div><label>Coverage per <span id="cu"></span></label><input id="cv" type="number" value="350" data-keep></div><div><label>Add 10% extra?</label><select id="ex" data-keep><option value="1.1">Yes</option><option value="1">No</option></select></div></div><label class="gap"><input type="checkbox" id="cl" data-keep> Paint ceilings too</label></div>
+<div class="card"><div style="overflow:auto"><table id="tb"></table></div><button class="s gap" id="add">+ Add room</button></div><div class="g4" id="kp"></div></div>
+<script>
+let rooms=[{n:'Living room',l:16,w:12,h:8,d:2,wi:3}],doc=null,t;
+function render(){$('#tb').innerHTML='<tr><th>Room</th><th>Length</th><th>Width</th><th>Height</th><th>Doors</th><th>Windows</th><th class="r">Wall area</th><th></th></tr>'+rooms.map((r,i)=>{const a=wall(r);return`<tr><td><input data-i="${i}" data-k="n" value="${esc(r.n)}"></td>${['l','w','h','d','wi'].map(k=>`<td><input type="number" step="any" style="width:80px" data-i="${i}" data-k="${k}" value="${r[k]}"></td>`).join('')}<td class="r a">${fmt(a,0)}</td><td><button class="x" data-rm="${i}">✕</button></td></tr>`}).join('');calc()}
+// Door ≈ 21 sq ft (2 m²), window ≈ 15 sq ft (1.4 m²) are subtracted from the wall area.
+const wall=r=>{const m=$('#un').value==='m',D=m?1.9:21,W=m?1.4:15;return Math.max(0,2*(r.l+r.w)*r.h-r.d*D-r.wi*W)};
+function calc(){const m=$('#un').value==='m';$('#cu').textContent=m?'litre (m²)':'gallon (sq ft)';const wallA=rooms.reduce((n,r)=>n+wall(r),0),ceil=$('#cl').checked?rooms.reduce((n,r)=>n+r.l*r.w,0):0,area=wallA+ceil,paint=area*num('co')/num('cv')*+$('#ex').value;
+  document.querySelectorAll('#tb tr').forEach((tr,i)=>{if(i)tr.querySelector('.a').textContent=fmt(wall(rooms[i-1]),0)});
+  $('#kp').innerHTML=[['Wall area',fmt(wallA,0)+(m?' m²':' sq ft')],['Ceiling area',fmt(ceil,0)],['Total to paint',fmt(area,0)],['Paint needed',fmt(paint,1)+(m?' L':' gal')]].map(([k,v],i)=>`<div class="kpi"><small>${k}</small><b ${i===3?'style="color:var(--a)"':''}>${v}</b></div>`).join('');clearTimeout(t);t=setTimeout(async()=>{if(doc)api.upd(doc.id,{rooms});else doc=await api.add({kind:'rooms',rooms})},600)}
+$('#tb').oninput=e=>{const i=e.target.dataset.i;if(i===undefined)return;const k=e.target.dataset.k;rooms[i][k]=k==='n'?e.target.value:parseFloat(e.target.value)||0;calc()};$('#tb').onclick=e=>{const r=e.target.dataset.rm;if(r!==undefined){rooms.splice(+r,1);render()}};$('#add').onclick=()=>{rooms.push({n:'Room '+(rooms.length+1),l:12,w:10,h:8,d:1,wi:1});render()};
+$('#un').onchange=()=>{$('#cv').value=$('#un').value==='m'?10:350;calc()};document.addEventListener('input',e=>{if(!e.target.dataset.i)calc()});
+api.list().then(d=>{doc=d.find(x=>x.kind==='rooms')||null;if(doc)rooms=doc.rooms;remember().then(render)});
+</script>

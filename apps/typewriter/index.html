@@ -1,0 +1,80 @@
+<!doctype html><meta charset="utf-8"><title>Typewriter</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 20%, #5a3f2c, #2b1d14 75%); font-family: 'Courier New', Courier, monospace; color: #2a2118; }
+  main { display: flex; gap: 40px; justify-content: center; padding: 44px 24px; }
+  .paper { position: relative; width: 720px; min-height: 82vh; background: #fbf6e9; box-shadow: 0 2px 0 #e7dfc8, 0 18px 50px #000a; padding: 40px 56px 28px 96px; }
+  .paper::before { content: ''; position: absolute; left: 72px; top: 0; bottom: 0; width: 2px; background: #e8a7a0; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; height: 32px; margin-bottom: 0; }
+  .head h1 { margin: 0; font-size: 16px; letter-spacing: .2em; text-transform: uppercase; }
+  .nav button { background: none; border: none; font: inherit; font-size: 20px; cursor: pointer; color: #8a7a62; padding: 0 6px; }
+  .nav button:hover { color: #b3261e; }
+  textarea { display: block; width: 100%; min-height: calc(82vh - 130px); border: none; outline: none; resize: none; background: repeating-linear-gradient(transparent 0, transparent 31px, #b8cde0 31px, #b8cde0 32px); font: 17px/32px 'Courier New', Courier, monospace; color: #1d1812; padding: 0; overflow: hidden; }
+  .foot { display: flex; justify-content: space-between; font-size: 12px; color: #9b8c72; letter-spacing: .1em; text-transform: uppercase; margin-top: 8px; }
+  aside { width: 190px; color: #d8c8a8; }
+  aside h2 { font-size: 12px; letter-spacing: .25em; text-transform: uppercase; margin: 0 0 14px; color: #a89572; }
+  .tab { display: block; width: 100%; text-align: left; background: #f1e8d0; border: none; border-left: 5px solid #b3261e; padding: 8px 10px; margin-bottom: 8px; font: 12px 'Courier New', monospace; color: #3a2f20; cursor: pointer; box-shadow: 0 2px 6px #0006; }
+  .tab.on { background: #fbf6e9; transform: translateX(8px); }
+  .tab span { display: block; color: #9b8c72; font-size: 11px; }
+  label.snd { display: block; margin-top: 22px; font-size: 12px; cursor: pointer; }
+</style>
+<main>
+  <div class="paper">
+    <div class="head"><h1 id="title"></h1><div class="nav"><button id="prev">‹</button><button id="today">today</button><button id="next">›</button></div></div>
+    <textarea id="text" spellcheck="false" placeholder="Start typing…"></textarea>
+    <div class="foot"><span id="words">0 words</span><span id="state"></span></div>
+  </div>
+  <aside><h2>Pages</h2><div id="tabs"></div><label class="snd"><input type="checkbox" id="snd"> key clicks</label></aside>
+</main>
+<script>
+const pad = n => String(n).padStart(2, '0');
+const key = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+let docs = [], cur = key(new Date()), saveTimer, creating = null;
+const docFor = k => docs.find(d => d.date === k);
+const words = s => (s.trim().match(/\S+/g) || []).length;
+
+// Load a day's page into the paper.
+function show(k) {
+  cur = k;
+  $('#title').textContent = fromKey(k).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  $('#text').value = docFor(k)?.text || ''; fit(); $('#words').textContent = words($('#text').value) + ' words'; $('#state').textContent = '';
+  renderTabs(); $('#text').focus();
+}
+const fit = () => { const t = $('#text'); t.style.height = 'auto'; t.style.height = Math.max(t.scrollHeight, innerHeight * .82 - 130) + 'px'; };
+function renderTabs() {
+  const ks = [...new Set([...docs.filter(d => d.text.trim()).map(d => d.date), cur])].sort().reverse().slice(0, 12);
+  $('#tabs').innerHTML = ks.map(k => `<button class="tab ${k === cur ? 'on' : ''}" data-k="${k}">${fromKey(k).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}<span>${words(docFor(k)?.text || '')} words</span></button>`).join('');
+}
+// Debounced autosave: create the day's document on first write, then patch it.
+async function save() {
+  const text = $('#text').value, d = docFor(cur);
+  if (d) { d.text = text; await api.upd(d.id, { text }); }
+  else if (text.trim()) {
+    creating ||= api.add({ date: cur, text }).then(n => { docs.push(n); creating = null; });
+    await creating;
+  }
+  $('#state').textContent = 'saved'; renderTabs();
+}
+$('#text').addEventListener('input', () => {
+  fit(); $('#words').textContent = words($('#text').value) + ' words'; $('#state').textContent = 'typing…';
+  clearTimeout(saveTimer); saveTimer = setTimeout(save, 600);
+});
+
+// Optional mechanical key click: a short filtered noise burst, with a bell on Enter.
+let ac;
+$('#text').addEventListener('keydown', e => {
+  if (!$('#snd').checked || e.metaKey || e.ctrlKey || e.key.length > 1 && e.key !== 'Enter' && e.key !== 'Backspace') return;
+  ac ||= new AudioContext();
+  const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+  o.type = e.key === 'Enter' ? 'triangle' : 'square'; o.frequency.value = e.key === 'Enter' ? 1900 : 140 + Math.random() * 60;
+  g.gain.setValueAtTime(e.key === 'Enter' ? .15 : .08, t); g.gain.exponentialRampToValueAtTime(.001, t + (e.key === 'Enter' ? .6 : .04));
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + .6);
+});
+const shift = n => { const d = fromKey(cur); d.setDate(d.getDate() + n); save().then(() => show(key(d))); };
+$('#prev').onclick = () => shift(-1); $('#next').onclick = () => shift(1);
+$('#today').onclick = () => save().then(() => show(key(new Date())));
+$('#tabs').onclick = e => { const b = e.target.closest('.tab'); if (b) save().then(() => show(b.dataset.k)); };
+api.list().then(d => { docs = d; show(cur); });
+</script>

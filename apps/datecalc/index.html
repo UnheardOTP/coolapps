@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Date Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#7c3aed;--w:780px}</style>
+<div class="wrap"><h1>Date Calculator</h1><p class="sub">The gap between two dates, a date plus or minus some time, and working days.</p>
+<div class="card"><h2>Between two dates</h2><div class="row"><div class="col"><label>From</label><input id="a" type="date" data-keep></div><div class="col"><label>To</label><input id="b" type="date" data-keep></div><label style="margin:0 0 9px"><input type="checkbox" id="inc" data-keep> include end date</label></div><div class="g4 gap" id="r1"></div></div>
+<div class="card"><h2>Add or subtract</h2><div class="row"><div class="col"><label>Start date</label><input id="s" type="date" data-keep></div><div class="col"><label>Years</label><input id="y" type="number" value="0" data-keep></div><div class="col"><label>Months</label><input id="m" type="number" value="0" data-keep></div><div class="col"><label>Days</label><input id="d" type="number" value="30" data-keep></div></div><div class="kpi gap"><small>Result (negative numbers subtract)</small><b id="r2"></b></div></div>
+<div class="card"><h2>Working days (Mon–Fri)</h2><div class="mut">Between the two dates above, optionally skipping holidays you list.</div><label class="gap">Holidays (one date per line, YYYY-MM-DD)</label><textarea id="h" style="min-height:70px" data-keep></textarea><div class="kpi gap"><small>Working days</small><b id="r3"></b></div></div></div>
+<script>
+const fmtD=d=>d.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+function run(){const t=dkey(new Date());for(const i of['a','b','s'])if(!$('#'+i).value)$('#'+i).value=t;
+  let A=pdate($('#a').value),B=pdate($('#b').value);const rev=A>B;if(rev)[A,B]=[B,A];const days=Math.round((B-A)/864e5)+($('#inc').checked?1:0),[y,m,d]=ymd(A,B);
+  $('#r1').innerHTML=[['Years / months / days',`${y}y ${m}m ${d}d`],['Total days',days.toLocaleString()],['Weeks',fmt(days/7,1)],['Hours',(days*24).toLocaleString()]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b style="font-size:17px">${v}</b></div>`).join('');
+  const S=pdate($('#s').value),R=new Date(S.getFullYear()+num('y'),S.getMonth()+num('m'),S.getDate()+num('d'));$('#r2').textContent=fmtD(R);
+  const hol=new Set($('#h').value.split(/\s+/).filter(Boolean));let wd=0;for(let x=new Date(A);x<=B;x.setDate(x.getDate()+1)){if(x.getDay()%6&&!hol.has(dkey(x)))wd++}$('#r3').textContent=wd.toLocaleString()+' days'}
+document.addEventListener('input',run);remember().then(run);
+</script>

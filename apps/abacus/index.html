@@ -1,0 +1,48 @@
+<!doctype html><meta charset="utf-8"><title>Abacus</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #e9dcc3; background-image: repeating-linear-gradient(90deg, #0000 0 38px, #0000000a 38px 40px); color: #3a2410; font-family: Georgia, serif; display: flex; flex-direction: column; align-items: center; padding-top: 34px; }
+  h1 { margin: 0; font-weight: 400; font-size: 36px; letter-spacing: .15em; text-transform: uppercase; } .sub { color: #8a6a43; font-style: italic; margin: 4px 0 18px; }
+  #lcd { font: 700 44px 'Courier New', monospace; background: #2d3a2a; color: #b4ff9a; padding: 6px 26px; border-radius: 6px; margin-bottom: 20px; min-width: 330px; text-align: right; letter-spacing: .1em; box-shadow: inset 0 0 14px #000a; }
+  .frame { position: relative; width: 720px; height: 330px; background: #7a4a22; border: 14px solid #5a3414; border-radius: 10px; box-shadow: 0 16px 40px #0006, inset 0 0 20px #000a; }
+  .divider { position: absolute; left: 0; right: 0; top: 108px; height: 14px; background: linear-gradient(#5a3414, #7a4a22, #5a3414); z-index: 2; }
+  .rod { position: absolute; top: 0; bottom: 0; width: 6px; margin-left: -3px; background: linear-gradient(90deg, #c9b27a, #8a7440); }
+  .bead { position: absolute; left: -22px; width: 50px; height: 30px; margin-left: 0; border-radius: 50% / 48%; background: radial-gradient(ellipse at 35% 30%, #ffd9a0, #c4691f 60%, #7c3a0a); cursor: pointer; transition: top .22s cubic-bezier(.3, 1.4, .5, 1); z-index: 1; box-shadow: 0 2px 4px #0008; }
+  .bead.on { background: radial-gradient(ellipse at 35% 30%, #fff1c9, #e8a13a 60%, #a8650f); }
+  .ctl { margin: 22px 0; display: flex; gap: 10px; } input, button { font: inherit; padding: 9px 14px; border: 1px solid #8a6a43; background: #f5ecd7; color: inherit; border-radius: 4px; } button { cursor: pointer; background: #5a3414; color: #f5ecd7; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; max-width: 720px; } .chip { padding: 6px 8px 6px 12px; border: 1px solid #8a6a43; border-radius: 16px; cursor: pointer; } .chip i { font-style: normal; margin-left: 8px; color: #a88; }
+</style>
+<h1>Abacus</h1><p class="sub">Slide beads toward the bar to count. Top bead = 5, each lower bead = 1.</p>
+<div id="lcd">0</div><div class="frame" id="frame"></div>
+<div class="ctl"><input id="label" placeholder="Label this number"><button id="save">Save</button><button id="clear" style="background:#8a6a43">Clear</button></div><div class="chips" id="chips"></div>
+<script>
+const RODS = 9, GAP = 72, HEAVEN_TOP = 14;
+let rods = Array.from({ length: RODS }, () => ({ h: 0, e: 0 })), saved = [];
+const value = () => rods.reduce((n, r) => n * 10 + r.h * 5 + r.e, 0);
+// Beads are absolutely positioned; moving toward the divider (y≈115) means "counted". CSS transitions animate the slide.
+function render() {
+  $('#frame').innerHTML = '<div class="divider"></div>' + rods.map((r, i) => {
+    const x = 58 + i * GAP;
+    const heaven = `<div class="bead ${r.h ? 'on' : ''}" data-r="${i}" data-h style="top:${r.h ? 74 : HEAVEN_TOP}px"></div>`;
+    const earth = Array.from({ length: 4 }, (_, k) => { const on = k < r.e; return `<div class="bead ${on ? 'on' : ''}" data-r="${i}" data-e="${k}" style="top:${on ? 128 + k * 32 : 128 + 28 + k * 32 + 12}px"></div>`; }).join('');
+    return `<div class="rod" style="left:${x}px">${heaven}${earth}</div>`;
+  }).join('');
+  $('#lcd').textContent = value().toLocaleString();
+  $('#chips').innerHTML = saved.map(s => `<div class="chip" data-id="${s.id}">${esc(s.label)}: <b>${s.value.toLocaleString()}</b><i data-del>×</i></div>`).join('');
+}
+// Earth bead k: if it's already counted, release it and those below; otherwise count it and those above.
+$('#frame').onclick = e => {
+  const b = e.target.closest('.bead'); if (!b) return; const r = rods[+b.dataset.r];
+  if ('h' in b.dataset) r.h ^= 1; else { const k = +b.dataset.e; r.e = k < r.e ? k : k + 1; }
+  render();
+};
+$('#clear').onclick = () => { rods.forEach(r => { r.h = 0; r.e = 0; }); render(); };
+$('#save').onclick = async () => { saved.unshift(await api.add({ label: $('#label').value || 'Count', value: value(), rods })); $('#label').value = ''; render(); };
+$('#chips').onclick = async e => {
+  const c = e.target.closest('.chip'); if (!c) return; const s = saved.find(x => x.id === c.dataset.id);
+  if (e.target.hasAttribute('data-del')) { await api.del(s.id); saved = saved.filter(x => x !== s); } else rods = JSON.parse(JSON.stringify(s.rods));
+  render();
+};
+api.list().then(d => { saved = d; render(); });
+</script>

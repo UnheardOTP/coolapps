@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Compound Interest</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#059669;--w:960px}svg{width:100%;height:240px}</style>
+<div class="wrap"><h1>Compound Interest</h1><p class="sub">See how a starting balance plus regular contributions grows over time.</p>
+<div class="card"><div class="g4"><div><label>Starting balance ($)</label><input id="p" type="number" value="5000" data-keep></div><div><label>Monthly contribution ($)</label><input id="c" type="number" value="300" data-keep></div><div><label>Annual return (%)</label><input id="r" type="number" value="7" step="0.1" data-keep></div><div><label>Years</label><input id="y" type="number" value="25" min="1" max="80" data-keep></div></div>
+<div class="row gap"><div class="col"><label>Compounding</label><select id="f" data-keep><option value="12">Monthly</option><option value="365">Daily</option><option value="4">Quarterly</option><option value="1">Annually</option></select></div><div class="col"><label>Inflation adjust (% / yr, optional)</label><input id="i" type="number" value="0" step="0.1" data-keep></div></div></div>
+<div class="g4" id="kp"></div><div class="card gap"><h2>Growth</h2><svg id="sv" viewBox="0 0 800 240" preserveAspectRatio="none"></svg><div class="mut"><span style="color:var(--a)">■</span> balance &nbsp; <span style="color:#94a3b8">■</span> total contributed</div></div>
+<div class="card"><h2>Year by year</h2><div style="max-height:320px;overflow:auto"><table id="tb"></table></div></div></div>
+<script>
+// Month-by-month simulation: interest accrues at the chosen compounding frequency (converted to an effective monthly rate); contributions are added at month end.
+function run(){const P=num('p'),c=num('c'),r=num('r')/100,Y=Math.min(80,Math.max(1,num('y'))),f=+$('#f').value,infl=num('i')/100,em=(1+r/f)**(f/12)-1;let bal=P,contrib=P,rows=[];
+  for(let m=1;m<=Y*12;m++){bal=bal*(1+em)+c;contrib+=c;if(m%12===0)rows.push({y:m/12,bal,contrib,real:bal/(1+infl)**(m/12)})}
+  const L=rows.at(-1),int=L.bal-L.contrib;$('#kp').innerHTML=[['Final balance',money(L.bal)],['Total contributed',money(L.contrib)],['Interest earned',money(int)],['In today\'s money',infl?money(L.real):'—']].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('');
+  const mx=L.bal,pts=(k)=>rows.map((x,i)=>`${(i+1)/rows.length*800},${240-x[k]/mx*230}`).join(' ');$('#sv').innerHTML=`<polygon points="0,240 ${pts('bal')} 800,240" fill="var(--a)" opacity=".85"/><polygon points="0,240 ${pts('contrib')} 800,240" fill="#94a3b8"/>`;
+  $('#tb').innerHTML='<tr><th>Year</th><th class="r">Contributed</th><th class="r">Interest</th><th class="r">Balance</th></tr>'+rows.map(x=>`<tr><td>${x.y}</td><td class="r">${money(x.contrib)}</td><td class="r">${money(x.bal-x.contrib)}</td><td class="r">${money(x.bal)}</td></tr>`).join('')}
+document.addEventListener('input',run);remember().then(run);
+</script>

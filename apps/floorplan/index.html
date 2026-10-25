@@ -1,0 +1,56 @@
+<!doctype html><meta charset="utf-8"><title>Floor Plan</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #0c3b82; color: #dce9ff; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; }
+  header { width: 980px; display: flex; justify-content: space-between; align-items: baseline; padding: 22px 0 10px; } h1 { margin: 0; font-size: 26px; letter-spacing: .25em; text-transform: uppercase; font-weight: 400; } header span { color: #8fb4ee; font-size: 13px; }
+  svg { background-color: #0f4aa3; background-image: linear-gradient(#ffffff22 1px, transparent 1px), linear-gradient(90deg, #ffffff22 1px, transparent 1px); background-size: 36px 36px; border: 3px solid #dce9ff; cursor: crosshair; user-select: none; }
+  .room { fill: #ffffff18; stroke: #fff; stroke-width: 3; cursor: move; } .room.sel { fill: #ffd23f33; stroke: #ffd23f; } .name { fill: #fff; font-size: 14px; text-anchor: middle; pointer-events: none; letter-spacing: .1em; text-transform: uppercase; } .area { fill: #9fc3ff; font-size: 12px; text-anchor: middle; pointer-events: none; }
+  .h { fill: #ffd23f; cursor: nwse-resize; } #ask { position: absolute; width: 170px; background: #fff; color: #0c3b82; border: 2px solid #ffd23f; padding: 6px 10px; font: inherit; outline: none; } p.hint { color: #8fb4ee; font-size: 12px; margin: 10px; }
+</style>
+<header><h1>Floor Plan</h1><span id="tot"></span></header>
+<div style="position:relative"><svg id="svg" width="864" height="540"></svg><input id="ask" hidden></div>
+<p class="hint">Drag on the grid to draw a room · drag a room to move · yellow corner resizes · double-click to rename · Delete removes · 1 square = 0.5 m</p>
+<script>
+const U = 36, COLS = 24, ROWS = 15;
+let rooms = [], sel = null, mode = null, editing = null;
+const area = r => (r.w * r.h * .25).toFixed(1);
+function render() {
+  $('#svg').innerHTML = rooms.map(r => `<g data-id="${r.id}"><rect class="room ${sel === r.id ? 'sel' : ''}" x="${r.x * U}" y="${r.y * U}" width="${r.w * U}" height="${r.h * U}"/>
+    <text class="name" x="${(r.x + r.w / 2) * U}" y="${(r.y + r.h / 2) * U - 2}">${esc(r.name)}</text><text class="area" x="${(r.x + r.w / 2) * U}" y="${(r.y + r.h / 2) * U + 16}">${r.w * .5} × ${r.h * .5} m · ${area(r)} m²</text>
+    ${sel === r.id ? `<rect class="h" data-h x="${(r.x + r.w) * U - 9}" y="${(r.y + r.h) * U - 9}" width="12" height="12"/>` : ''}</g>`).join('');
+  $('#tot').textContent = `${rooms.length} rooms · ${rooms.reduce((n, r) => n + r.w * r.h * .25, 0).toFixed(1)} m² total`;
+}
+const cell = e => { const b = $('#svg').getBoundingClientRect(); return [Math.max(0, Math.min(COLS, Math.round((e.clientX - b.left) / U))), Math.max(0, Math.min(ROWS, Math.round((e.clientY - b.top) / U)))]; };
+$('#svg').onmousedown = e => {
+  const [cx, cy] = cell(e), g = e.target.closest('g[data-id]'), r = g && rooms.find(x => x.id === g.dataset.id);
+  if (r) { sel = r.id; mode = e.target.dataset.h !== undefined ? { t: 'resize', r } : { t: 'move', r, dx: cx - r.x, dy: cy - r.y }; return render(); }
+  sel = null; mode = { t: 'draw', x0: cx, y0: cy, r: { id: 'tmp', x: cx, y: cy, w: 0, h: 0, name: '' } }; rooms.push(mode.r); render();
+};
+addEventListener('mousemove', e => {
+  if (!mode) return; const [cx, cy] = cell(e), r = mode.r;
+  if (mode.t === 'draw') { r.x = Math.min(mode.x0, cx); r.y = Math.min(mode.y0, cy); r.w = Math.abs(cx - mode.x0); r.h = Math.abs(cy - mode.y0); }
+  else if (mode.t === 'move') { r.x = Math.max(0, Math.min(COLS - r.w, cx - mode.dx)); r.y = Math.max(0, Math.min(ROWS - r.h, cy - mode.dy)); }
+  else { r.w = Math.max(1, cx - r.x); r.h = Math.max(1, cy - r.y); }
+  render();
+});
+addEventListener('mouseup', async () => {
+  if (!mode) return; const m = mode; mode = null;
+  // A new room appears (and can be named) immediately; `ready` resolves once the server has given it a real id.
+  if (m.t === 'draw') { if (m.r.w < 1 || m.r.h < 1) { rooms = rooms.filter(r => r !== m.r); return render(); }
+    const room = m.r; room.id = 'tmp' + Math.random(); room.name = 'Room';
+    room.ready = api.add({ x: room.x, y: room.y, w: room.w, h: room.h, name: 'Room' }).then(n => { if (sel === room.id) sel = n.id; if (editing === room.id) editing = n.id; room.id = n.id; });
+    sel = room.id; render(); rename(room.id); }
+  else { const r = m.r; (r.ready || Promise.resolve()).then(() => api.upd(r.id, { x: r.x, y: r.y, w: r.w, h: r.h })); }
+});
+function rename(id) {
+  const r = rooms.find(x => x.id === id), i = $('#ask'); editing = id; const b = $('#svg').getBoundingClientRect();
+  Object.assign(i.style, { left: (r.x + r.w / 2) * U - 85 + 'px', top: (r.y + r.h / 2) * U - 18 + 'px' }); i.hidden = false; i.value = r.name; i.focus(); i.select();
+}
+$('#svg').ondblclick = e => { const g = e.target.closest('g[data-id]'); if (g) rename(g.dataset.id); };
+$('#ask').onkeydown = async e => {
+  if (e.key === 'Enter' || e.key === 'Escape') { const r = rooms.find(x => x.id === editing); if (e.key === 'Enter' && $('#ask').value.trim()) { r.name = $('#ask').value.trim(); (r.ready || Promise.resolve()).then(() => api.upd(r.id, { name: r.name })); } $('#ask').hidden = true; editing = null; render(); }
+};
+addEventListener('keydown', async e => { if (sel && $('#ask').hidden && ['Delete', 'Backspace'].includes(e.key)) { const r = rooms.find(x => x.id === sel); rooms = rooms.filter(x => x !== r); sel = null; render(); await (r.ready || Promise.resolve()); api.del(r.id); } });
+api.list().then(d => { rooms = d; render(); });
+</script>

@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Percentage Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#e11d48;--w:860px}.q{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:17px}.q input{width:110px;font-size:17px;text-align:center}.q b{color:var(--a);font-size:22px;margin-left:6px}</style>
+<div class="wrap"><h1>Percentage Calculator</h1><p class="sub">Six everyday percentage questions, answered as you type.</p>
+<div class="card"><h2>What is X% of Y?</h2><div class="q"><input id="a1" type="number" value="15" data-keep>% of <input id="b1" type="number" value="240" data-keep> = <b id="r1"></b></div></div>
+<div class="card"><h2>X is what percent of Y?</h2><div class="q"><input id="a2" type="number" value="45" data-keep> is <b id="r2"></b> of <input id="b2" type="number" value="180" data-keep></div></div>
+<div class="card"><h2>Percentage change from X to Y</h2><div class="q">from <input id="a3" type="number" value="80" data-keep> to <input id="b3" type="number" value="100" data-keep> = <b id="r3"></b></div></div>
+<div class="card"><h2>Increase or decrease X by Y%</h2><div class="q"><input id="a4" type="number" value="200" data-keep> + <input id="b4" type="number" value="12" data-keep>% = <b id="r4"></b> &nbsp; <span class="mut">or −: <b id="r4b" style="font-size:17px"></b></span></div></div>
+<div class="card"><h2>X is Y% of what number?</h2><div class="q"><input id="a5" type="number" value="30" data-keep> is <input id="b5" type="number" value="20" data-keep>% of <b id="r5"></b></div></div>
+<div class="card"><h2>Percentage-point difference vs. ratio</h2><div class="q">X% <input id="a6" type="number" value="35" data-keep> vs Y% <input id="b6" type="number" value="28" data-keep> → <b id="r6"></b></div></div></div>
+<script>
+const g=(i)=>num(i),p=n=>isFinite(n)?(+n.toFixed(4)).toLocaleString(undefined,{maximumFractionDigits:4}):'–';
+function run(){$('#r1').textContent=p(g('a1')/100*g('b1'));$('#r2').textContent=p(g('a2')/g('b2')*100)+'%';const c=(g('b3')-g('a3'))/Math.abs(g('a3'))*100;$('#r3').textContent=(c>0?'+':'')+p(c)+'%';
+  $('#r4').textContent=p(g('a4')*(1+g('b4')/100));$('#r4b').textContent=p(g('a4')*(1-g('b4')/100));$('#r5').textContent=p(g('a5')/(g('b5')/100));const d=g('a6')-g('b6');$('#r6').textContent=`${p(d)} percentage points (${p(g('a6')/g('b6')*100-100)}% relative)`}
+document.addEventListener('input',run);remember().then(run);
+</script>

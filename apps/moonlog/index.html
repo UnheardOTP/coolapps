@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8"><title>Moon Log</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 0%, #1b2a4e, #0a1020 75%); color: #dfe6f7; font-family: 'Cormorant Garamond', Georgia, serif; }
+  main { width: 880px; margin: 0 auto; padding: 36px 0 60px; }
+  .top { display: flex; justify-content: space-between; align-items: center; } h1 { margin: 0; font-weight: 300; font-size: 44px; letter-spacing: .1em; } .now { text-align: right; color: #9fb0d6; font-style: italic; }
+  .nav { display: flex; gap: 16px; align-items: center; margin: 18px 0; font-size: 22px; } .nav button { background: none; border: 1px solid #3a4a75; color: inherit; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 18px; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; } .dow { text-align: center; color: #6c7da8; font: 11px sans-serif; letter-spacing: .2em; text-transform: uppercase; }
+  .day { height: 100px; border: 1px solid #25335a; border-radius: 10px; padding: 8px; cursor: pointer; position: relative; background: #ffffff05; } .day:hover { border-color: #7f95d6; } .day.today { border-color: #ffd98a; }
+  .day b { font: 13px sans-serif; color: #8fa0c8; } .day svg { position: absolute; right: 8px; top: 8px; } .day p { margin: 38px 0 0; font-size: 13px; line-height: 1.2; color: #c9d4ee; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; } .day.has { background: #ffffff0d; }
+  #pop { position: fixed; inset: 0; background: #0009; display: none; align-items: center; justify-content: center; } #pop.on { display: flex; }
+  .sheet { background: #131c36; border: 1px solid #3a4a75; border-radius: 16px; padding: 26px; width: 420px; text-align: center; } .sheet h2 { margin: 10px 0 2px; font-weight: 400; font-size: 26px; } .sheet small { color: #8fa0c8; }
+  textarea { width: 100%; height: 100px; margin-top: 14px; background: #0a1020; border: 1px solid #3a4a75; color: inherit; border-radius: 8px; padding: 10px; font: 16px Georgia, serif; outline: none; } .sheet button { margin: 14px 6px 0; background: #dfe6f7; color: #0a1020; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; } .sheet button.g { background: none; color: #9fb0d6; border: 1px solid #3a4a75; }
+</style>
+<main>
+  <div class="top"><h1>Moon Log</h1><div class="now" id="now"></div></div>
+  <div class="nav"><button id="prev">‹</button><span id="month" style="min-width:200px;text-align:center"></span><button id="next">›</button></div>
+  <div class="cal" id="cal"></div>
+</main>
+<div id="pop"><div class="sheet"><div id="big"></div><h2 id="ph"></h2><small id="dt"></small><textarea id="note" placeholder="What did you notice under this moon?"></textarea><div><button class="g" id="x">Close</button><button id="ok">Save</button></div></div></div>
+<script>
+const SYN = 29.530588853, NAMES = ['New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous', 'Full Moon', 'Waning Gibbous', 'Last Quarter', 'Waning Crescent'];
+// Phase 0–1 (0 = new, .5 = full) from days since a known new moon (2000-01-06 18:14 UTC), evaluated at local noon.
+const phase = d => { const days = (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 12) - Date.UTC(2000, 0, 6, 18, 14)) / 864e5; return ((days / SYN) % 1 + 1) % 1; };
+const pname = p => NAMES[Math.round(p * 8) % 8];
+// Moon disc: dark circle, lit area built from the limb arc plus the terminator ellipse (mirrored when waning).
+function moon(p, r) {
+  const k = Math.cos(p * 2 * Math.PI), rx = Math.abs(k) * r, lit = `M0 ${-r} A${r} ${r} 0 0 1 0 ${r} A${rx} ${r} 0 0 ${k > 0 ? 0 : 1} 0 ${-r}Z`;
+  return `<svg width="${r * 2 + 4}" height="${r * 2 + 4}" viewBox="${-r - 2} ${-r - 2} ${r * 2 + 4} ${r * 2 + 4}"><circle r="${r}" fill="#1c2748" stroke="#3a4a75"/><path d="${lit}" fill="#f4eed2" transform="${p > .5 ? 'scale(-1 1)' : ''}"/></svg>`;
+}
+let view = new Date(), notes = [], editing = null;
+const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function render() {
+  const y = view.getFullYear(), m = view.getMonth(), first = new Date(y, m, 1).getDay(), n = new Date(y, m + 1, 0).getDate(), tk = key(new Date());
+  $('#month').textContent = view.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  $('#cal').innerHTML = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => `<div class="dow">${d}</div>`).join('') + '<div></div>'.repeat(first) +
+    Array.from({ length: n }, (_, i) => { const d = new Date(y, m, i + 1), k = key(d), note = notes.find(x => x.date === k); return `<div class="day ${k === tk ? 'today' : ''} ${note ? 'has' : ''}" data-k="${k}"><b>${i + 1}</b>${moon(phase(d), 15)}${note ? `<p>${esc(note.note)}</p>` : ''}</div>`; }).join('');
+  const p = phase(new Date()); $('#now').innerHTML = `Tonight: ${pname(p)}<br>${Math.round((1 - Math.cos(p * 2 * Math.PI)) / 2 * 100)}% illuminated`;
+}
+$('#cal').onclick = e => {
+  const d = e.target.closest('.day'); if (!d) return; editing = d.dataset.k; const [y, m, dd] = editing.split('-').map(Number), dt = new Date(y, m - 1, dd), p = phase(dt);
+  $('#big').innerHTML = moon(p, 44); $('#ph').textContent = pname(p); $('#dt').textContent = dt.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  $('#note').value = notes.find(x => x.date === editing)?.note || ''; $('#pop').classList.add('on'); $('#note').focus();
+};
+$('#x').onclick = () => $('#pop').classList.remove('on');
+$('#ok').onclick = async () => {
+  const cur = notes.find(x => x.date === editing), note = $('#note').value.trim();
+  if (cur && !note) { await api.del(cur.id); notes = notes.filter(x => x !== cur); } else if (cur) { cur.note = note; await api.upd(cur.id, { note }); } else if (note) notes.push(await api.add({ date: editing, note }));
+  $('#pop').classList.remove('on'); render();
+};
+$('#prev').onclick = () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); render(); }; $('#next').onclick = () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); render(); };
+api.list().then(d => { notes = d; render(); });
+</script>

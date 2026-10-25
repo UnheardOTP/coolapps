@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>UTM Link Builder</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#f97316;--w:900px}</style>
+<div class="wrap"><h1>UTM Link Builder</h1><p class="sub">Tag your campaign links so analytics can tell where visitors came from. Source, medium and campaign are the three that matter.</p>
+<div class="card"><label>Website URL *</label><input id="u" type="url" placeholder="https://example.com/landing" data-keep>
+<div class="g3 gap"><div><label>utm_source * <span class="mut">(newsletter, twitter)</span></label><input id="s" data-keep></div><div><label>utm_medium * <span class="mut">(email, social, cpc)</span></label><input id="m" data-keep></div><div><label>utm_campaign * <span class="mut">(spring_sale)</span></label><input id="c" data-keep></div></div>
+<div class="g2 gap"><div><label>utm_term <span class="mut">(paid keyword)</span></label><input id="t" data-keep></div><div><label>utm_content <span class="mut">(A/B variant)</span></label><input id="n" data-keep></div></div>
+<div class="row gap"><label style="margin:0"><input type="checkbox" id="lc" checked data-keep> lowercase values</label><label style="margin:0"><input type="checkbox" id="us" checked data-keep> spaces → underscores</label></div><div class="err" id="er"></div></div>
+<div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0">Your tagged link</h2><button class="x right" id="cp">Copy</button></div><div class="out" id="out"></div><table class="gap" id="tb"></table></div>
+<div class="card"><h2>Saved campaigns</h2><div id="sv"></div></div></div>
+<script>
+const F=['s','m','c','t','n'],K={s:'utm_source',m:'utm_medium',c:'utm_campaign',t:'utm_term',n:'utm_content'};
+const clean=v=>{v=v.trim();if($('#lc').checked)v=v.toLowerCase();if($('#us').checked)v=v.replace(/\s+/g,'_');return v};
+// Existing query parameters (including earlier utm_* ones) are kept; ours replace any of the same name.
+function build(){$('#er').textContent='';let raw=$('#u').value.trim();if(!raw){$('#out').textContent='';$('#tb').innerHTML='';return null}if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(raw))raw='https://'+raw;let u;try{u=new URL(raw)}catch{$('#er').textContent='That URL is not valid.';return null}
+  const miss=['s','m','c'].filter(k=>!$('#'+k).value.trim());if(miss.length)$('#er').textContent='Still needed: '+miss.map(k=>K[k]).join(', ');
+  for(const k of F){const v=clean($('#'+k).value);if(v)u.searchParams.set(K[k],v);else u.searchParams.delete(K[k])}return u.toString()}
+function run(){const l=build();$('#out').textContent=l||'';$('#tb').innerHTML=l?[...new URL(l).searchParams].map(([k,v])=>`<tr><td class="mono mut" style="width:160px">${esc(k)}</td><td class="mono">${esc(v)}</td></tr>`).join(''):''}
+$('#cp').onclick=e=>$('#out').textContent&&copy($('#out').textContent,e.target);document.addEventListener('input',run);document.addEventListener('change',run);
+savedBar($('#sv'),{get:()=>Object.fromEntries([...F,'u'].map(k=>[k,$('#'+k).value])),set:d=>{[...F,'u'].forEach(k=>$('#'+k).value=d[k]||'');run()}});remember().then(run);
+</script>

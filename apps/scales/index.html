@@ -1,0 +1,39 @@
+<!doctype html><meta charset="utf-8"><title>Scales</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #e8e4dc; color: #2b2a28; font-family: 'Helvetica Neue', Arial, sans-serif; }
+  main { width: 1000px; margin: 0 auto; padding: 30px 0; text-align: center; } h1 { margin: 0; font-size: 14px; letter-spacing: .5em; text-transform: uppercase; font-weight: 400; color: #8a7a4a; }
+  #q { display: block; width: 600px; margin: 10px auto; font: 700 32px Georgia, serif; text-align: center; border: none; border-bottom: 2px solid #b8a15a; background: none; outline: none; padding: 6px; color: #2b2a28; }
+  svg { display: block; margin: 0 auto; overflow: visible; } .beam, .pan { transition: transform 1s cubic-bezier(.4, 1.6, .5, 1); }
+  #verdict { font: italic 22px Georgia, serif; height: 34px; color: #5a4a1a; margin: 4px 0 18px; }
+  .cols { display: flex; gap: 40px; text-align: left; } .col { flex: 1; } .col h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: .3em; text-transform: uppercase; } .pro h2 { color: #2f7d4f; } .con h2 { color: #b3402a; }
+  form { display: flex; gap: 6px; margin-bottom: 10px; } input, select { font: inherit; padding: 8px 10px; border: 1px solid #c9bfa6; background: #faf7ef; outline: none; } input { flex: 1; } button { font: inherit; border: none; padding: 8px 14px; color: #fff; cursor: pointer; } .pro button { background: #2f7d4f; } .con button { background: #b3402a; }
+  .it { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #faf7ef; margin-bottom: 6px; border-left: 5px solid var(--c); } .it span { flex: 1; } .it b { color: var(--c); } .it i { font-style: normal; color: #aaa; cursor: pointer; }
+</style>
+<main><h1>The Scales of Decision</h1><input id="q" placeholder="What are you deciding?">
+  <svg width="700" height="400" viewBox="0 0 700 400"><path d="M350 110 L350 360 M290 360 L410 360" stroke="#8a6a1a" stroke-width="10" stroke-linecap="round"/><circle cx="350" cy="110" r="10" fill="#b8a15a"/>
+    <g class="beam" id="beam" style="transform-origin:350px 110px"><rect x="130" y="104" width="440" height="12" rx="6" fill="#b8a15a"/>
+      <g class="pan" id="pl" style="transform-origin:130px 110px"><path d="M130 116 L60 250 M130 116 L200 250" stroke="#8a6a1a" stroke-width="2"/><path d="M45 250 H215 Q200 290 130 292 Q60 290 45 250Z" fill="#c9b36b"/><g id="stackL"></g></g>
+      <g class="pan" id="pr" style="transform-origin:570px 110px"><path d="M570 116 L500 250 M570 116 L640 250" stroke="#8a6a1a" stroke-width="2"/><path d="M485 250 H655 Q640 290 570 292 Q500 290 485 250Z" fill="#c9b36b"/><g id="stackR"></g></g></g></svg>
+  <div id="verdict"></div>
+  <div class="cols"><div class="col pro"><h2>For</h2><form id="fp"><input placeholder="A reason in favour" required><select><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select><button>Add</button></form><div id="pro"></div></div>
+    <div class="col con"><h2>Against</h2><form id="fc"><input placeholder="A reason against" required><select><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select><button>Add</button></form><div id="con"></div></div></div></main>
+<script>
+let items = [], title = null;
+const side = k => items.filter(i => i.kind === k), sum = k => side(k).reduce((n, i) => n + i.w, 0);
+// Tip the beam toward the heavier side; pans counter-rotate so they hang level.
+function render() {
+  const p = sum('pro'), c = sum('con'), ang = Math.max(-18, Math.min(18, (c - p) * 2.4));
+  $('#beam').style.transform = `rotate(${ang}deg)`; $('#pl').style.transform = $('#pr').style.transform = `rotate(${-ang}deg)`;
+  const stack = (k, cx, col) => { let y = 246; return side(k).map(i => { const w = 14 + i.w * 8, h = 10 + i.w * 3; y -= h + 2; return `<rect x="${cx - w / 2}" y="${y}" width="${w}" height="${h}" rx="3" fill="${col}" opacity=".9"/>`; }).join(''); };
+  $('#stackL').innerHTML = stack('pro', 130, '#2f7d4f'); $('#stackR').innerHTML = stack('con', 570, '#b3402a');
+  $('#verdict').textContent = !p && !c ? 'Add reasons to either side.' : p === c ? 'Perfectly balanced.' : p > c ? `Leaning FOR by ${p - c}` : `Leaning AGAINST by ${c - p}`;
+  const row = k => side(k).map(i => `<div class="it" data-id="${i.id}" style="--c:${k === 'pro' ? '#2f7d4f' : '#b3402a'}"><span>${esc(i.text)}</span><b>${'●'.repeat(i.w)}</b><i>✕</i></div>`).join('');
+  $('#pro').innerHTML = row('pro'); $('#con').innerHTML = row('con');
+}
+for (const [f, k] of [['#fp', 'pro'], ['#fc', 'con']]) $(f).onsubmit = async e => { e.preventDefault(); const [t, s] = [$(f + ' input'), $(f + ' select')]; items.push(await api.add({ kind: k, text: t.value, w: +s.value })); t.value = ''; render(); };
+document.querySelector('.cols').onclick = async e => { if (e.target.tagName !== 'I') return; const id = e.target.closest('.it').dataset.id; await api.del(id); items = items.filter(i => i.id !== id); render(); };
+$('#q').onchange = async () => { if (title) { title.text = $('#q').value; await api.upd(title.id, { text: title.text }); } else { title = await api.add({ kind: 'title', text: $('#q').value }); items.push(title); } };
+api.list().then(d => { items = d; title = d.find(i => i.kind === 'title'); $('#q').value = title?.text || ''; render(); });
+</script>

@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Meeting Planner</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#2563eb;--w:1000px}.tl{display:flex;height:34px;border-radius:7px;overflow:hidden;position:relative}.tl div{flex:1;border-right:1px solid #0001;font-size:10px;text-align:center;line-height:34px}.work{background:#bbf7d0;color:#14532d}.edge{background:#fef08a;color:#713f12}.night{background:#cbd5e1;color:#334155}.mk{position:absolute;top:-4px;bottom:-4px;width:3px;background:var(--a);pointer-events:none;border-radius:2px}.cr{display:grid;grid-template-columns:200px 1fr 130px;gap:14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.cr b{display:block}</style>
+<div class="wrap"><h1>Meeting Planner</h1><p class="sub">Find a time that works across time zones. Green = working hours (9–17), yellow = early/late, grey = night.</p>
+<div class="card"><div class="row"><div class="col"><label>Date</label><input id="d" type="date"></div><div class="col"><label>Time in your zone</label><input id="t" type="time" value="14:00"></div><div class="col"><label>Add a city</label><select id="c"></select></div><button id="add">Add</button></div><div class="chips gap" id="sv"></div></div>
+<div class="card" id="rows"></div></div>
+<script>
+const Z={'Los Angeles':'America/Los_Angeles','Denver':'America/Denver','Chicago':'America/Chicago','New York':'America/New_York','São Paulo':'America/Sao_Paulo','London':'Europe/London','Paris':'Europe/Paris','Berlin':'Europe/Berlin','Cairo':'Africa/Cairo','Dubai':'Asia/Dubai','Mumbai':'Asia/Kolkata','Singapore':'Asia/Singapore','Shanghai':'Asia/Shanghai','Tokyo':'Asia/Tokyo','Sydney':'Australia/Sydney','Auckland':'Pacific/Auckland'};
+const ME=Intl.DateTimeFormat().resolvedOptions().timeZone;let cities=[],doc=null;
+$('#c').innerHTML=Object.keys(Z).map(c=>`<option>${c}</option>`).join('');$('#d').value=dkey(new Date());
+const hourIn=(ms,tz)=>+new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'numeric',hour12:false}).format(ms)%24;
+const cls=h=>h>=9&&h<17?'work':(h>=7&&h<9)||(h>=17&&h<21)?'edge':'night';
+function run(){const[h,m]=$('#t').value.split(':').map(Number),base=pdate($('#d').value);base.setHours(h,m,0,0);const ms=+base,list=[{n:'You',tz:ME},...cities.map(c=>({n:c,tz:Z[c]}))];let allWork=true;
+  $('#rows').innerHTML=list.map((c,i)=>{const t=new Date(ms),hr=hourIn(ms,c.tz),cell=Array.from({length:24},(_,k)=>{const H=(hr-Math.floor(new Date(ms).getMinutes()*0)+k-Math.floor(hr))%24,hh=k;return`<div class="${cls(hh)}">${hh}</div>`}).join('');if(cls(hr)!=='work')allWork=false;
+    const st=new Intl.DateTimeFormat([],{timeZone:c.tz,weekday:'short',hour:'numeric',minute:'2-digit',month:'short',day:'numeric'}).format(t);const mm=+new Intl.DateTimeFormat('en-GB',{timeZone:c.tz,minute:'numeric'}).format(ms);
+    return`<div class="cr"><div><b>${esc(c.n)}</b><span class="mut">${c.tz.split('/').pop().replace('_',' ')}</span></div><div class="tl">${cell}<span class="mk" style="left:${(hr+mm/60)/24*100}%"></span></div><div style="text-align:right"><b>${st}</b>${i?`<button class="x" data-rm="${esc(c.n)}">remove</button>`:''}</div></div>`}).join('')+`<div class="gap ${allWork?'ok':'mut'}"><b>${allWork?'✓ Everyone is within working hours.':'Not everyone is in working hours at this time — drag the time to find a better slot.'}</b></div>`;
+  $('#sv').innerHTML=''}
+async function persist(){const d={kind:'cities',cities};if(doc)api.upd(doc.id,d);else doc=await api.add(d)}
+$('#add').onclick=()=>{const c=$('#c').value;if(!cities.includes(c)){cities.push(c);persist();run()}};$('#rows').onclick=e=>{const r=e.target.dataset.rm;if(r){cities=cities.filter(x=>x!==r);persist();run()}};document.addEventListener('input',run);
+api.list().then(d=>{doc=d.find(x=>x.kind==='cities')||null;cities=doc?doc.cities:['New York','London','Tokyo'];run()});
+</script>

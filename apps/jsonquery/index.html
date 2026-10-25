@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>JSON Query</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#d97706;--w:1050px}</style>
+<div class="wrap"><h1>JSON Query</h1><p class="sub">Pull values out of JSON with a JSONPath-style query: <code>$.users[*].name</code>, <code>$..price</code>, <code>$.items[?(@.qty&gt;2)].sku</code>.</p>
+<div class="card"><label>Query</label><input id="q" class="mono" style="font-size:18px" value="$.store.book[*].title" data-keep><div class="chips" id="ex"></div><div class="err" id="er"></div></div>
+<div class="g2"><div class="card"><label>JSON</label><textarea id="in" style="min-height:340px" data-keep></textarea></div><div class="card"><div class="row" style="margin-bottom:6px"><label style="margin:0" id="rc">Result</label><button class="x right" id="cp">Copy</button></div><textarea id="out" style="min-height:340px" readonly></textarea></div></div></div>
+<script>
+const SAMPLE={store:{book:[{title:'Sayings',price:8.95,category:'reference'},{title:'Sword of Honour',price:12.99,category:'fiction'},{title:'Moby Dick',price:8.99,category:'fiction'}],bicycle:{color:'red',price:19.95}}};
+// Tokenise the path into steps: key, [index], [*], ..key (recursive descent), [?(@.k op v)] filters.
+function steps(q){q=q.trim();if(q[0]!=='$')throw Error('Query must start with $');const out=[];let i=1;while(i<q.length){if(q.startsWith('..',i)){i+=2;const m=/^[\w-]+|^\*/.exec(q.slice(i));if(!m)throw Error('Expected a name after ..');out.push({t:'rec',k:m[0]});i+=m[0].length}
+  else if(q[i]==='.'){i++;const m=/^[\w$-]+|^\*/.exec(q.slice(i));if(!m)throw Error('Expected a name after .');out.push(m[0]==='*'?{t:'all'}:{t:'key',k:m[0]});i+=m[0].length}
+  else if(q[i]==='['){const e=q.indexOf(']',i);if(e<0)throw Error('Missing ]');let inner=q.slice(i+1,e);if(inner.startsWith('?(')){const end=q.indexOf(')]',i);inner=q.slice(i+1,end+1);i=end+2;const m=/^\?\(@\.([\w-]+)\s*(==|!=|>=|<=|>|<)\s*(.+)\)$/.exec(inner);if(!m)throw Error('Filter must look like [?(@.key > 5)]');out.push({t:'flt',k:m[1],op:m[2],v:(()=>{const s=m[3].trim();try{return JSON.parse(s.replace(/'/g,'"'))}catch{return s}})()});continue}
+    i=e+1;if(inner==='*')out.push({t:'all'});else if(/^-?\d+$/.test(inner))out.push({t:'idx',k:+inner});else if(/^(['"]).*\1$/.test(inner))out.push({t:'key',k:inner.slice(1,-1)});else throw Error('Unsupported bracket: ['+inner+']')}
+  else throw Error('Unexpected "'+q[i]+'" at position '+i)}return out}
+const cmp={'==':(a,b)=>a==b,'!=':(a,b)=>a!=b,'>':(a,b)=>a>b,'<':(a,b)=>a<b,'>=':(a,b)=>a>=b,'<=':(a,b)=>a<=b};
+const kids=v=>v&&typeof v==='object'?Object.values(v):[];
+function query(data,q){let cur=[data];for(const s of steps(q)){const nx=[];for(const v of cur){if(s.t==='key'){if(v&&typeof v==='object'&&s.k in v)nx.push(v[s.k])}else if(s.t==='idx'){if(Array.isArray(v)){const x=v[s.k<0?v.length+s.k:s.k];if(x!==undefined)nx.push(x)}}else if(s.t==='all')nx.push(...kids(v));
+    else if(s.t==='flt')nx.push(...(Array.isArray(v)?v:kids(v)).filter(x=>x&&typeof x==='object'&&s.k in x&&cmp[s.op](x[s.k],s.v)));else if(s.t==='rec'){const walk=x=>{if(x&&typeof x==='object'){if(s.k==='*')nx.push(...kids(x));else if(!Array.isArray(x)&&s.k in x)nx.push(x[s.k]);kids(x).forEach(walk)}};walk(v)}}cur=nx}return cur}
+function run(){$('#er').textContent='';let d;try{d=JSON.parse($('#in').value)}catch(e){$('#out').value='';$('#rc').textContent='Result';return $('#er').textContent='Input is not valid JSON: '+e.message}
+  try{const r=query(d,$('#q').value);$('#out').value=JSON.stringify(r.length===1&&!/[*?\[]|\.\./.test($('#q').value.replace(/\[-?\d+\]/g,''))?r[0]:r,null,2);$('#rc').textContent=`Result (${r.length} match${r.length===1?'':'es'})`}catch(e){$('#out').value='';$('#er').textContent=e.message}}
+$('#ex').innerHTML=['$.store.book[*].title','$..price','$.store.book[?(@.price<10)].title','$.store.book[-1]','$.store.bicycle.color','$..*'].map(x=>`<span class="chip" data-q="${esc(x)}">${esc(x)}</span>`).join('');$('#ex').onclick=e=>{const c=e.target.closest('.chip');if(c){$('#q').value=c.dataset.q;run();$('#q').dispatchEvent(new Event('input',{bubbles:true}))}};
+$('#cp').onclick=e=>copy($('#out').value,e.target);document.addEventListener('input',run);remember().then(()=>{if(!$('#in').value)$('#in').value=JSON.stringify(SAMPLE,null,2);run()});
+</script>

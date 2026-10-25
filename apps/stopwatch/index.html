@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Stopwatch</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#16a34a;--w:700px}#t{font:200 80px ui-monospace,Menlo,Consolas,monospace;text-align:center;font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:10px 0}.bt{display:flex;gap:12px;justify-content:center}.bt button{font-size:18px;padding:12px 34px;border-radius:30px}.best{color:var(--ok)}.worst{color:var(--bad)}</style>
+<div class="wrap"><h1>Stopwatch</h1><p class="sub">Start, lap, and save sessions. Space = start/stop, L = lap.</p>
+<div class="card"><div id="t">00:00.00</div><div class="bt"><button id="go">Start</button><button class="s" id="lp" disabled>Lap</button><button class="s" id="rs">Reset</button></div></div>
+<div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0">Laps</h2><div class="right"><input id="nm" placeholder="Session name" style="width:180px;display:inline-block"> <button class="s" id="sv">Save session</button></div></div><table id="laps"></table></div>
+<div class="card"><h2>Saved sessions</h2><div id="ses"></div></div></div>
+<script>
+let run=false,t0=0,acc=0,laps=[],raf=0,ses=[];
+const f=ms=>{const m=Math.floor(ms/60000),s=Math.floor(ms%60000/1000),c=Math.floor(ms%1000/10);return`${m>=60?Math.floor(m/60)+':'+pad2(m%60):pad2(m)}:${pad2(s)}.${pad2(c)}`};
+const now=()=>acc+(run?performance.now()-t0:0);
+function tick(){$('#t').textContent=f(now());if(run)raf=requestAnimationFrame(tick)}
+function paint(){const sp=laps.map((l,i)=>l-(laps[i-1]||0)),mn=Math.min(...sp),mx=Math.max(...sp);$('#laps').innerHTML=laps.length?'<tr><th>Lap</th><th class="r">Split</th><th class="r">Total</th></tr>'+[...laps].map((l,i)=>`<tr><td>${i+1}</td><td class="r ${laps.length>2?sp[i]===mn?'best':sp[i]===mx?'worst':'':''}">${f(sp[i])}</td><td class="r mut">${f(l)}</td></tr>`).reverse().join(''):'<tr><td class="mut">No laps yet.</td></tr>';
+  $('#ses').innerHTML=ses.map(s=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)" data-id="${s.id}"><div class="col"><b>${esc(s.name)}</b> <span class="mut">${new Date(s.createdAt).toLocaleDateString()} · ${s.laps.length} laps</span></div><b>${f(s.total)}</b><button class="x" data-rm>✕</button></div>`).join('')||'<span class="mut">None saved.</span>'}
+function toggle(){if(run){acc+=performance.now()-t0;run=false;$('#go').textContent='Resume';$('#lp').disabled=true}else{t0=performance.now();run=true;$('#go').textContent='Stop';$('#lp').disabled=false;tick()}}
+const lap=()=>{if(run){laps.push(now());paint()}};
+$('#go').onclick=toggle;$('#lp').onclick=lap;$('#rs').onclick=()=>{run=false;acc=0;laps=[];$('#go').textContent='Start';$('#lp').disabled=true;cancelAnimationFrame(raf);$('#t').textContent='00:00.00';paint()};
+$('#sv').onclick=async()=>{if(now()<=0)return;ses.unshift(await api.add({kind:'ses',name:$('#nm').value||'Session',total:now(),laps}));$('#nm').value='';paint()};
+$('#ses').onclick=async e=>{if(!e.target.hasAttribute('data-rm'))return;const id=e.target.closest('[data-id]').dataset.id;await api.del(id);ses=ses.filter(x=>x.id!==id);paint()};
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.code==='Space'){e.preventDefault();toggle()}if(e.key==='l'||e.key==='L')lap()});api.list().then(d=>{ses=only(d,'ses');paint()});paint();
+</script>

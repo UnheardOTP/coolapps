@@ -1,0 +1,96 @@
+<!doctype html><meta charset="utf-8"><title>Mind Map</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; flex-direction: column; background: #eef2f7; font-family: 'Inter', system-ui, sans-serif; color: #1e2a3a; }
+  header { padding: 16px 28px; display: flex; gap: 24px; align-items: baseline; background: #fff; border-bottom: 1px solid #d9e0ea; }
+  h1 { margin: 0; font-size: 20px; letter-spacing: -.01em; } header span { color: #7b8aa0; font-size: 13px; }
+  kbd { background: #eef2f7; border: 1px solid #d9e0ea; border-radius: 4px; padding: 1px 6px; font: 11px monospace; }
+  #wrap { flex: 1; overflow: auto; background-image: radial-gradient(#cfd7e3 1px, transparent 1px); background-size: 22px 22px; position: relative; }
+  svg { display: block; }
+  .edge { fill: none; stroke-width: 2.5; opacity: .55; }
+  .node rect { rx: 18; stroke-width: 2; cursor: pointer; } .node text { font-size: 14px; font-weight: 600; pointer-events: none; dominant-baseline: central; }
+  .node.sel rect { stroke: #1e2a3a; stroke-width: 3; }
+  #edit { position: absolute; z-index: 5; font: 600 14px 'Inter', system-ui, sans-serif; padding: 0 14px; border: 2px solid #1e2a3a; border-radius: 18px; outline: none; height: 36px; background: #fff; }
+</style>
+<header><h1>Mind Map</h1><span><kbd>Tab</kbd> child · <kbd>Enter</kbd> sibling · <kbd>F2</kbd> or double-click to rename · <kbd>Delete</kbd> removes branch · arrow keys move</span></header>
+<div id="wrap"><svg id="svg"></svg><input id="edit" hidden></div>
+<script>
+const COL = ['#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#a78bfa', '#fb923c'];
+let nodes = [], sel = null, editing = null, pos = {};
+const kids = id => nodes.filter(n => n.parent === id).sort((a, b) => a.createdAt - b.createdAt);
+const wOf = n => Math.max(90, Math.min(240, 36 + n.text.length * 8.4));
+
+// Tidy left-to-right tree: depth sets x, leaves stack down in order, parents center on their children.
+function layout() {
+  pos = {}; const root = nodes.find(n => n.parent == null); if (!root) return;
+  let row = 0;
+  (function walk(n, depth, branch) {
+    const ks = kids(n.id), ys = ks.map((k, i) => walk(k, depth + 1, depth === 0 ? i : branch));
+    const y = ks.length ? (ys[0] + ys[ys.length - 1]) / 2 : 50 + row++ * 56;
+    pos[n.id] = { x: 40 + depth * 270, y, w: wOf(n), branch, depth }; return y;
+  })(root, 0, -1);
+}
+function render() {
+  layout(); const root = nodes.find(n => n.parent == null); if (!root) return;
+  const W = Math.max(innerWidth, ...Object.values(pos).map(p => p.x + p.w + 80)), H = Math.max(innerHeight, ...Object.values(pos).map(p => p.y + 80));
+  $('#svg').setAttribute('width', W); $('#svg').setAttribute('height', H);
+  const color = p => p.branch < 0 ? '#1e2a3a' : COL[p.branch % COL.length];
+  $('#svg').innerHTML = nodes.filter(n => n.parent && pos[n.parent]).map(n => {
+    const a = pos[n.parent], b = pos[n.id], x1 = a.x + a.w, x2 = b.x, mx = (x1 + x2) / 2;
+    return `<path class="edge" stroke="${color(b)}" d="M${x1},${a.y} C${mx},${a.y} ${mx},${b.y} ${x2},${b.y}"/>`;
+  }).join('') + nodes.map(n => {
+    const p = pos[n.id], c = color(p), dark = p.branch < 0;
+    return `<g class="node ${sel === n.id ? 'sel' : ''}" data-id="${n.id}"><rect x="${p.x}" y="${p.y - 18}" width="${p.w}" height="36" fill="${dark ? c : c + '33'}" stroke="${c}"/>
+      <text x="${p.x + p.w / 2}" y="${p.y}" text-anchor="middle" fill="${dark ? '#fff' : '#1e2a3a'}">${esc(n.text.length > 26 ? n.text.slice(0, 25) + '…' : n.text)}</text></g>`;
+  }).join('');
+}
+function edit(id) {
+  const n = nodes.find(x => x.id === id), p = pos[id], i = $('#edit'); editing = id;
+  Object.assign(i.style, { left: p.x + 'px', top: p.y - 18 + 'px', width: Math.max(p.w, 160) + 'px' }); i.hidden = false; i.value = n.text; i.focus(); i.select();
+}
+async function commit(keep = true) {
+  if (!editing) return; const n = nodes.find(x => x.id === editing), v = $('#edit').value.trim();
+  editing = null; $('#edit').hidden = true;
+  if (keep && v && v !== n.text) { n.text = v; render(); await api.upd(await real(n.id), { text: v }); }
+  render();
+}
+// New nodes appear instantly under a temporary id; `pending` maps it to the in-flight save so later edits wait for the real id.
+const pending = {};
+const real = async id => pending[id] ? (await pending[id]).id : id;
+function add(parent) {
+  const tmp = { id: 'tmp' + Math.random(), text: 'New idea', parent, createdAt: Date.now() };
+  nodes.push(tmp); sel = tmp.id; render(); edit(tmp.id);
+  pending[tmp.id] = real(parent).then(p => api.add({ text: 'New idea', parent: p })).then(n => {
+    nodes.filter(x => x.parent === tmp.id).forEach(x => x.parent = n.id);
+    if (editing === tmp.id) editing = n.id; if (sel === tmp.id) sel = n.id; delete pending[tmp.id]; tmp.id = n.id; render(); return n;
+  });
+}
+async function remove(id) {
+  const gone = []; (function collect(i) { gone.push(i); kids(i).forEach(k => collect(k.id)); })(id);
+  const parent = nodes.find(n => n.id === id).parent; if (!parent) return;      // the root can't be deleted
+  await Promise.all(gone.map(async i => api.del(await real(i)))); nodes = nodes.filter(n => !gone.includes(n.id)); sel = parent; render();
+}
+$('#edit').onkeydown = e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') commit(false); e.stopPropagation(); };
+$('#edit').onblur = () => commit();
+$('#svg').onclick = e => { const g = e.target.closest('.node'); sel = g ? g.dataset.id : null; render(); };
+$('#svg').ondblclick = e => { const g = e.target.closest('.node'); if (g) edit(g.dataset.id); };
+addEventListener('keydown', e => {
+  if (editing || !sel) return; const n = nodes.find(x => x.id === sel), p = pos[sel];
+  if (e.key === 'Tab') { e.preventDefault(); add(sel); }
+  else if (e.key === 'Enter') { e.preventDefault(); add(n.parent || sel); }
+  else if (e.key === 'F2') edit(sel);
+  else if (e.key === 'Delete' || e.key === 'Backspace') remove(sel);
+  else if (e.key === 'ArrowRight' && kids(sel)[0]) { sel = kids(sel)[0].id; render(); }
+  else if (e.key === 'ArrowLeft' && n.parent) { sel = n.parent; render(); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const same = nodes.filter(x => pos[x.id].depth === p.depth).sort((a, b) => pos[a.id].y - pos[b.id].y), i = same.indexOf(n) + (e.key === 'ArrowDown' ? 1 : -1);
+    if (same[i]) { sel = same[i].id; render(); }
+  }
+});
+api.list().then(async d => {
+  nodes = d; if (!nodes.length) nodes.push(await api.add({ text: 'Central idea', parent: null }));
+  sel = nodes.find(n => n.parent == null).id; render();
+});
+</script>

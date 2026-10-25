@@ -1,0 +1,62 @@
+<!doctype html><meta charset="utf-8"><title>Keys</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 0%, #2c2420, #0f0b09 80%); color: #e8dccd; font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 34px; }
+  h1 { margin: 0; font-weight: 200; letter-spacing: .5em; font-size: 30px; text-transform: uppercase; } .sub { color: #8d7d6a; margin: 6px 0 22px; }
+  .bar { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; } button { font: inherit; background: #2a211c; color: #e8dccd; border: 1px solid #4a3d33; padding: 9px 18px; border-radius: 6px; cursor: pointer; } #rec.on { background: #b3261e; border-color: #b3261e; } .led { width: 12px; height: 12px; border-radius: 50%; background: #3a2d28; } .led.on { background: #ff3b30; box-shadow: 0 0 12px #ff3b30; animation: bl 1s infinite; } @keyframes bl { 50% { opacity: .4 } }
+  input { font: inherit; padding: 8px 10px; background: #1a1411; border: 1px solid #4a3d33; color: inherit; border-radius: 6px; outline: none; }
+  .piano { position: relative; height: 260px; padding: 16px 16px 0; background: #1a1411; border-radius: 10px 10px 0 0; border-top: 6px solid #6a4a2e; box-shadow: 0 20px 40px #000a; display: flex; }
+  .w { position: relative; width: 58px; height: 244px; background: linear-gradient(#fdf8ee, #e6dcc4); border: 1px solid #8a7e66; border-top: none; border-radius: 0 0 8px 8px; margin-right: -1px; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; font-size: 12px; color: #9a8c6e; transition: background .05s; } .w.dn { background: linear-gradient(#f5c67a, #e8a24a); transform: translateY(2px); }
+  .b { position: absolute; top: 16px; width: 36px; height: 150px; background: linear-gradient(#2a2a2a, #0c0c0c); border-radius: 0 0 6px 6px; z-index: 2; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; font-size: 11px; color: #777; box-shadow: 0 6px 8px #0008; } .b.dn { background: linear-gradient(#e8a24a, #b3711f); color: #fff; }
+  .takes { width: 840px; margin-top: 26px; } .take { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #3a2d28; } .take button { padding: 4px 12px; margin-left: 8px; } .mut { color: #8d7d6a; }
+</style>
+<h1>Keys</h1><p class="sub">Click the keys or play with your keyboard: <b>A S D F G H J K L ; '</b> (white) and <b>W E T Y U O P</b> (black)</p>
+<div class="bar"><span class="led" id="led"></span><button id="rec">● Record</button><input id="nm" placeholder="Name this take"><span class="mut" id="st"></span></div>
+<div class="piano" id="piano"></div>
+<div class="takes" id="takes"></div>
+<script>
+// Two octaves from C4. White keys carry a computer-keyboard hint; black keys sit between them.
+const WHITE = [0, 2, 4, 5, 7, 9, 11], NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const WKEYS = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'"], BKEYS = { 1: 'w', 3: 'e', 6: 't', 8: 'y', 10: 'u', 13: 'o', 15: 'p' };
+const keyOf = {}; let ac, voices = {}, rec = null, takes = [], playing = [];
+const hz = m => 440 * 2 ** ((m - 69) / 12);
+function build() {
+  const whites = [], blacks = []; let wi = 0;
+  for (let n = 0; n < 24; n++) {
+    const m = 60 + n, semi = n % 12;
+    if (WHITE.includes(semi)) { whites.push(`<div class="w" data-m="${m}">${wi < WKEYS.length ? WKEYS[wi].toUpperCase() : ''}</div>`); if (wi < WKEYS.length) keyOf[WKEYS[wi]] = m; wi++; }
+    else { blacks.push(`<div class="b" data-m="${m}" style="left:${16 + wi * 57 - 18}px">${BKEYS[n] ? BKEYS[n].toUpperCase() : ''}</div>`); if (BKEYS[n]) keyOf[BKEYS[n]] = m; }
+  }
+  $('#piano').innerHTML = whites.join('') + blacks.join('');
+}
+// Soft piano-ish tone: triangle + quiet octave sine through a decaying envelope; released on key up.
+function on(m, silent) {
+  ac ||= new AudioContext(); ac.resume(); if (voices[m]) return;
+  const t = ac.currentTime, g = ac.createGain(), o1 = ac.createOscillator(), o2 = ac.createOscillator(), o2g = ac.createGain();
+  o1.type = 'triangle'; o2.type = 'sine'; o1.frequency.value = hz(m); o2.frequency.value = hz(m) * 2; o2g.gain.value = .25;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.35, t + .01); g.gain.exponentialRampToValueAtTime(.12, t + .4);
+  o1.connect(g); o2.connect(o2g).connect(g); g.connect(ac.destination); o1.start(t); o2.start(t); voices[m] = { g, o1, o2 };
+  mark(m, true); if (rec && !silent) rec.ev.push({ t: performance.now() - rec.t0, m, d: 1 });
+}
+function off(m, silent) {
+  const v = voices[m]; if (!v) return; const t = ac.currentTime; v.g.gain.cancelScheduledValues(t); v.g.gain.setValueAtTime(v.g.gain.value, t); v.g.gain.exponentialRampToValueAtTime(.001, t + .25); v.o1.stop(t + .3); v.o2.stop(t + .3); delete voices[m];
+  mark(m, false); if (rec && !silent) rec.ev.push({ t: performance.now() - rec.t0, m, d: 0 });
+}
+const mark = (m, d) => document.querySelector(`[data-m="${m}"]`)?.classList.toggle('dn', d);
+$('#piano').onpointerdown = e => { const k = e.target.closest('[data-m]'); if (k) { k.setPointerCapture(e.pointerId); k.dataset.held = 1; on(+k.dataset.m); } };
+$('#piano').onpointerup = e => { const k = e.target.closest('[data-m]'); if (k) off(+k.dataset.m); };
+addEventListener('keydown', e => { if (e.repeat || e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey) return; const m = keyOf[e.key.toLowerCase()]; if (m) on(m); });
+addEventListener('keyup', e => { const m = keyOf[e.key.toLowerCase()]; if (m) off(m); });
+$('#rec').onclick = async () => {
+  if (!rec) { rec = { ev: [], t0: performance.now() }; $('#rec').classList.add('on'); $('#rec').textContent = '■ Stop'; $('#led').classList.add('on'); return; }
+  const ev = rec.ev; rec = null; $('#rec').classList.remove('on'); $('#rec').textContent = '● Record'; $('#led').classList.remove('on');
+  if (ev.length) { takes.unshift(await api.add({ name: $('#nm').value || 'Take', ev, ms: Math.round(ev[ev.length - 1].t) })); $('#nm').value = ''; list(); }
+};
+// Replay a take with timers, lighting keys and sounding notes.
+function play(tk) { stop(); tk.ev.forEach(x => playing.push(setTimeout(() => x.d ? on(x.m, true) : off(x.m, true), x.t))); playing.push(setTimeout(() => $('#st').textContent = '', tk.ms + 400)); $('#st').textContent = 'playing…'; }
+function stop() { playing.forEach(clearTimeout); playing = []; Object.keys(voices).forEach(m => off(+m, true)); $('#st').textContent = ''; }
+function list() { $('#takes').innerHTML = takes.map(t => `<div class="take" data-id="${t.id}"><span>${esc(t.name)} <span class="mut">${(t.ms / 1000).toFixed(1)}s · ${t.ev.filter(e => e.d).length} notes</span></span><span><button data-p>▶ Play</button><button data-s>■</button><button data-x>✕</button></span></div>`).join('') || '<p class="mut">Record a take to save it here.</p>'; }
+$('#takes').onclick = async e => { const r = e.target.closest('.take'); if (!r) return; const t = takes.find(x => x.id === r.dataset.id); if (e.target.hasAttribute('data-p')) play(t); if (e.target.hasAttribute('data-s')) stop(); if (e.target.hasAttribute('data-x')) { await api.del(t.id); takes = takes.filter(x => x !== t); list(); } };
+build(); api.list().then(d => { takes = d; list(); });
+</script>

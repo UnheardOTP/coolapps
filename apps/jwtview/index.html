@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>JWT Viewer</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#06b6d4;--w:980px}</style>
+<div class="wrap"><h1>JWT Viewer</h1><p class="sub">Decode a JSON Web Token's header and payload. Nothing is sent anywhere, and the signature is not verified.</p>
+<div class="card"><label>Token</label><textarea id="t" style="min-height:110px" placeholder="eyJhbGciOi…" data-keep></textarea><div class="err" id="er"></div><div id="exp"></div></div>
+<div class="g2"><div class="card"><h2>Header</h2><div class="out" id="h"></div></div><div class="card"><h2>Payload</h2><div class="out" id="p"></div></div></div>
+<div class="card" id="claims"></div></div>
+<script>
+const b64=s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return new TextDecoder().decode(Uint8Array.from(atob(s),c=>c.charCodeAt(0)))};
+const CL={iss:'Issuer',sub:'Subject',aud:'Audience',exp:'Expires',nbf:'Not before',iat:'Issued at',jti:'JWT ID'};
+let pay=null;
+function rel(s){const d=s-Date.now()/1000,a=Math.abs(d),u=a<90?[a,'second']:a<5400?[a/60,'minute']:a<129600?[a/3600,'hour']:[a/86400,'day'],v=Math.round(u[0]);return d>=0?`in ${v} ${u[1]}${v===1?'':'s'}`:`${v} ${u[1]}${v===1?'':'s'} ago`}
+function run(){$('#er').textContent='';pay=null;const parts=$('#t').value.trim().split('.');if(parts.length<2||!parts[0]){['#h','#p'].forEach(s=>$(s).textContent='');$('#claims').innerHTML='';$('#exp').innerHTML='';return $('#er').textContent=$('#t').value.trim()?'A JWT has three dot-separated parts.':''}
+  try{const h=JSON.parse(b64(parts[0])),p=JSON.parse(b64(parts[1]));pay=p;$('#h').textContent=JSON.stringify(h,null,2);$('#p').textContent=JSON.stringify(p,null,2);
+    const rows=Object.entries(CL).filter(([k])=>k in p).map(([k,n])=>{const v=p[k],t=['exp','nbf','iat'].includes(k)?`${new Date(v*1000).toLocaleString()} <span class="mut">(${rel(v)})</span>`:esc(JSON.stringify(v));return`<tr><td class="mut" style="width:130px">${n}</td><td class="mono">${k}</td><td>${t}</td></tr>`});
+    $('#claims').innerHTML=rows.length?`<h2>Standard claims</h2><table>${rows.join('')}</table><p class="mut">Algorithm: <b>${esc(h.alg||'?')}</b> · Signature part: ${parts[2]?parts[2].length+' chars':'none'}</p>`:'';
+    $('#exp').innerHTML=p.exp?(p.exp*1000<Date.now()?`<span class="bad">✗ Expired ${rel(p.exp)}</span>`:`<span class="ok">✓ Not expired — expires ${rel(p.exp)}</span>`):'<span class="mut">No expiry claim.</span>'}
+  catch(e){$('#er').textContent='Could not decode: '+e.message}}
+$('#t').oninput=run;remember().then(run);setInterval(()=>pay&&run(),30000);
+</script>

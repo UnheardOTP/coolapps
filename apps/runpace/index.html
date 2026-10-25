@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><title>Run Pace</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#2563eb;--w:880px}</style>
+<div class="wrap"><h1>Run Pace</h1><p class="sub">Fill in any two of distance, time and pace — the third is calculated. Then predict other race times.</p>
+<div class="card"><div class="g4"><div><label>Distance</label><input id="d" type="number" step="any" value="10" data-keep></div><div><label>Unit</label><select id="u" data-keep><option value="1">km</option><option value="1.609344">miles</option></select></div><div><label>Time (h:mm:ss or mm:ss)</label><input id="t" value="52:30" data-keep></div><div><label>Pace per unit (mm:ss)</label><input id="p" data-keep></div></div>
+<div class="row gap"><button id="cd">Solve distance</button><button class="s" id="ct">Solve time</button><button class="s" id="cp">Solve pace</button></div><div class="err" id="er"></div><div class="g4 gap" id="kp"></div></div>
+<div class="g2"><div class="card"><h2>Race predictions (Riegel)</h2><table id="pr"></table></div><div class="card"><h2>Splits</h2><div style="max-height:300px;overflow:auto"><table id="sp"></table></div></div></div></div>
+<script>
+const parseT=s=>{s=s.trim();if(!s)return NaN;const p=s.split(':').map(Number);if(p.some(isNaN))return NaN;return p.length===3?p[0]*3600+p[1]*60+p[2]:p.length===2?p[0]*60+p[1]:p[0]*60};
+const fmtT=s=>{if(!isFinite(s))return '–';s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${pad2(m)}:${pad2(x)}`:`${m}:${pad2(x)}`};
+const U=()=>+$('#u').value,uname=()=>U()===1?'km':'mi';
+function solve(w){$('#er').textContent='';const d=num('d'),t=parseT($('#t').value),p=parseT($('#p').value);
+  if(w==='p'){if(!(d>0&&t>0))return $('#er').textContent='Need distance and time.';$('#p').value=fmtT(t/d)}
+  if(w==='t'){if(!(d>0&&p>0))return $('#er').textContent='Need distance and pace.';$('#t').value=fmtT(d*p)}
+  if(w==='d'){if(!(t>0&&p>0))return $('#er').textContent='Need time and pace.';$('#d').value=+(t/p).toFixed(3)}show()}
+function show(){const d=num('d'),t=parseT($('#t').value);if(!(d>0&&t>0)){$('#kp').innerHTML='';$('#pr').innerHTML='';$('#sp').innerHTML='';return}const km=d*U(),pace=t/d,sp=t/km;
+  $('#kp').innerHTML=[['Pace',`${fmtT(pace)} /${uname()}`],['Other unit',`${fmtT(U()===1?t/(km/1.609344):t/km)} /${U()===1?'mi':'km'}`],['Speed',`${fmt(km/(t/3600),2)} km/h · ${fmt(km/1.609344/(t/3600),2)} mph`],['Total',fmtT(t)]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b style="font-size:17px">${v}</b></div>`).join('');
+  // Riegel: T2 = T1 · (D2/D1)^1.06
+  $('#pr').innerHTML=[['5K',5],['10K',10],['Half marathon',21.0975],['Marathon',42.195]].map(([n,k])=>`<tr><td>${n}</td><td class="r"><b>${fmtT(t*(k/km)**1.06)}</b></td><td class="r mut">${fmtT(t*(k/km)**1.06/k*(U()===1?1:1.609344))} /${uname()}</td></tr>`).join('');
+  const n=Math.floor(d);$('#sp').innerHTML=Array.from({length:Math.min(n,60)},(_,i)=>`<tr><td>${uname()} ${i+1}</td><td class="r">${fmtT(pace*(i+1))}</td></tr>`).join('')+(d>n?`<tr><td>finish (${fmt(d,2)})</td><td class="r"><b>${fmtT(t)}</b></td></tr>`:'')}
+$('#cd').onclick=()=>solve('d');$('#ct').onclick=()=>solve('t');$('#cp').onclick=()=>solve('p');$('#u').onchange=()=>{$('#p').value='';show()};document.addEventListener('input',show);remember().then(()=>{if(!$('#p').value)solve('p');else show()});
+</script>

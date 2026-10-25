@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>Debt Payoff Planner</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#dc2626;--w:980px}td input{padding:6px 8px;width:100%;min-width:80px}.win{outline:3px solid var(--ok)}</style>
+<div class="wrap"><h1>Debt Payoff Planner</h1><p class="sub">Compare the snowball method (smallest balance first) with the avalanche method (highest interest first).</p>
+<div class="card"><div style="overflow:auto"><table id="tb"></table></div><div class="row gap"><button class="s" id="add">+ Add debt</button><div class="col" style="max-width:240px"><label>Extra to pay each month ($)</label><input id="x" type="number" step="any" value="200" data-keep></div></div></div>
+<div class="g2" id="cmp"></div><div class="card gap"><h2>Payoff order (<span id="wn"></span>)</h2><div id="ord"></div></div></div>
+<script>
+let D=[{n:'Credit card',b:4200,r:22.9,m:95},{n:'Car loan',b:9800,r:6.5,m:260},{n:'Student loan',b:15500,r:4.9,m:180}];
+// Month by month: charge interest, pay every minimum, then throw all leftover cash (extra + freed-up minimums) at the target debt.
+function sim(order,extra){const d=D.map(x=>({...x,bal:x.b,done:false})),paid=[];let mo=0,int=0;const total=D.reduce((n,x)=>n+x.m,0)+extra;
+  while(d.some(x=>x.bal>0.005)&&mo<1200){mo++;d.forEach(x=>{if(x.bal>0){const i=x.bal*x.r/1200;x.bal+=i;int+=i}});let cash=total;d.forEach(x=>{if(x.bal>0){const p=Math.min(x.m,x.bal);x.bal-=p;cash-=p}});
+    for(const x of order(d.filter(y=>y.bal>0.005))){if(cash<=0)break;const p=Math.min(cash,x.bal);x.bal-=p;cash-=p}d.forEach(x=>{if(x.bal<=0.005&&!x.done){x.done=true;x.bal=0;paid.push({n:x.n,mo})}})}
+  return{mo,int,paid,ok:mo<1200}}
+const SNOW=l=>[...l].sort((a,b)=>a.bal-b.bal),AVAL=l=>[...l].sort((a,b)=>b.r-a.r||a.bal-b.bal);
+const when=m=>{const d=new Date();d.setMonth(d.getMonth()+m);return d.toLocaleDateString(undefined,{month:'short',year:'numeric'})};
+function table(){$('#tb').innerHTML='<tr><th>Debt</th><th>Balance ($)</th><th>APR (%)</th><th>Min payment ($)</th><th></th></tr>'+D.map((x,i)=>`<tr>${['n','b','r','m'].map(k=>`<td><input data-i="${i}" data-k="${k}" ${k==='n'?`value="${esc(x[k])}"`:`type="number" step="any" value="${x[k]}"`}></td>`).join('')}<td><button class="x" data-rm="${i}">✕</button></td></tr>`).join('')}
+function run(){const x=num('x'),a=sim(AVAL,x),s=sim(SNOW,x),n0=sim(AVAL,0);if(!D.length){$('#cmp').innerHTML='';return}const best=a.int<=s.int?'avalanche':'snowball';
+  const card=(t,r,k)=>`<div class="card ${best===k?'win':''}"><h2>${t}${best===k?' ✓ saves the most':''}</h2><div class="big">${r.ok?`${Math.floor(r.mo/12)}y ${r.mo%12}m`:'never'}</div><div class="mut">debt-free by ${r.ok?when(r.mo):'—'}</div><div class="kpi gap"><small>Total interest</small><b>${money(r.int)}</b></div></div>`;
+  $('#cmp').innerHTML=card('Avalanche (highest APR first)',a,'avalanche')+card('Snowball (smallest balance first)',s,'snowball')+`<div class="card" style="grid-column:1/-1"><b>${x>0?`Adding ${money(x)} a month`:'Paying minimums only'}: </b><span class="mut">${x>0?`saves ${money(n0.int-a.int)} in interest and ${n0.mo-a.mo} months versus minimums alone.`:'try an extra payment to see how much faster you finish.'}</span></div>`;
+  const pick=best==='avalanche'?a:s;$('#wn').textContent=best;$('#ord').innerHTML=pick.paid.map((p,i)=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${i+1}. ${esc(p.n)}</b><span class="mut right">paid off in ${p.mo} months (${when(p.mo)})</span></div>`).join('');KV.save({D,x:$('#x').value})}
+$('#tb').oninput=e=>{const i=e.target.dataset.i;if(i===undefined)return;const k=e.target.dataset.k;D[i][k]=k==='n'?e.target.value:parseFloat(e.target.value)||0;run()};$('#tb').onclick=e=>{const r=e.target.dataset.rm;if(r!==undefined){D.splice(+r,1);table();run()}};$('#add').onclick=()=>{D.push({n:'New debt',b:1000,r:15,m:40});table();run()};$('#x').oninput=run;
+KV.load().then(s=>{if(s.D){D=s.D;if(s.x)$('#x').value=s.x}table();run()});table();
+</script>

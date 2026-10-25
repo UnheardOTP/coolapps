@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Countdowns</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#f43f5e;--w:900px}.ev{display:flex;align-items:center;gap:18px;padding:16px 4px;border-bottom:1px solid var(--line)}.ev .nm{flex:1}.ev .nm b{font-size:18px}.ev .u{display:flex;gap:10px}.ev .u div{text-align:center;min-width:54px;background:var(--soft);border-radius:10px;padding:6px 8px}.ev .u b{display:block;font-size:22px;font-variant-numeric:tabular-nums}.ev .u small{color:var(--mut);font-size:11px}.ev.past .u b{color:var(--mut)}</style>
+<div class="wrap"><h1>Countdowns</h1><p class="sub">Live timers to the dates that matter.</p>
+<div class="card"><div class="row"><div class="col" style="flex:2"><label>Event</label><input id="n" placeholder="Vacation"></div><div class="col"><label>Date</label><input id="d" type="date"></div><div class="col"><label>Time</label><input id="t" type="time" value="00:00"></div><button id="add">Add</button></div></div>
+<div class="card"><div id="list"></div></div></div>
+<script>
+let evs=[];
+function paint(){const now=Date.now(),l=[...evs].sort((a,b)=>Math.abs(a.at-now)-Math.abs(b.at-now)).sort((a,b)=>(a.at<now)-(b.at<now));
+  $('#list').innerHTML=l.map(e=>{const diff=Math.abs(e.at-now),past=e.at<now,d=Math.floor(diff/864e5),h=Math.floor(diff%864e5/36e5),m=Math.floor(diff%36e5/6e4),s=Math.floor(diff%6e4/1e3);
+    return`<div class="ev ${past?'past':''}" data-id="${e.id}"><div class="nm"><b>${esc(e.n)}</b><div class="mut">${new Date(e.at).toLocaleString([],{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})} ${past?'· passed':''}</div></div><div class="u"><div><b>${d}</b><small>days</small></div><div><b>${pad2(h)}</b><small>hrs</small></div><div><b>${pad2(m)}</b><small>min</small></div><div><b>${pad2(s)}</b><small>sec</small></div></div><button class="x" data-rm>✕</button></div>`}).join('')||'<span class="mut">No countdowns yet.</span>'}
+$('#d').value=dkey(new Date(Date.now()+30*864e5));
+$('#add').onclick=async()=>{const n=$('#n').value.trim(),dv=$('#d').value;if(!n||!dv)return;const[h,m]=$('#t').value.split(':').map(Number),d=pdate(dv);d.setHours(h||0,m||0,0,0);evs.push(await api.add({kind:'ev',n,at:+d}));$('#n').value='';paint()};
+$('#list').onclick=async e=>{if(!e.target.hasAttribute('data-rm'))return;const id=e.target.closest('.ev').dataset.id;await api.del(id);evs=evs.filter(x=>x.id!==id);paint()};api.list().then(d=>{evs=only(d,'ev');paint()});setInterval(paint,1000);
+</script>

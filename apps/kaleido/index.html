@@ -1,0 +1,58 @@
+<!doctype html><meta charset="utf-8"><title>Kaleidoscope</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #000; color: #bbb; font: 13px 'Helvetica Neue', Arial, sans-serif; display: flex; gap: 36px; align-items: center; justify-content: center; }
+  canvas { display: block; border-radius: 50%; cursor: crosshair; background: radial-gradient(#0d0d18, #000); box-shadow: 0 0 80px #6a4cff33, 0 0 0 1px #222; touch-action: none; }
+  .panel { width: 230px; }
+  h1 { margin: 0 0 24px; font-weight: 200; font-size: 34px; letter-spacing: .25em; color: #fff; text-transform: uppercase; }
+  label { display: block; margin: 16px 0 6px; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: #777; }
+  input[type=range] { width: 100%; accent-color: #9b7bff; }
+  .seg { display: flex; gap: 6px; } .seg button { flex: 1; }
+  button { font: inherit; background: #111; color: #ccc; border: 1px solid #333; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+  button.on { background: #9b7bff; color: #000; border-color: #9b7bff; }
+  .row { display: flex; gap: 8px; margin-top: 20px; }
+  #gal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .th { position: relative; } .th img { width: 100%; aspect-ratio: 1; border-radius: 50%; display: block; cursor: pointer; border: 1px solid #222; } .th img:hover { border-color: #9b7bff; }
+  .th b { position: absolute; top: -2px; right: -2px; background: #333; color: #fff; width: 16px; height: 16px; border-radius: 50%; font-size: 11px; text-align: center; line-height: 16px; cursor: pointer; opacity: 0; } .th:hover b { opacity: 1; }
+</style>
+<canvas id="c" width="640" height="640"></canvas>
+<div class="panel"><h1>Kaleido</h1>
+  <label>Mirrors</label><div class="seg" id="seg"></div>
+  <label>Brush <span id="bv">4</span></label><input type="range" id="size" min="1" max="14" value="4">
+  <div class="row"><button id="clear">Clear</button><button id="save" class="on">Save</button></div>
+  <label>Gallery</label><div id="gal"></div></div>
+<script>
+const cv = $('#c'), g = cv.getContext('2d'), C = 320;
+let mirrors = 8, hue = 0, last = null, art = [];
+// Draw a segment, replicating it around the center `mirrors` times, each also flipped for true kaleidoscope symmetry.
+function seg(a, b) {
+  g.lineCap = 'round'; g.lineWidth = $('#size').value; g.strokeStyle = g.shadowColor = `hsl(${hue}, 95%, 62%)`; g.shadowBlur = 10;
+  for (let i = 0; i < mirrors; i++) for (const flip of [1, -1]) {
+    g.save(); g.translate(C, C); g.rotate(i * 2 * Math.PI / mirrors); g.scale(flip, 1);
+    g.beginPath(); g.moveTo(a.x - C, a.y - C); g.lineTo(b.x - C, b.y - C); g.stroke(); g.restore();
+  }
+}
+const pt = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+cv.onpointerdown = e => { cv.setPointerCapture(e.pointerId); last = pt(e); };
+cv.onpointermove = e => { if (!last) return; const p = pt(e); hue = (hue + 1.6) % 360; seg(last, p); last = p; };
+cv.onpointerup = () => last = null;
+$('#seg').innerHTML = [4, 6, 8, 12, 16].map(n => `<button data-n="${n}" class="${n === mirrors ? 'on' : ''}">${n}</button>`).join('');
+$('#seg').onclick = e => { if (!e.target.dataset.n) return; mirrors = +e.target.dataset.n; $('#seg').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n === mirrors)); };
+$('#size').oninput = e => $('#bv').textContent = e.target.value;
+const wipe = () => { g.shadowBlur = 0; g.clearRect(0, 0, 640, 640); };
+$('#clear').onclick = wipe;
+// Save a 360px JPEG thumbnail composited over black.
+$('#save').onclick = async () => {
+  const t = document.createElement('canvas'); t.width = t.height = 360; const x = t.getContext('2d');
+  x.fillStyle = '#000'; x.fillRect(0, 0, 360, 360); x.drawImage(cv, 0, 0, 360, 360);
+  art.unshift(await api.add({ img: t.toDataURL('image/jpeg', .8) })); gallery();
+};
+function gallery() { $('#gal').innerHTML = art.map(a => `<div class="th" data-id="${a.id}"><img src="${a.img}"><b>×</b></div>`).join(''); }
+$('#gal').onclick = async e => {
+  const t = e.target.closest('.th'); if (!t) return; const a = art.find(x => x.id === t.dataset.id);
+  if (e.target.tagName === 'B') { await api.del(a.id); art = art.filter(x => x !== a); gallery(); }
+  else { const im = new Image(); im.onload = () => { wipe(); g.drawImage(im, 0, 0, 640, 640); }; im.src = a.img; }
+};
+api.list().then(d => { art = d; gallery(); });
+</script>

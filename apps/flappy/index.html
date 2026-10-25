@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Flappy</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#4ec0ca;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Courier New',monospace;color:#fff}canvas{border:4px solid #543847;cursor:pointer;box-shadow:0 10px 30px #0004}p{margin:10px;text-shadow:2px 2px 0 #543847}</style>
+<canvas id="c" width="420" height="600"></canvas><p>Space / click to flap</p>
+<script>
+const cv=$('#c'),g=cv.getContext('2d'),W=420,H=600,GAP=150;let y,vy,pipes,score,state='ready',best=0,runs=[],frames=0;
+function reset(){y=H/2;vy=0;pipes=[];score=0;frames=0}
+const flap=()=>{if(state==='ready'){state='play';reset()}else if(state==='dead'){state='ready';reset()}if(state==='play')vy=-7.4};
+function loop(){
+  if(state==='play'){vy+=.45;y+=vy;frames++;if(frames%90===1)pipes.push({x:W,top:80+Math.random()*(H-GAP-220),pass:false});
+    pipes.forEach(p=>{p.x-=3;if(!p.pass&&p.x<70-26){p.pass=true;score++}if(70+14>p.x&&70-14<p.x+52&&(y-14<p.top||y+14>p.top+GAP))die()});pipes=pipes.filter(p=>p.x>-60);if(y>H-60||y<0)die()}
+  g.fillStyle='#4ec0ca';g.fillRect(0,0,W,H);g.fillStyle='#fff8';for(let i=0;i<4;i++){g.beginPath();g.ellipse((i*150-frames*.5%600+600)%600-60,90+i*40,50,18,0,0,7);g.fill()}
+  pipes.forEach(p=>{g.fillStyle='#73bf2e';g.strokeStyle='#543847';g.lineWidth=3;for(const[a,h]of[[0,p.top],[p.top+GAP,H]]){g.fillRect(p.x,a,52,h-a);g.strokeRect(p.x,a,52,h-a)}});
+  g.fillStyle='#ded895';g.fillRect(0,H-60,W,60);g.fillStyle='#73bf2e';g.fillRect(0,H-60,W,12);
+  g.save();g.translate(70,y);g.rotate(Math.max(-.5,Math.min(1.2,vy/12)));g.fillStyle='#f8e43c';g.strokeStyle='#543847';g.lineWidth=3;g.beginPath();g.arc(0,0,15,0,7);g.fill();g.stroke();g.fillStyle='#fff';g.beginPath();g.arc(6,-5,5,0,7);g.fill();g.fillStyle='#000';g.fillRect(7,-6,3,3);g.fillStyle='#f08030';g.fillRect(10,2,12,6);g.restore();
+  g.fillStyle='#fff';g.strokeStyle='#543847';g.lineWidth=5;g.font='bold 54px Courier New';g.textAlign='center';g.strokeText(score,W/2,90);g.fillText(score,W/2,90);
+  if(state!=='play'){g.font='bold 26px Courier New';const t=state==='ready'?'TAP TO START':`GAME OVER · BEST ${best}`;g.strokeText(t,W/2,H/2+60);g.fillText(t,W/2,H/2+60)}
+  requestAnimationFrame(loop)}
+async function die(){if(state!=='play')return;state='dead';if(score){runs.push(await api.add({score}));best=Math.max(...runs.map(r=>r.score))}}
+cv.onmousedown=flap;addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();flap()}});reset();loop();api.list().then(d=>{runs=d;best=Math.max(0,...d.map(r=>r.score))});
+</script>

@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><title>Spend Donut</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#fbfaf7;color:#1f2430;font-family:'Inter',system-ui;display:flex;gap:56px;justify-content:center;align-items:center;padding:24px}
+.ch{position:relative;width:360px;height:360px}svg{width:100%;height:100%;transform:rotate(-90deg)}circle.s{fill:none;stroke-width:46;transition:stroke-width .15s;cursor:pointer}circle.s:hover,circle.s.hl{stroke-width:56}
+.c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}.c small{color:#7b8294;letter-spacing:.15em;text-transform:uppercase;font-size:12px}.c b{font-size:44px;font-weight:300}
+.p{width:340px}h1{margin:0 0 14px;font-weight:700;letter-spacing:-.03em}form{display:flex;gap:6px;margin-bottom:16px}input,select{font:inherit;padding:8px 10px;border:1px solid #dcdfe6;border-radius:8px;outline:none;background:#fff}input{width:100%}input[type=number]{width:100px}button{font:inherit;border:none;background:#1f2430;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer}
+.lg{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;cursor:pointer}.lg:hover,.lg.hl{background:#f0eee8}.lg i{width:12px;height:12px;border-radius:3px}.lg span{flex:1}.lg em{font-style:normal;color:#7b8294}
+.items{margin-top:14px;max-height:170px;overflow:auto;font-size:14px}.it{display:flex;justify-content:space-between;padding:4px 8px;color:#555}.it u{text-decoration:none;cursor:pointer;color:#bbb;margin-left:8px}</style>
+<div class="ch"><svg viewBox="0 0 200 200" id="svg"></svg><div class="c"><small id="lbl">Total spent</small><b id="tot">$0</b></div></div>
+<div class="p"><h1>Spend Donut</h1><form id="f"><input id="d" placeholder="What for?"><input id="a" type="number" step="0.01" min="0" placeholder="$" required><select id="k"></select><button>+</button></form><div id="lg"></div><div class="items" id="it"></div></div>
+<script>
+const CATS={Food:'#ef476f',Home:'#ffd166',Transport:'#06d6a0',Fun:'#118ab2',Health:'#9b5de5',Other:'#8d99ae'};let items=[],hl=null;
+$('#k').innerHTML=Object.keys(CATS).map(k=>`<option>${k}</option>`).join('');
+const money=n=>'$'+n.toLocaleString(undefined,{maximumFractionDigits:0});
+// Donut = one dash-stroked circle per category; the dash length is that category's share of the circumference.
+function render(){const by={};items.forEach(i=>by[i.k]=(by[i.k]||0)+i.a);const tot=Object.values(by).reduce((a,b)=>a+b,0),R=80,C=2*Math.PI*R;let off=0;
+  $('#svg').innerHTML=`<circle cx="100" cy="100" r="${R}" fill="none" stroke="#eee" stroke-width="46"/>`+Object.entries(by).map(([k,v])=>{const len=v/tot*C,s=`<circle class="s ${hl===k?'hl':''}" data-k="${k}" cx="100" cy="100" r="${R}" stroke="${CATS[k]}" stroke-dasharray="${Math.max(0,len-1.5)} ${C-len+1.5}" stroke-dashoffset="${-off}"/>`;off+=len;return s}).join('');
+  $('#tot').textContent=money(hl?by[hl]||0:tot);$('#lbl').textContent=hl||'Total spent';
+  $('#lg').innerHTML=Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="lg ${hl===k?'hl':''}" data-k="${k}"><i style="background:${CATS[k]}"></i><span>${k}</span><em>${money(v)} · ${Math.round(v/tot*100)}%</em></div>`).join('')||'<p style="color:#999">Add your first expense.</p>';
+  $('#it').innerHTML=items.filter(i=>!hl||i.k===hl).slice(0,30).map(i=>`<div class="it" data-id="${i.id}"><span>${esc(i.d||i.k)}</span><span>${money(i.a)}<u data-del>✕</u></span></div>`).join('')}
+document.addEventListener('mouseover',e=>{const k=e.target.closest('[data-k]')?.dataset.k;if(k!==undefined&&k!==hl){hl=k;render()}});document.addEventListener('mouseout',e=>{if(e.target.closest('[data-k]')&&hl){hl=null;render()}});
+$('#f').onsubmit=async e=>{e.preventDefault();items.unshift(await api.add({d:$('#d').value,a:+$('#a').value,k:$('#k').value}));$('#d').value=$('#a').value='';render()};
+$('#it').onclick=async e=>{if(!e.target.hasAttribute('data-del'))return;const id=e.target.closest('.it').dataset.id;await api.del(id);items=items.filter(i=>i.id!==id);render()};
+api.list().then(d=>{items=d;render()});
+</script>

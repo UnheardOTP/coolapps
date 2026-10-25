@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><title>Hangman</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#f3ead7;color:#2b2118;font-family:Georgia,serif;display:flex;flex-direction:column;align-items:center;padding-top:28px}
+h1{margin:0;font-size:44px;font-variant:small-caps;letter-spacing:.1em}svg{margin:10px 0}.w{font:700 44px 'Courier New',monospace;letter-spacing:.3em;margin:6px 0 20px}
+.k{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;width:560px}.k button{width:46px;height:46px;font:700 18px Georgia;border:2px solid #2b2118;background:#fffaf0;cursor:pointer}.k button:disabled{opacity:.25}.k button.hit{background:#a8e6a0}.k button.miss{background:#f3a0a0}
+#m{height:34px;font-size:22px;margin-top:14px;font-style:italic}button.n{font:inherit;padding:8px 22px;margin-top:8px;border:2px solid #2b2118;background:#2b2118;color:#f3ead7;cursor:pointer}</style>
+<h1>Hangman</h1><svg id="s" width="200" height="220" viewBox="0 0 200 220"></svg><div class="w" id="w"></div><div class="k" id="k"></div><div id="m"></div><button class="n" id="n">New word</button><div id="st"></div>
+<script>
+const WORDS='planet garden bridge castle dragon forest guitar island jungle lantern meadow orchard pirate rocket silver temple window yellow zephyr anchor beacon candle desert ember falcon glacier harbor igloo jigsaw kettle lizard marble nectar oyster pebble quartz ribbon saddle thistle umbrella velvet walnut'.split(' ');
+let word,guess,miss,hist=[];
+// Gallows drawn in stages: each wrong guess reveals the next part.
+const PARTS=['<line x1="20" y1="205" x2="120" y2="205"/>','<line x1="50" y1="205" x2="50" y2="20"/><line x1="50" y1="20" x2="130" y2="20"/>','<line x1="130" y1="20" x2="130" y2="45"/>','<circle cx="130" cy="62" r="17"/>','<line x1="130" y1="79" x2="130" y2="135"/>','<line x1="130" y1="95" x2="106" y2="118"/>','<line x1="130" y1="95" x2="154" y2="118"/>','<line x1="130" y1="135" x2="110" y2="172"/>','<line x1="130" y1="135" x2="150" y2="172"/>'];
+function newWord(){word=WORDS[Math.floor(Math.random()*WORDS.length)];guess=new Set();miss=0;$('#m').textContent='';draw()}
+function draw(){$('#s').innerHTML=`<g stroke="#2b2118" stroke-width="5" fill="none" stroke-linecap="round">${PARTS.slice(0,miss+1).join('')}</g>`;
+$('#w').textContent=[...word].map(c=>guess.has(c)?c.toUpperCase():'_').join(' ');
+$('#k').innerHTML=[...'abcdefghijklmnopqrstuvwxyz'].map(c=>`<button data-c="${c}" ${guess.has(c)?'disabled':''} class="${guess.has(c)?word.includes(c)?'hit':'miss':''}">${c.toUpperCase()}</button>`).join('');
+const w=hist.filter(h=>h.won).length;$('#st').textContent=`Won ${w} of ${hist.length}`}
+async function press(c){if(guess.has(c)||$('#m').textContent)return;guess.add(c);if(!word.includes(c))miss++;draw();
+const won=[...word].every(x=>guess.has(x));if(won||miss>=8){$('#m').textContent=won?'You got it!':`The word was “${word}”`;hist.push(await api.add({word,won}));draw()}}
+$('#k').onclick=e=>{if(e.target.dataset.c)press(e.target.dataset.c)};addEventListener('keydown',e=>/^[a-z]$/.test(e.key)&&!e.metaKey&&!e.ctrlKey&&press(e.key));
+$('#n').onclick=newWord;api.list().then(d=>{hist=d;newWord()});
+</script>

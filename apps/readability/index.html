@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>Readability Score</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0891b2;--w:900px}.sc{display:flex;height:14px;border-radius:7px;overflow:hidden;position:relative;margin:10px 0 26px}.sc div{flex:1}.pin{position:absolute;top:-5px;width:4px;height:24px;background:var(--fg);border-radius:2px;transition:left .3s}</style>
+<div class="wrap"><h1>Readability Score</h1><p class="sub">How easy is your writing to read? Flesch Reading Ease, grade level and sentence stats.</p>
+<div class="card"><textarea id="t" style="min-height:220px;font-family:inherit;font-size:16px" data-keep placeholder="Paste a few sentences or paragraphs…"></textarea></div>
+<div class="card"><div class="row"><div><div class="mut">Flesch Reading Ease</div><div class="big" id="fre">–</div></div><div class="col" style="text-align:right"><div class="big" id="lv" style="font-size:22px"></div><div class="mut" id="ds"></div></div></div><div class="sc"><div style="background:#ef4444"></div><div style="background:#f97316"></div><div style="background:#f59e0b"></div><div style="background:#84cc16"></div><div style="background:#22c55e"></div><span class="pin" id="pin" style="left:0"></span></div><div class="g4" id="kp"></div></div>
+<div class="card"><h2>Longest sentences</h2><div id="ls"></div></div></div>
+<script>
+// Heuristic syllable counter: count vowel groups, drop a silent trailing "e", minimum one per word.
+const syl=w=>{w=w.toLowerCase().replace(/[^a-z]/g,'');if(!w)return 0;if(w.length<=3)return 1;w=w.replace(/(?:[^laeiouy]es|[^tdaeiouy]ed|[^laeiouy]e)$/,'').replace(/^y/,'');return Math.max(1,(w.match(/[aeiouy]+/g)||[]).length)};
+const LV=[[90,'Very easy','5th grade'],[80,'Easy','6th grade'],[70,'Fairly easy','7th grade'],[60,'Plain English','8th–9th grade'],[50,'Fairly difficult','10th–12th grade'],[30,'Difficult','College'],[0,'Very difficult','College graduate+']];
+function run(){const t=$('#t').value,words=t.match(/[A-Za-z'’-]+/g)||[],sents=(t.match(/[^.!?]+[.!?]*/g)||[]).map(s=>s.trim()).filter(s=>/\w/.test(s));if(words.length<3||!sents.length){$('#fre').textContent='–';$('#lv').textContent='';$('#ds').textContent='Enter at least a sentence.';$('#kp').innerHTML='';$('#ls').innerHTML='';return}
+  const sy=words.reduce((n,w)=>n+syl(w),0),W=words.length,S=sents.length,fre=206.835-1.015*W/S-84.6*sy/W,fk=.39*W/S+11.8*sy/W-15.59,cx=words.filter(w=>syl(w)>=3).length,fog=.4*(W/S+100*cx/W),l=LV.find(x=>fre>=x[0])||LV.at(-1);
+  $('#fre').textContent=fmt(fre,0);$('#lv').textContent=l[1];$('#ds').textContent='≈ '+l[2]+' reading level';$('#pin').style.left=Math.max(0,Math.min(100,(100-Math.min(100,Math.max(0,fre)))/100*100))+'%';
+  $('#kp').innerHTML=[['Grade level (F-K)',fmt(fk,1)],['Gunning fog',fmt(fog,1)],['Words / sentence',fmt(W/S,1)],['Syllables / word',fmt(sy/W,2)],['Words',W],['Sentences',S],['Complex words',cx+' ('+fmt(cx/W*100,0)+'%)'],['Longest sentence',Math.max(...sents.map(s=>(s.match(/\S+/g)||[]).length))+' words']].map(([k,v])=>`<div class="kpi"><small>${k}</small><b style="font-size:17px">${v}</b></div>`).join('');
+  $('#ls').innerHTML=[...sents].sort((a,b)=>b.length-a.length).slice(0,3).map(s=>`<div class="gap"><span class="mut">${(s.match(/\S+/g)||[]).length} words</span> ${esc(s)}</div>`).join('')}
+$('#t').oninput=run;remember().then(run);
+</script>

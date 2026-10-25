@@ -1,0 +1,91 @@
+<!doctype html><meta charset="utf-8"><title>tty.type</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #050a05; color: #39ff6a; font: 16px 'Courier New', monospace; text-shadow: 0 0 6px #39ff6a66; }
+  body::after { content: ''; position: fixed; inset: 0; pointer-events: none; background: repeating-linear-gradient(transparent 0 2px, #0003 2px 3px); }
+  main { max-width: 900px; margin: 0 auto; padding: 56px 32px; }
+  .prompt { color: #2d9e4a; margin-bottom: 36px; } .prompt b { color: #39ff6a; }
+  #hud { display: flex; gap: 48px; margin-bottom: 28px; }
+  #hud div { font-size: 12px; color: #2d9e4a; letter-spacing: .2em; text-transform: uppercase; }
+  #hud strong { display: block; font-size: 40px; color: #39ff6a; letter-spacing: 0; font-weight: 400; }
+  #text { font-size: 24px; line-height: 1.8; min-height: 200px; color: #1f6b34; word-break: break-word; }
+  #text .ok { color: #39ff6a; } #text .bad { color: #fff; background: #ff3b3b; text-shadow: none; }
+  #text .cur { background: #39ff6a; color: #050a05; text-shadow: none; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { background: transparent; color: #1f6b34; } }
+  #done { display: none; border: 1px solid #39ff6a; padding: 18px 22px; margin-top: 12px; }
+  #done b { font-size: 28px; font-weight: 400; }
+  .stats { margin-top: 56px; border-top: 1px dashed #1f6b34; padding-top: 24px; }
+  .stats h2 { margin: 0 0 14px; font-size: 12px; letter-spacing: .25em; text-transform: uppercase; color: #2d9e4a; font-weight: 400; }
+  #spark { font-size: 34px; letter-spacing: 3px; line-height: 1; margin-bottom: 14px; }
+  .runs { color: #2d9e4a; font-size: 14px; line-height: 1.7; }
+</style>
+<main>
+  <div class="prompt"><b>$</b> tty.type --test <span style="opacity:.6">  (Tab = new passage)</span></div>
+  <div id="hud"><div>wpm<strong id="wpm">0</strong></div><div>accuracy<strong id="acc">100%</strong></div><div>best<strong id="best">0</strong></div></div>
+  <div id="text"></div>
+  <div id="done"></div>
+  <div class="stats"><h2>History — last 30 runs</h2><div id="spark"></div><div class="runs" id="runs"></div></div>
+</main>
+<script>
+const PASSAGES = [
+  'The quick brown fox jumps over the lazy dog while the sun sets slowly behind the distant hills.',
+  'Simplicity is prerequisite for reliability, and elegance is not a dispensable luxury but a quality that decides between success and failure.',
+  'First, solve the problem. Then, write the code. Programs must be written for people to read, and only incidentally for machines to execute.',
+  'Make it work, make it right, make it fast. Premature optimization is the root of all evil, but measuring is always a good idea.',
+  'Somewhere between the first cup of coffee and the last pull request of the day, a small miracle of focus quietly occurs.',
+  'A journey of a thousand miles begins with a single step, and a thousand commits begin with one failing test.',
+  'In the middle of difficulty lies opportunity, and in the middle of a stack trace lies the line you actually meant to write.',
+  'There are only two hard things in computer science: cache invalidation, naming things, and off-by-one errors.',
+];
+let text, typed, strokes, wrong, t0, finished, runs = [], tickId;
+
+// Reset to a new random passage (never the same one twice in a row).
+function reset() {
+  let p; do { p = PASSAGES[Math.floor(Math.random() * PASSAGES.length)]; } while (p === text && PASSAGES.length > 1);
+  text = p; typed = []; strokes = 0; wrong = 0; t0 = 0; finished = false; clearInterval(tickId);
+  $('#done').style.display = 'none'; hud(); draw();
+}
+function draw() {
+  $('#text').innerHTML = [...text].map((c, i) => {
+    const cls = i < typed.length ? (typed[i] === c ? 'ok' : 'bad') : i === typed.length ? 'cur' : '';
+    return `<span class="${cls}">${c === ' ' && cls === 'bad' ? '·' : esc(c)}</span>`;
+  }).join('');
+}
+// Standard WPM: 5 characters = 1 word, counting only correct characters.
+const wpm = () => !t0 ? 0 : Math.round(typed.filter((c, i) => c === text[i]).length / 5 / (Math.max(performance.now() - t0, 3000) / 60000));
+function hud() {
+  $('#wpm').textContent = wpm();
+  $('#acc').textContent = (strokes ? Math.round((1 - wrong / strokes) * 100) : 100) + '%';
+  $('#best').textContent = Math.max(0, ...runs.map(r => r.wpm));
+}
+async function finish() {
+  finished = true; clearInterval(tickId);
+  const run = { wpm: wpm(), acc: Math.round((1 - wrong / strokes) * 100) };
+  $('#done').style.display = 'block';
+  $('#done').innerHTML = `<b>${run.wpm} wpm</b> · ${run.acc}% accuracy &nbsp;<span style="opacity:.6">press Tab for another</span>`;
+  runs.unshift(await api.add(run)); stats();
+}
+// ASCII-style sparkline of recent WPM.
+function stats() {
+  const last = runs.slice(0, 30).reverse(), lo = Math.min(...last.map(r => r.wpm)), hi = Math.max(...last.map(r => r.wpm)), B = '▁▂▃▄▅▆▇█';
+  $('#spark').textContent = last.map(r => B[hi === lo ? 3 : Math.round((r.wpm - lo) / (hi - lo) * 7)]).join('');
+  const avg = a => a.length ? Math.round(a.reduce((n, r) => n + r.wpm, 0) / a.length) : 0;
+  $('#runs').innerHTML = `${runs.length} runs · avg of last 10: ${avg(runs.slice(0, 10))} wpm<br>` + runs.slice(0, 5).map(r => `${new Date(r.createdAt).toLocaleString()} — ${r.wpm} wpm @ ${r.acc}%`).join('<br>');
+  hud();
+}
+addEventListener('keydown', e => {
+  if (e.key === 'Tab') { e.preventDefault(); return reset(); }
+  if (finished || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'Backspace') { typed.pop(); return draw(); }
+  if (e.key.length !== 1) return;
+  e.preventDefault();
+  if (!t0) { t0 = performance.now(); tickId = setInterval(hud, 250); }
+  typed.push(e.key); strokes++;
+  if (e.key !== text[typed.length - 1]) wrong++;
+  draw(); hud();
+  if (typed.length === text.length) finish();
+});
+api.list().then(d => { runs = d; stats(); });
+reset();
+</script>

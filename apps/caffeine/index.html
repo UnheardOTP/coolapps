@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Caffeine Tracker</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#92400e;--w:860px}svg{width:100%;height:220px;background:var(--soft);border-radius:10px}</style>
+<div class="wrap"><h1>Caffeine Tracker</h1><p class="sub">Log what you drink and see how much caffeine is still in your system (half-life ≈ 5 hours).</p>
+<div class="card"><div class="chips" id="pre"></div><div class="row gap"><div class="col"><label>Drink</label><input id="n" placeholder="Coffee"></div><div class="col"><label>Caffeine (mg)</label><input id="mg" type="number" value="95"></div><div class="col"><label>When</label><input id="tm" type="time"></div><button id="add">Log</button></div></div>
+<div class="g3" id="kp"></div><div class="card gap"><h2>Next 24 hours</h2><svg id="sv" viewBox="0 0 800 220" preserveAspectRatio="none"></svg><div class="mut" id="ax"></div></div><div class="card"><h2>Today's drinks</h2><div id="ls"></div></div></div>
+<script>
+const PRE=[['Espresso',64],['Coffee',95],['Large coffee',200],['Black tea',47],['Green tea',28],['Energy drink',160],['Cola',34]],HALF=5*3600e3;let drinks=[];
+const remain=(t)=>drinks.reduce((n,d)=>t>=d.at?n+d.mg*.5**((t-d.at)/HALF):n,0);
+function run(){const now=Date.now(),cur=remain(now),pts=Array.from({length:97},(_,i)=>remain(now+i*15*60000)),mx=Math.max(100,...pts)*1.1;
+  const clear=pts.findIndex(v=>v<50),total=drinks.filter(d=>new Date(d.at).toDateString()===new Date().toDateString()).reduce((n,d)=>n+d.mg,0);
+  $('#kp').innerHTML=[['In your system now',Math.round(cur)+' mg'],['Under 50 mg at',clear<0?'beyond 24 h':clear===0?'now':new Date(now+clear*15*60000).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})],['Today total',total+' mg'+(total>400?' ⚠':'')]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b ${k==='Today total'&&total>400?'class="bad"':''}>${v}</b></div>`).join('');
+  $('#sv').innerHTML=`<polygon fill="var(--a)" opacity=".85" points="0,220 ${pts.map((v,i)=>`${i/96*800},${220-v/mx*210}`).join(' ')} 800,220"/><line x1="0" x2="800" y1="${220-50/mx*210}" y2="${220-50/mx*210}" stroke="#16a34a" stroke-dasharray="6 5"/>`;
+  $('#ax').textContent='Now → +24 hours · green line = 50 mg (a level most people can sleep through)';
+  const td=drinks.filter(d=>new Date(d.at).toDateString()===new Date().toDateString()).sort((a,b)=>b.at-a.at);$('#ls').innerHTML=td.map(d=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)" data-id="${d.id}"><div class="col"><b>${esc(d.n)}</b> <span class="mut">${new Date(d.at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span></div><span>${d.mg} mg</span><button class="x" data-rm>✕</button></div>`).join('')||'<span class="mut">Nothing logged today.</span>'}
+$('#pre').innerHTML=PRE.map(([n,m])=>`<span class="chip" data-n="${n}" data-m="${m}">${n} <span class="mut">${m} mg</span></span>`).join('');$('#pre').onclick=e=>{const c=e.target.closest('.chip');if(c){$('#n').value=c.dataset.n;$('#mg').value=c.dataset.m}};
+const nowStr=()=>{const d=new Date();return pad2(d.getHours())+':'+pad2(d.getMinutes())};$('#tm').value=nowStr();
+$('#add').onclick=async()=>{const mg=num('mg');if(!(mg>0))return;const[h,m]=($('#tm').value||nowStr()).split(':').map(Number),d=new Date();d.setHours(h,m,0,0);drinks.push(await api.add({kind:'drink',n:$('#n').value||'Drink',mg,at:+d}));$('#tm').value=nowStr();run()};
+$('#ls').onclick=async e=>{if(!e.target.hasAttribute('data-rm'))return;const id=e.target.closest('[data-id]').dataset.id;await api.del(id);drinks=drinks.filter(x=>x.id!==id);run()};
+api.list().then(d=>{drinks=only(d,'drink');run()});setInterval(run,60000);
+</script>

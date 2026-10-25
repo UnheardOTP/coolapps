@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Slide Puzzle</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#ffe9d6;color:#4a2c2a;font-family:'Trebuchet MS',system-ui;display:flex;flex-direction:column;align-items:center;padding-top:30px}
+h1{margin:0;font-size:44px}.hud{display:flex;gap:34px;margin:10px 0 16px;font-size:18px}#b{position:relative;width:408px;height:408px;background:#4a2c2a;border-radius:14px;padding:6px}
+.t{position:absolute;width:96px;height:96px;border-radius:10px;font:700 38px 'Trebuchet MS';display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;transition:left .13s,top .13s;box-shadow:0 4px 0 #0004}
+#m{height:30px;margin-top:12px;font-size:22px}button{font:inherit;background:#e76f51;color:#fff;border:none;padding:10px 26px;border-radius:22px;cursor:pointer;margin-top:10px}</style>
+<h1>Slide Puzzle</h1><div class="hud"><span>Moves <b id="mv">0</b></span><span>Time <b id="tm">0</b>s</span><span>Best <b id="bs">–</b></span></div><div id="b"></div><div id="m"></div><button id="n">Shuffle</button>
+<script>
+let t,moves,t0,iv,over,runs=[];
+// Shuffle by making ~200 random legal moves so every board is solvable.
+function shuffle(){t=[...Array(15).keys()].map(i=>i+1).concat(0);let e=15;for(let k=0;k<200;k++){const x=e%4,y=Math.floor(e/4),n=[];if(x>0)n.push(e-1);if(x<3)n.push(e+1);if(y>0)n.push(e-4);if(y<3)n.push(e+4);const m=n[Math.floor(Math.random()*n.length)];[t[e],t[m]]=[t[m],t[e]];e=m}moves=0;over=false;t0=0;clearInterval(iv);$('#tm').textContent=0;$('#m').textContent='';draw()}
+function draw(){$('#mv').textContent=moves;$('#bs').textContent=runs.length?Math.min(...runs.map(r=>r.moves)):'–';
+$('#b').innerHTML=t.map((v,i)=>v?`<div class="t" data-i="${i}" style="left:${6+i%4*100}px;top:${6+Math.floor(i/4)*100}px;background:hsl(${v*22},65%,52%)">${v}</div>`:'').join('')}
+$('#b').onclick=async e=>{const el=e.target.closest('.t');if(!el||over)return;const i=+el.dataset.i,z=t.indexOf(0),dx=Math.abs(i%4-z%4),dy=Math.abs(Math.floor(i/4)-Math.floor(z/4));if(dx+dy!==1)return;
+  if(!t0){t0=Date.now();iv=setInterval(()=>$('#tm').textContent=Math.round((Date.now()-t0)/1000),500)}
+  [t[i],t[z]]=[t[z],t[i]];moves++;draw();
+  if(t.slice(0,15).every((v,k)=>v===k+1)){over=true;clearInterval(iv);$('#m').textContent='Solved!';runs.push(await api.add({moves,secs:Math.round((Date.now()-t0)/1000)}));draw()}};
+$('#n').onclick=shuffle;api.list().then(d=>{runs=d;shuffle()});
+</script>

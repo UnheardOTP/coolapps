@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Cooking Converter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#d97706;--w:860px}</style>
+<div class="wrap"><h1>Cooking Converter</h1><p class="sub">Cups to grams by ingredient, volume and temperature conversions, and oven gas marks.</p>
+<div class="card"><h2>Ingredient: volume ⇄ weight</h2><div class="row"><div class="col"><label>Amount</label><input id="a" type="number" step="any" value="2" data-keep></div><div class="col"><label>Unit</label><select id="u" data-keep></select></div><div class="col" style="flex:2"><label>Ingredient</label><select id="ing" data-keep></select></div></div><div class="g4 gap" id="r1"></div></div>
+<div class="g2"><div class="card"><h2>Volume</h2><div class="row"><div class="col"><label>Amount</label><input id="va" type="number" step="any" value="1" data-keep></div><div class="col"><label>From</label><select id="vu" data-keep></select></div></div><table class="gap" id="r2"></table></div>
+<div class="card"><h2>Oven temperature</h2><div class="row"><div class="col"><label>Degrees</label><input id="ta" type="number" value="180" data-keep></div><div class="col"><label>Scale</label><select id="ts" data-keep><option>C</option><option>F</option></select></div></div><div class="g3 gap" id="r3"></div><div class="mut gap" id="oven"></div></div></div></div>
+<script>
+const VOL={tsp:4.92892,tbsp:14.7868,'fl oz':29.5735,cup:236.588,pint:473.176,quart:946.353,ml:1,L:1000,gallon:3785.41};
+const ING={flour:125,'whole-wheat flour':120,sugar:200,'brown sugar (packed)':213,'powdered sugar':120,butter:227,honey:340,'maple syrup':322,rice:185,oats:90,'cocoa powder':85,'chocolate chips':170,milk:245,water:237,'olive oil':216,'vegetable oil':218,salt:288,'baking powder':230,yogurt:245,'peanut butter':258,nuts:140,raisins:145};   // grams per US cup
+for(const[sel,list]of[['#u',['cup','tbsp','tsp','g','oz','lb','kg']],['#vu',Object.keys(VOL)]])$(sel).innerHTML=list.map(x=>`<option>${x}</option>`).join('');$('#ing').innerHTML=Object.keys(ING).map(x=>`<option>${x}</option>`).join('');
+const GRAMS={g:1,oz:28.3495,lb:453.592,kg:1000};
+function run(){const a=num('a'),u=$('#u').value,gpc=ING[$('#ing').value]||125;let cups,grams;if(u in GRAMS){grams=a*GRAMS[u];cups=grams/gpc}else{cups=a*VOL[u]/VOL.cup;grams=cups*gpc}
+  $('#r1').innerHTML=[['Cups',fmt(cups,2)],['Tablespoons',fmt(cups*16,1)],['Grams',fmt(grams,0)],['Ounces',fmt(grams/28.3495,1)]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('');
+  const ml=num('va')*VOL[$('#vu').value];$('#r2').innerHTML=Object.entries(VOL).map(([k,v])=>`<tr><td class="mut">${k}</td><td class="r">${+(ml/v).toPrecision(4)}</td></tr>`).join('');
+  const t=num('ta'),C=$('#ts').value==='C'?t:(t-32)*5/9,F=C*9/5+32,K=C+273.15,gas=[[135,'1'],[150,'2'],[165,'3'],[180,'4'],[190,'5'],[205,'6'],[220,'7'],[230,'8'],[245,'9']];
+  $('#r3').innerHTML=[['°C',fmt(C,0)],['°F',fmt(F,0)],['Kelvin',fmt(K,0)]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('');const g=gas.reduce((b,x)=>Math.abs(x[0]-C)<Math.abs(b[0]-C)?x:b);$('#oven').textContent=`Closest UK gas mark: ${C<125?'¼–½ (very cool)':g[1]}${C>245?' (hotter than gas mark 9)':''} · fan oven ≈ ${fmt(C-20,0)} °C`}
+document.addEventListener('input',run);remember().then(run);
+</script>

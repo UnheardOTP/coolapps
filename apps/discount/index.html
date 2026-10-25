@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Discount Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#dc2626;--w:700px}</style>
+<div class="wrap"><h1>Discount Calculator</h1><p class="sub">Sale prices with stacked discounts and sales tax, or work out the discount you were given.</p>
+<div class="card"><div class="tabs" id="tabs"><button data-m="a" class="on">Price after discount</button><button data-m="b">Find the discount %</button></div>
+<div id="A"><div class="g2"><div><label>Original price ($)</label><input id="p" type="number" value="120" step="0.01" data-keep></div><div><label>Discount (%)</label><input id="d1" type="number" value="25" data-keep></div><div><label>Extra discount (%) — stacks</label><input id="d2" type="number" value="10" data-keep></div><div><label>Sales tax (%)</label><input id="tx" type="number" value="8" step="0.01" data-keep></div></div>
+<div class="g2 gap" id="ka"></div></div>
+<div id="B" class="hide"><div class="g2"><div><label>Original price ($)</label><input id="o" type="number" value="80" data-keep></div><div><label>Sale price ($)</label><input id="s" type="number" value="52" data-keep></div></div><div class="g2 gap" id="kb"></div></div></div></div>
+<script>
+let mode='a';
+function run(){if(mode==='a'){const p=num('p'),a=p*(1-num('d1')/100),b=a*(1-num('d2')/100),t=b*num('tx')/100;$('#ka').innerHTML=[['After first discount',money(a)],['After extra discount',money(b)],['You save',money(p-b)+` (${fmt(p?(p-b)/p*100:0,1)}% off)`],['Final with tax',money(b+t)]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('')}
+  else{const o=num('o'),s=num('s');$('#kb').innerHTML=[['Discount',o?fmt((o-s)/o*100,2)+'%':'–'],['You save',money(o-s)]].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('')}}
+$('#tabs').onclick=e=>{const m=e.target.dataset.m;if(!m)return;mode=m;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b===e.target));$('#A').classList.toggle('hide',m!=='a');$('#B').classList.toggle('hide',m!=='b');run()};
+document.addEventListener('input',run);remember().then(run);
+</script>

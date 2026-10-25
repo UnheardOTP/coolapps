@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>Case Converter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#9333ea}.r2{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}.r2 label{width:130px;margin:0}.r2 .out{flex:1;min-height:0;padding:7px 10px}</style>
+<div class="wrap"><h1>Case Converter</h1><p class="sub">Change text between every common casing convention at once.</p>
+<div class="card"><textarea id="t" data-keep style="min-height:80px;font-family:inherit" placeholder="hello World — convert_me please"></textarea></div><div class="card" id="rows"></div></div>
+<script>
+// Split into words on spaces, underscores, hyphens, dots and camelCase boundaries, then rebuild in each style.
+const words=s=>s.replace(/([a-z\d])([A-Z])/g,'$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g,'$1 $2').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const cap=w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase(),SM=new Set('a an and as at but by for in of on or the to vs via'.split(' '));
+const S=[['UPPER CASE',s=>s.toUpperCase()],['lower case',s=>s.toLowerCase()],['Title Case',s=>s.toLowerCase().replace(/\b[\p{L}\p{N}']+/gu,(w,i)=>i&&SM.has(w)?w:cap(w))],['Sentence case',s=>s.toLowerCase().replace(/(^\s*|[.!?]\s+)(\p{L})/gu,(m,a,b)=>a+b.toUpperCase())],
+['camelCase',s=>words(s).map((w,i)=>i?cap(w):w.toLowerCase()).join('')],['PascalCase',s=>words(s).map(cap).join('')],['snake_case',s=>words(s).map(w=>w.toLowerCase()).join('_')],['CONSTANT_CASE',s=>words(s).map(w=>w.toUpperCase()).join('_')],['kebab-case',s=>words(s).map(w=>w.toLowerCase()).join('-')],['dot.case',s=>words(s).map(w=>w.toLowerCase()).join('.')],['Train-Case',s=>words(s).map(cap).join('-')],['aLtErNaTiNg',s=>[...s.toLowerCase()].map((c,i)=>i%2?c.toUpperCase():c).join('')],['iNVERSE',s=>[...s].map(c=>c===c.toUpperCase()?c.toLowerCase():c.toUpperCase()).join('')]];
+function run(){const t=$('#t').value;$('#rows').innerHTML=S.map(([n,f],i)=>`<div class="r2"><label>${n}</label><div class="out">${esc(f(t))}</div><button class="x" data-i="${i}">Copy</button></div>`).join('')}
+$('#rows').onclick=e=>{const i=e.target.dataset.i;if(i!==undefined)copy(S[i][1]($('#t').value),e.target)};$('#t').oninput=run;remember().then(run);
+</script>

@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Salary Converter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#16a34a;--w:760px}</style>
+<div class="wrap"><h1>Salary Converter</h1><p class="sub">Convert between hourly, daily, weekly, monthly and yearly pay, with a rough take-home estimate.</p>
+<div class="card"><div class="row"><div class="col"><label>Amount ($)</label><input id="a" type="number" value="35" step="0.01" style="font-size:22px" data-keep></div><div class="col"><label>Per</label><select id="per" data-keep><option value="hour">Hour</option><option value="day">Day</option><option value="week">Week</option><option value="2week">2 weeks</option><option value="month">Month</option><option value="year">Year</option></select></div></div>
+<div class="g3 gap"><div><label>Hours per week</label><input id="h" type="number" value="40" data-keep></div><div><label>Weeks per year</label><input id="w" type="number" value="52" data-keep></div><div><label>Est. tax rate (%)</label><input id="t" type="number" value="22" data-keep></div></div></div>
+<div class="card"><table id="tb"></table></div></div>
+<script>
+const PER={hour:1,day:null,week:null,'2week':null,month:null,year:null};
+function run(){const h=num('h'),w=num('w'),a=num('a'),per=$('#per').value;if(!(h>0&&w>0))return;const hoursYear=h*w,d=h/5;
+  const hourly={hour:a,day:a/d,week:a/h,'2week':a/(2*h),month:a/(hoursYear/12),year:a/hoursYear}[per],t=num('t')/100;
+  const rows=[['Hourly',hourly],['Daily',hourly*d],['Weekly',hourly*h],['Every 2 weeks',hourly*h*2],['Monthly',hourly*hoursYear/12],['Yearly',hourly*hoursYear]];
+  $('#tb').innerHTML='<tr><th></th><th class="r">Gross</th><th class="r">After ~'+num('t')+'% tax</th></tr>'+rows.map(([k,v])=>`<tr><td>${k}</td><td class="r"><b>${money(v)}</b></td><td class="r mut">${money(v*(1-t))}</td></tr>`).join('')}
+document.addEventListener('input',run);remember().then(run);
+</script>

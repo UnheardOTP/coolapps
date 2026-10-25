@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>Simon</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#222;color:#eee;font-family:system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.box{position:relative;width:420px;height:420px;border-radius:50%;background:#111;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;box-shadow:0 20px 50px #000a}
+.p{border:none;cursor:pointer;filter:brightness(.45);transition:filter .08s}.p.lit{filter:brightness(1.5) saturate(1.3)}.p:nth-child(1){background:#2ecc71;border-radius:100% 0 0 0}.p:nth-child(2){background:#e74c3c;border-radius:0 100% 0 0}.p:nth-child(3){background:#f1c40f;border-radius:0 0 0 100%}.p:nth-child(4){background:#3498db;border-radius:0 0 100% 0}
+.mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:150px;height:150px;border-radius:50%;background:#222;border:8px solid #111;display:flex;flex-direction:column;align-items:center;justify-content:center}.mid b{font-size:44px}.mid button{background:#c0392b;color:#fff;border:none;border-radius:14px;padding:6px 16px;cursor:pointer;font-weight:700}
+p{color:#999;margin-top:24px}</style>
+<div class="box" id="box"><button class="p" data-i="0"></button><button class="p" data-i="1"></button><button class="p" data-i="2"></button><button class="p" data-i="3"></button><div class="mid"><b id="lv">0</b><button id="st">START</button></div></div><p id="p"></p>
+<script>
+const F=[330,415,247,311];let seq=[],at=0,busy=true,ac,runs=[];
+const tone=(i,d=.35)=>{ac||=new AudioContext();const o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.value=F[i];g.gain.setValueAtTime(.3,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d)};
+const pads=()=>document.querySelectorAll('.p'),flash=(i,ms=350)=>new Promise(r=>{pads()[i].classList.add('lit');tone(i,ms/1000);setTimeout(()=>{pads()[i].classList.remove('lit');setTimeout(r,120)},ms)});
+// Each round replays the whole sequence plus one new colour, then waits for you to repeat it.
+async function round(){busy=true;at=0;seq.push(Math.floor(Math.random()*4));$('#lv').textContent=seq.length-1;await new Promise(r=>setTimeout(r,500));for(const i of seq)await flash(i,Math.max(180,380-seq.length*12));busy=false}
+async function press(i){if(busy)return;flash(i,200);if(i!==seq[at]){busy=true;const level=seq.length-1;$('#p').textContent=`Game over at level ${level}`;if(level>0)runs.push(await api.add({level}));best();seq=[];return}
+if(++at===seq.length)round()}
+const best=()=>$('#p').textContent+=(runs.length?` · Best ${Math.max(...runs.map(r=>r.level))}`:'');
+$('#box').onmousedown=e=>{const p=e.target.closest('.p');if(p)press(+p.dataset.i)};addEventListener('keydown',e=>{const k='wedsxcz'.indexOf(e.key);});
+$('#st').onclick=()=>{seq=[];$('#p').textContent='Watch, then repeat.';round()};api.list().then(d=>{runs=d;busy=true;best()});
+</script>

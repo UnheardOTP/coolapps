@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Fridge Poems</title><script src="/shared/lib.js"></script>
+<style>html,body{margin:0;height:100%}body{background:#c9d0d6;font-family:'Courier New',monospace;display:flex;justify-content:center;align-items:center;user-select:none}
+.fr{position:relative;width:1000px;height:640px;background:linear-gradient(135deg,#f3f6f8,#dfe5ea);border-radius:26px;box-shadow:0 30px 60px #0004,inset 0 0 0 6px #fff,inset 0 0 40px #0001;overflow:hidden}
+.w{position:absolute;padding:5px 10px;background:#fffdf4;color:#222;font-size:19px;border-radius:3px;box-shadow:0 2px 0 #0003,0 4px 6px #0002;cursor:grab;touch-action:none;white-space:nowrap}.w.dg{cursor:grabbing;box-shadow:0 8px 14px #0004;z-index:99}
+.tool{position:absolute;right:16px;top:14px;display:flex;gap:8px;z-index:100}button{font:inherit;padding:7px 14px;border:none;background:#2d3a48;color:#fff;border-radius:6px;cursor:pointer}input{font:inherit;padding:7px 10px;border:1px solid #9aa;border-radius:6px;width:130px}h1{position:absolute;left:20px;top:10px;margin:0;font-size:18px;letter-spacing:.2em;color:#789}</style>
+<div class="fr" id="fr"><h1>FRIDGE POETRY</h1><div class="tool"><input id="nw" placeholder="your own word"><button id="add">Add</button><button id="more">+12 words</button><button id="clr">Clear</button></div></div>
+<script>
+const WORDS='the a an of to in and with love moon night river quiet wild soft burning silver golden whisper dance forget remember ocean morning shadow bright sleep dream fall rise wind rain light dark heart time small ancient hollow gentle sing breathe drift bloom ember salt honey thunder paper window door road we you I is are was never always still beneath above between like as into under over often sweet bitter slow'.split(' ');let items=[],drag=null;
+const el=i=>`<div class="w" data-id="${i.id}" style="left:${i.x}px;top:${i.y}px;transform:rotate(${i.r}deg)">${esc(i.w)}</div>`;
+function render(){document.querySelectorAll('.w').forEach(e=>e.remove());$('#fr').insertAdjacentHTML('beforeend',items.map(el).join(''))}
+const spawn=async w=>{const i=await api.add({w,x:30+Math.random()*820,y:60+Math.random()*520,r:Math.round(Math.random()*8-4)});items.push(i);render()};
+$('#more').onclick=async()=>{for(const w of[...WORDS].sort(()=>Math.random()-.5).slice(0,12))await spawn(w)};$('#add').onclick=()=>{const w=$('#nw').value.trim();if(w){spawn(w);$('#nw').value=''}};
+$('#clr').onclick=async()=>{if(!confirm('Remove all words?'))return;await Promise.all(items.map(i=>api.del(i.id)));items=[];render()};
+// Pointer-drag any magnet; the new position is saved when you let go.
+$('#fr').onpointerdown=e=>{const w=e.target.closest('.w');if(!w)return;const i=items.find(x=>x.id===w.dataset.id);w.setPointerCapture(e.pointerId);w.classList.add('dg');drag={i,w,ox:e.clientX-i.x,oy:e.clientY-i.y}};
+$('#fr').onpointermove=e=>{if(!drag)return;drag.i.x=Math.max(0,Math.min(940,e.clientX-drag.ox));drag.i.y=Math.max(0,Math.min(600,e.clientY-drag.oy));drag.w.style.left=drag.i.x+'px';drag.w.style.top=drag.i.y+'px'};
+$('#fr').onpointerup=()=>{if(!drag)return;drag.w.classList.remove('dg');api.upd(drag.i.id,{x:drag.i.x,y:drag.i.y});drag=null};
+$('#fr').ondblclick=async e=>{const w=e.target.closest('.w');if(!w)return;await api.del(w.dataset.id);items=items.filter(i=>i.id!==w.dataset.id);render()};
+api.list().then(async d=>{items=d;render();if(!d.length)$('#more').click()});
+</script>

@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>Geometry Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0891b2;--w:860px}svg{width:100%;height:150px}.sh{fill:color-mix(in srgb,var(--a) 22%,transparent);stroke:var(--a);stroke-width:3}</style>
+<div class="wrap"><h1>Geometry Calculator</h1><p class="sub">Area, perimeter, volume and surface area for common 2D and 3D shapes.</p>
+<div class="card"><div class="tabs" id="tabs"></div><div class="row"><div class="g4 col" id="inp" style="flex:3"></div><div class="col" style="flex:1"><svg id="sv" viewBox="0 0 200 150"></svg></div></div></div><div class="g4" id="kp"></div></div>
+<script>
+const P=Math.PI,S={
+Circle:{f:['radius'],o:r=>[['Area',P*r**2],['Circumference',2*P*r],['Diameter',2*r]],d:'<circle class="sh" cx="100" cy="75" r="60"/>'},
+Rectangle:{f:['width','height'],o:(w,h)=>[['Area',w*h],['Perimeter',2*(w+h)],['Diagonal',Math.hypot(w,h)]],d:'<rect class="sh" x="30" y="30" width="140" height="90"/>'},
+Triangle:{f:['side a','side b','side c'],o:(a,b,c)=>{const s=(a+b+c)/2,A=Math.sqrt(Math.max(0,s*(s-a)*(s-b)*(s-c)));return[['Area (Heron)',A],['Perimeter',a+b+c],['Valid triangle?',a+b>c&&a+c>b&&b+c>a?'yes':'no — sides cannot close']]},d:'<polygon class="sh" points="100,20 170,130 30,130"/>'},
+Trapezoid:{f:['base a','base b','height','leg c','leg d'],o:(a,b,h,c,d)=>[['Area',(a+b)/2*h],['Perimeter',a+b+c+d],['Midline',(a+b)/2]],d:'<polygon class="sh" points="60,30 140,30 180,120 20,120"/>'},
+Ellipse:{f:['semi-axis a','semi-axis b'],o:(a,b)=>[['Area',P*a*b],['Perimeter (Ramanujan)',P*(3*(a+b)-Math.sqrt((3*a+b)*(a+3*b)))]],d:'<ellipse class="sh" cx="100" cy="75" rx="85" ry="50"/>'},
+Sphere:{f:['radius'],o:r=>[['Volume',4/3*P*r**3],['Surface area',4*P*r**2],['Diameter',2*r]],d:'<circle class="sh" cx="100" cy="75" r="60"/><ellipse cx="100" cy="75" rx="60" ry="18" fill="none" stroke="var(--a)" stroke-dasharray="5 4"/>'},
+Cylinder:{f:['radius','height'],o:(r,h)=>[['Volume',P*r*r*h],['Surface area',2*P*r*(r+h)],['Lateral area',2*P*r*h]],d:'<ellipse class="sh" cx="100" cy="35" rx="55" ry="15"/><path class="sh" d="M45 35v80a55 15 0 0 0 110 0v-80"/>'},
+Cone:{f:['radius','height'],o:(r,h)=>{const l=Math.hypot(r,h);return[['Volume',P*r*r*h/3],['Surface area',P*r*(r+l)],['Slant height',l]]},d:'<path class="sh" d="M100 15 L160 115 a60 15 0 0 1 -120 0Z"/>'},
+Cube:{f:['edge'],o:a=>[['Volume',a**3],['Surface area',6*a*a],['Space diagonal',a*Math.sqrt(3)]],d:'<rect class="sh" x="40" y="45" width="85" height="85"/><polygon class="sh" points="40,45 75,15 160,15 125,45"/><polygon class="sh" points="125,45 160,15 160,100 125,130"/>'},
+'Box':{f:['length','width','height'],o:(l,w,h)=>[['Volume',l*w*h],['Surface area',2*(l*w+l*h+w*h)],['Space diagonal',Math.hypot(l,w,h)]],d:'<rect class="sh" x="30" y="50" width="100" height="70"/><polygon class="sh" points="30,50 60,20 160,20 130,50"/><polygon class="sh" points="130,50 160,20 160,90 130,120"/>'}};
+let cur='Circle',vals={};
+const nice=n=>typeof n==='string'?n:n.toLocaleString(undefined,{maximumFractionDigits:5});
+function paint(){$('#tabs').innerHTML=Object.keys(S).map(k=>`<button data-s="${k}" class="${k===cur?'on':''}">${k}</button>`).join('');$('#inp').innerHTML=S[cur].f.map(n=>`<div><label>${n}</label><input type="number" step="any" min="0" data-n="${n}" value="${vals[cur+n]??1}"></div>`).join('');$('#sv').innerHTML=S[cur].d;run()}
+function run(){const v=S[cur].f.map(n=>+document.querySelector(`[data-n="${n}"]`).value||0);S[cur].f.forEach((n,i)=>vals[cur+n]=v[i]);$('#kp').innerHTML=S[cur].o(...v).map(([k,x])=>`<div class="kpi"><small>${k}</small><b style="font-size:17px">${nice(x)}</b></div>`).join('')}
+$('#tabs').onclick=e=>{if(e.target.dataset.s){cur=e.target.dataset.s;paint()}};$('#inp').oninput=()=>{run();KV.save(vals)};KV.load().then(s=>{vals=s||{};paint()});
+</script>

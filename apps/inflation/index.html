@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Inflation Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#ea580c;--w:860px}svg{width:100%;height:220px;background:var(--soft);border-radius:10px}</style>
+<div class="wrap"><h1>Inflation Calculator</h1><p class="sub">How prices — and the value of your money — change over time at a steady annual inflation rate.</p>
+<div class="card"><div class="g4"><div><label>Amount ($)</label><input id="a" type="number" step="any" value="1000" data-keep></div><div><label>Years</label><input id="y" type="number" step="any" value="20" data-keep></div><div><label>Inflation (% / year)</label><input id="r" type="number" step="0.1" value="3" data-keep></div><div><label>Direction</label><select id="d" data-keep><option value="f">Forward from today</option><option value="b">Looking back</option></select></div></div></div>
+<div class="g2"><div class="card"><div class="mut" id="l1"></div><div class="big" id="v1"></div></div><div class="card"><div class="mut" id="l2"></div><div class="big" id="v2"></div></div></div>
+<div class="card gap"><h2>Purchasing power of your money</h2><svg id="sv" viewBox="0 0 800 220" preserveAspectRatio="none"></svg><div class="mut" id="ax"></div></div><div class="card"><h2>What a 100 would buy later</h2><table id="tb"></table></div></div>
+<script>
+function run(){const a=num('a'),y=num('y'),r=num('r')/100,back=$('#d').value==='b',f=(1+r)**y;
+  if(!back){$('#l1').textContent=`Something costing ${money(a)} today will cost about`;$('#v1').textContent=money(a*f);$('#l2').textContent=`${money(a)} saved today would only buy what this buys now:`;$('#v2').textContent=money(a/f)}
+  else{$('#l1').textContent=`${money(a)} today had the buying power of`;$('#v1').textContent=money(a/f)+` ${y} years ago`;$('#l2').textContent=`Something that cost ${money(a)} ${y} years ago would cost today`;$('#v2').textContent=money(a*f)}
+  const N=Math.max(2,Math.round(y)),pts=Array.from({length:N+1},(_,i)=>[i/N*780+10,220-(1/(1+r)**(i/N*y))*210]);$('#sv').innerHTML=`<polyline fill="none" stroke="var(--a)" stroke-width="3" points="${pts.map(p=>p.join(',')).join(' ')}"/><text x="14" y="26" fill="currentColor" font-size="14">100% today</text><text x="660" y="${pts.at(-1)[1]-8}" fill="currentColor" font-size="14">${fmt(100/(1+r)**y,0)}% after ${y} yrs</text>`;$('#ax').textContent=`Money loses about ${fmt((1-1/(1+r)**y)*100,1)}% of its purchasing power over ${y} years at ${num('r')}%.`;
+  $('#tb').innerHTML='<tr><th>After</th><th class="r">A $100 basket costs</th><th class="r">$100 buys only</th></tr>'+[1,5,10,20,30,50].map(n=>`<tr><td>${n} years</td><td class="r">${money(100*(1+r)**n)}</td><td class="r">${money(100/(1+r)**n)}</td></tr>`).join('')}
+document.addEventListener('input',run);remember().then(run);
+</script>

@@ -1,0 +1,40 @@
+<!doctype html><meta charset="utf-8"><title>Oracle</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 20%, #17463b, #08201a 75%); color: #f0dcc4; font-family: 'Cormorant Garamond', Georgia, serif; display: flex; flex-direction: column; align-items: center; padding-top: 30px; }
+  h1 { margin: 0; font-weight: 300; font-size: 42px; letter-spacing: .4em; text-transform: uppercase; color: #e0a164; } .sub { color: #90b5a6; font-style: italic; margin: 6px 0 18px; }
+  .scene { perspective: 1100px; width: 280px; height: 430px; cursor: pointer; } .card { position: relative; width: 100%; height: 100%; transition: transform .9s cubic-bezier(.3, 1.2, .4, 1); transform-style: preserve-3d; } .card.flip { transform: rotateY(180deg); }
+  .face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 16px; border: 3px solid #e0a164; box-shadow: 0 20px 50px #000a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px; text-align: center; }
+  .back { background: radial-gradient(circle at 50% 50%, #1b5545 0, #0b2c23 70%); background-image: repeating-conic-gradient(#e0a16422 0 10deg, transparent 10deg 20deg), radial-gradient(circle, #1b5545, #0b2c23); } .back::after { content: '✦'; font-size: 90px; color: #e0a164; text-shadow: 0 0 30px #e0a164aa; }
+  .front { background: linear-gradient(#f6ead3, #e5d2ab); color: #2a1c0e; transform: rotateY(180deg); } .front small { letter-spacing: .4em; color: #a0622a; } .front p { font-size: 25px; line-height: 1.25; margin: 26px 0; } .front hr { width: 60%; border: none; border-top: 1px solid #a0622a; }
+  .bar { display: flex; gap: 10px; margin: 22px 0 10px; } button { font: inherit; letter-spacing: .15em; text-transform: uppercase; padding: 11px 26px; background: none; border: 1.5px solid #e0a164; color: #e0a164; cursor: pointer; } button.p { background: #e0a164; color: #08201a; }
+  .deck { width: 560px; padding-bottom: 50px; } .deck h3 { font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: #90b5a6; font-weight: 400; margin: 26px 0 8px; } form { display: flex; gap: 8px; } input { flex: 1; font: 17px Georgia, serif; padding: 9px 12px; background: #ffffff0d; border: 1px solid #3b6a5c; color: inherit; outline: none; }
+  .tag { display: inline-block; margin: 4px 6px 0 0; padding: 4px 10px; border: 1px solid #3b6a5c; border-radius: 14px; font-size: 14px; } .tag i { font-style: normal; margin-left: 6px; color: #6f9a8b; cursor: pointer; } .hist div { color: #b9cfc5; padding: 3px 0; border-bottom: 1px dotted #2b5547; }
+</style>
+<h1>Oracle</h1><p class="sub">Hold a question in mind. Draw a card.</p>
+<div class="scene" id="scene"><div class="card" id="card"><div class="face back"></div><div class="face front"><small id="num"></small><hr><p id="txt"></p><hr><small>ORACLE</small></div></div></div>
+<div class="bar"><button class="p" id="draw">Draw a card</button></div>
+<div class="deck"><h3>Your deck <span id="dn" style="letter-spacing:0"></span></h3><form id="f"><input id="in" placeholder="Add your own card…"><button>Add</button></form><div id="tags"></div><h3>Past draws</h3><div class="hist" id="hist"></div></div>
+<script>
+const DEFAULT = ['Begin before you feel ready.', 'Say the thing you have been rehearsing.', 'Rest is productive.', 'Follow the small curiosity.', 'Finish one old thing.', 'Ask for help today.', 'Look up.', 'Let it be imperfect.', 'Someone needs your kindness.', 'Change the route home.', 'Write it down.', 'Trust the slow path.', 'Clear one drawer.', 'Say yes to the unexpected.', 'Let go of one should.', 'Call someone you miss.'];
+const ROMAN = n => ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'][n] || n;
+let items = [], busy = false;
+const cards = () => items.filter(i => i.kind === 'card'), draws = () => items.filter(i => i.kind === 'draw');
+const deck = () => cards().length ? cards().map(c => c.text) : DEFAULT;
+// Flip face-down, swap the text while hidden, flip back up.
+function draw() {
+  if (busy) return; busy = true; const c = $('#card'), d = deck(), i = Math.floor(Math.random() * d.length);
+  const reveal = () => { $('#num').textContent = ROMAN(i + 1); $('#txt').textContent = d[i]; setTimeout(() => { c.classList.add('flip'); busy = false; }, 80); api.add({ kind: 'draw', text: d[i] }).then(r => { items.unshift(r); list(); }); };
+  if (c.classList.contains('flip')) { c.classList.remove('flip'); setTimeout(reveal, 700); } else reveal();
+}
+function list() {
+  $('#dn').textContent = cards().length ? `(${cards().length} of your own)` : '(default deck)';
+  $('#tags').innerHTML = cards().map(c => `<span class="tag" data-id="${c.id}">${esc(c.text)}<i>×</i></span>`).join('') || '<span style="color:#6f9a8b">Using the built-in deck of 16.</span>';
+  $('#hist').innerHTML = draws().slice(0, 8).map(d => `<div>${esc(d.text)}</div>`).join('') || '<div>—</div>';
+}
+$('#draw').onclick = draw; $('#scene').onclick = draw;
+$('#f').onsubmit = async e => { e.preventDefault(); const t = $('#in').value.trim(); if (!t) return; items.unshift(await api.add({ kind: 'card', text: t })); $('#in').value = ''; list(); };
+$('#tags').onclick = async e => { const t = e.target.closest('.tag'); if (t && e.target.tagName === 'I') { await api.del(t.dataset.id); items = items.filter(i => i.id !== t.dataset.id); list(); } };
+api.list().then(d => { items = d; list(); });
+</script>

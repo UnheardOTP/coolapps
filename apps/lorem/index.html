@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Lorem Ipsum</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#a16207}</style>
+<div class="wrap"><h1>Lorem Ipsum</h1><p class="sub">Placeholder text by the paragraph, sentence or word.</p>
+<div class="card"><div class="row"><div class="col"><label>Unit</label><select id="u" data-keep><option value="p">Paragraphs</option><option value="s">Sentences</option><option value="w">Words</option></select></div><div class="col"><label>Amount</label><input id="n" type="number" min="1" max="100" value="3" data-keep></div><label style="margin:0 0 9px"><input type="checkbox" id="cl" data-keep checked> Start with “Lorem ipsum”</label><label style="margin:0 0 9px"><input type="checkbox" id="ht" data-keep> Wrap in &lt;p&gt;</label><button id="go">Generate</button></div></div>
+<div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0" id="st"></h2><button class="x right" id="cp">Copy</button></div><div class="out" id="out" style="white-space:pre-wrap;font-family:inherit;font-size:15px;line-height:1.6"></div></div></div>
+<script>
+const W='lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum curabitur pretium tincidunt lacus nulla gravida orci a odio nullam varius turpis et commodo pharetra'.split(' ');
+const pick=()=>W[Math.floor(Math.random()*W.length)],cap=s=>s[0].toUpperCase()+s.slice(1);
+const sentence=()=>{const n=8+Math.floor(Math.random()*10),w=Array.from({length:n},pick);if(n>10)w[4+Math.floor(Math.random()*3)]+=',';return cap(w.join(' '))+'.'};
+const para=()=>Array.from({length:3+Math.floor(Math.random()*4)},sentence).join(' ');
+function gen(){const n=Math.max(1,Math.min(100,+$('#n').value||1)),u=$('#u').value;let items;
+  if(u==='w')items=[Array.from({length:n},pick).join(' ')];else if(u==='s')items=[Array.from({length:n},sentence).join(' ')];else items=Array.from({length:n},para);
+  if($('#cl').checked){items[0]=items[0].replace(/^\S+( \S+)?/,u==='w'&&n===1?'Lorem':'Lorem ipsum');if(u==='w'&&n>1)items[0]=items[0].replace(/^Lorem ipsum( ipsum)?/,'lorem ipsum')}
+  const text=$('#ht').checked?items.map(p=>`<p>${p}</p>`).join('\n'):items.join('\n\n');$('#out').textContent=text;const wc=text.replace(/<[^>]+>/g,'').split(/\s+/).filter(Boolean).length;$('#st').textContent=`${wc} words · ${text.length} characters`}
+$('#go').onclick=gen;$('#cp').onclick=e=>copy($('#out').textContent,e.target);remember().then(gen);
+</script>

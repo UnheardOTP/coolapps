@@ -1,0 +1,110 @@
+<!doctype html><meta charset="utf-8"><title>Pixel Studio</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #1d2b53; color: #fff1e8; font: 14px 'Courier New', monospace; text-transform: uppercase; letter-spacing: .08em; }
+  main { display: flex; gap: 32px; justify-content: center; padding: 40px; }
+  h1 { margin: 0 0 20px; font-size: 28px; color: #ffec27; text-shadow: 4px 4px 0 #7e2553; }
+  .panel { background: #000; border: 4px solid #fff1e8; box-shadow: 8px 8px 0 #7e2553; padding: 16px; }
+  canvas { display: block; image-rendering: pixelated; cursor: crosshair; }
+  #swatches { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin: 16px 0; }
+  .sw { aspect-ratio: 1; border: 3px solid #5f574f; cursor: pointer; }
+  .sw.on { border-color: #fff1e8; outline: 3px solid #000; }
+  .tools, .save { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tools button { flex: 1; padding: 8px 4px; }
+  button, input { font: inherit; text-transform: uppercase; letter-spacing: inherit; background: #5f574f; color: #fff1e8; border: 3px solid #fff1e8; padding: 8px 10px; cursor: pointer; }
+  button.on { background: #ffec27; color: #000; }
+  button.go { background: #00e436; color: #000; }
+  input { flex: 1; min-width: 0; background: #000; cursor: text; }
+  #gallery { display: grid; grid-template-columns: repeat(3, 84px); gap: 14px; max-height: 560px; overflow: auto; padding: 4px; }
+  .art { cursor: pointer; text-align: center; font-size: 10px; position: relative; }
+  .art canvas { border: 3px solid #fff1e8; width: 84px; height: 84px; background: #333; }
+  .art:hover canvas { border-color: #ffec27; }
+  .art b { position: absolute; top: -4px; right: -4px; background: #ff004d; color: #fff; width: 18px; height: 18px; line-height: 16px; border: 2px solid #000; }
+  .empty { grid-column: 1 / -1; color: #83769c; }
+</style>
+<main>
+  <div>
+    <h1>Pixel Studio</h1>
+    <div class="panel"><canvas id="c" width="512" height="512"></canvas></div>
+  </div>
+  <div style="width:290px">
+    <h1 style="font-size:16px">Tools</h1>
+    <div class="panel">
+      <div class="tools"><button data-tool="pen" class="on">Pen</button><button data-tool="fill">Fill</button><button data-tool="erase">Erase</button><button id="clear">Clear</button></div>
+      <div id="swatches" style="margin-top:0"></div>
+      <div class="save"><input id="name" placeholder="name" maxlength="14"><button class="go" id="save">Save</button></div>
+    </div>
+    <h1 style="font-size:16px;margin-top:28px">Gallery</h1>
+    <div class="panel"><div id="gallery"></div></div>
+  </div>
+</main>
+<script>
+// PICO-8 palette. A drawing is a 256-char string: one hex digit per cell (palette index), '.' for empty.
+const PAL = ['#000000','#1d2b53','#7e2553','#008751','#ab5236','#5f574f','#c2c3c7','#fff1e8','#ff004d','#ffa300','#ffec27','#00e436','#29adff','#83769c','#ff77a8','#ffccaa'];
+const N = 16, S = 32;
+let px = Array(N * N).fill('.'), color = 8, tool = 'pen', painting = false, erasing = false, art = [];
+const cv = $('#c'), ctx = cv.getContext('2d');
+
+// Paint any drawing string onto a context at the given cell size, over a checkerboard for empty cells.
+function paint(g, cells, s) {
+  for (let i = 0; i < N * N; i++) {
+    const x = (i % N) * s, y = Math.floor(i / N) * s, c = cells[i];
+    g.fillStyle = c === '.' ? ((i % N + Math.floor(i / N)) % 2 ? '#3a3a3a' : '#2e2e2e') : PAL[parseInt(c, 16)];
+    g.fillRect(x, y, s, s);
+  }
+}
+const draw = () => paint(ctx, px, S);
+
+// 4-way flood fill from a cell.
+function fill(i, to) {
+  const from = px[i]; if (from === to) return;
+  const q = [i];
+  while (q.length) {
+    const j = q.pop(); if (px[j] !== from) continue;
+    px[j] = to;
+    const x = j % N;
+    if (x > 0) q.push(j - 1); if (x < N - 1) q.push(j + 1); if (j >= N) q.push(j - N); if (j < N * (N - 1)) q.push(j + N);
+  }
+}
+function cell(e) {
+  const r = cv.getBoundingClientRect();
+  return Math.floor((e.clientY - r.top) / S) * N + Math.floor((e.clientX - r.left) / S);
+}
+function apply(e) {
+  const i = cell(e), v = (tool === 'erase' || erasing) ? '.' : color.toString(16);
+  if (tool === 'fill' && !erasing) fill(i, v); else px[i] = v;
+  draw();
+}
+cv.onmousedown = e => { erasing = e.button === 2; painting = true; apply(e); if (tool === 'fill') painting = false; };
+cv.onmousemove = e => painting && apply(e);
+addEventListener('mouseup', () => painting = false);
+cv.oncontextmenu = e => e.preventDefault();
+
+$('#swatches').innerHTML = PAL.map((c, i) => `<div class="sw ${i === color ? 'on' : ''}" data-c="${i}" style="background:${c}"></div>`).join('');
+$('#swatches').onclick = e => {
+  if (!e.target.dataset.c) return;
+  color = +e.target.dataset.c; tool = tool === 'erase' ? 'pen' : tool; syncUI();
+};
+document.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { tool = b.dataset.tool; syncUI(); });
+function syncUI() {
+  document.querySelectorAll('.sw').forEach(s => s.classList.toggle('on', +s.dataset.c === color));
+  document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === tool));
+}
+$('#clear').onclick = () => { px.fill('.'); draw(); };
+
+function renderGallery() {
+  $('#gallery').innerHTML = art.length ? art.map(a => `<div class="art" data-id="${a.id}"><canvas width="64" height="64"></canvas>${esc(a.name)}<b data-del>×</b></div>`).join('') : '<div class="empty">Nothing saved yet.</div>';
+  document.querySelectorAll('.art').forEach(el => paint(el.querySelector('canvas').getContext('2d'), art.find(a => a.id === el.dataset.id).px, 4));
+}
+$('#gallery').onclick = async e => {
+  const el = e.target.closest('.art'); if (!el) return;
+  if (e.target.hasAttribute('data-del')) { await api.del(el.dataset.id); art = art.filter(a => a.id !== el.dataset.id); return renderGallery(); }
+  px = [...art.find(a => a.id === el.dataset.id).px]; draw();
+};
+$('#save').onclick = async () => {
+  art.unshift(await api.add({ name: $('#name').value || 'untitled', px: px.join('') })); $('#name').value = ''; renderGallery();
+};
+api.list().then(d => { art = d; renderGallery(); });
+draw();
+</script>

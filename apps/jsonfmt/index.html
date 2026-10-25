@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>JSON Formatter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#f59e0b;--w:1000px}</style>
+<div class="wrap"><h1>JSON Formatter</h1><p class="sub">Format, minify, sort and validate JSON. Errors point at the line and column.</p>
+<div class="card"><div class="g2"><div><h2>Input</h2><textarea id="in" style="min-height:320px" placeholder='{"paste":"json here"}' data-keep></textarea></div><div><h2>Output</h2><textarea id="out" style="min-height:320px" readonly></textarea></div></div>
+<div class="row gap"><button id="fmt">Format</button><button class="s" id="min">Minify</button><button class="s" id="sort">Sort keys</button><label style="margin:0 0 0 8px">Indent <select id="ind" style="width:90px" data-keep><option>2</option><option>4</option><option value="t">tab</option></select></label><button class="s right" id="cp">Copy output</button></div>
+<div class="err" id="err"></div><div class="mut" id="stat"></div></div>
+<div class="card"><h2>Saved snippets</h2><div id="sv"></div></div></div>
+<script>
+const $i=$('#in'),$o=$('#out');
+const indent=()=>$('#ind').value==='t'?'\t':+$('#ind').value;
+// Turn the parser's "position N" message into a line/column so the error is actionable.
+function where(e,text){const m=/position (\d+)/.exec(e.message);if(!m)return e.message;const p=+m[1],b=text.slice(0,p).split('\n');return `${e.message.replace(/ in JSON at position.*/,'')} — line ${b.length}, column ${b.at(-1).length+1}`}
+function run(mode){$('#err').textContent='';let v;try{v=JSON.parse($i.value)}catch(e){$o.value='';$('#stat').textContent='';return $('#err').textContent='✗ '+where(e,$i.value)}
+  const sortK=x=>Array.isArray(x)?x.map(sortK):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,sortK(x[k])])):x;
+  if(mode==='sort')v=sortK(v);$o.value=mode==='min'?JSON.stringify(v):JSON.stringify(v,null,indent());
+  let keys=0;(function w(x){if(x&&typeof x==='object')for(const k in x){keys+=Array.isArray(x)?0:1;w(x[k])}})(v);
+  $('#stat').textContent=`✓ Valid JSON · ${new Blob([$i.value]).size} B in → ${new Blob([$o.value]).size} B out · ${keys} keys`}
+$('#fmt').onclick=()=>run();$('#min').onclick=()=>run('min');$('#sort').onclick=()=>run('sort');$('#cp').onclick=e=>copy($o.value,e.target);
+savedBar($('#sv'),{get:()=>({t:$i.value}),set:d=>{$i.value=d.t;run()}});remember().then(()=>$i.value&&run());
+</script>

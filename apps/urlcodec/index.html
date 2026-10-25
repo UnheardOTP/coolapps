@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>URL Tools</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#10b981}</style>
+<div class="wrap"><h1>URL Tools</h1><p class="sub">Encode or decode a string, and take any URL apart into its pieces and query parameters.</p>
+<div class="card"><h2>Encode / decode</h2><textarea id="t" style="min-height:90px" data-keep placeholder="hello world & friends? ✓"></textarea>
+<div class="row gap"><button id="e1">encodeURIComponent</button><button class="s" id="e2">encodeURI</button><button class="s" id="d1">decodeURIComponent</button><button class="s right" id="cp">Copy result</button></div><div class="out gap" id="r"></div><div class="err" id="er"></div></div>
+<div class="card"><h2>Parse a URL</h2><input id="u" data-keep placeholder="https://user:pw@example.com:8080/path/to?a=1&b=two#frag"><div id="parts" class="gap"></div></div></div>
+<script>
+const set=v=>{$('#r').textContent=v;$('#er').textContent=''};
+const tryit=f=>{try{set(f())}catch(e){$('#r').textContent='';$('#er').textContent='Could not process: '+e.message}};
+$('#e1').onclick=()=>tryit(()=>encodeURIComponent($('#t').value));$('#e2').onclick=()=>tryit(()=>encodeURI($('#t').value));$('#d1').onclick=()=>tryit(()=>decodeURIComponent($('#t').value.replace(/\+/g,' ')));$('#cp').onclick=e=>copy($('#r').textContent,e.target);
+function parse(){const v=$('#u').value.trim(),el=$('#parts');if(!v)return el.innerHTML='';let u;try{u=new URL(v)}catch{return el.innerHTML='<div class="err">Not a valid absolute URL (include https://)</div>'}
+  const rows=[['Protocol',u.protocol],['Username',u.username],['Password',u.password],['Host',u.hostname],['Port',u.port||'(default)'],['Path',u.pathname],['Query',u.search],['Fragment',u.hash]].filter(r=>r[1]);
+  const q=[...u.searchParams];el.innerHTML=`<table>${rows.map(([k,x])=>`<tr><td class="mut" style="width:120px">${k}</td><td class="mono">${esc(x)}</td></tr>`).join('')}</table>`+(q.length?`<h2 class="gap">Query parameters</h2><table>${q.map(([k,x])=>`<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(x)}</td></tr>`).join('')}</table>`:'')}
+$('#u').oninput=parse;remember().then(parse);
+</script>

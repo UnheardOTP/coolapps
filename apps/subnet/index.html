@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>Subnet Calculator</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0284c7;--w:960px}</style>
+<div class="wrap"><h1>Subnet Calculator</h1><p class="sub">IPv4 CIDR math: network, broadcast, host range, masks, and splitting into smaller subnets.</p>
+<div class="card"><div class="row"><div class="col" style="flex:2"><label>IP address / prefix</label><input id="ip" class="mono" style="font-size:20px" value="192.168.10.37/24" data-keep></div><div class="col"><label>Split into subnets of /…</label><select id="sp" data-keep><option value="">don't split</option></select></div></div><div class="err" id="er"></div></div>
+<div class="card" id="res"></div><div class="card hide" id="splitc"><h2 id="sh"></h2><div style="max-height:320px;overflow:auto"><table id="st"></table></div></div><div class="card"><h2>Saved networks</h2><div id="sv"></div></div></div>
+<script>
+const toInt=s=>{const p=s.split('.');if(p.length!==4||p.some(x=>!/^\d+$/.test(x)||+x>255))throw Error('Enter a valid IPv4 address, e.g. 10.0.0.5/16');return(p[0]*16777216+p[1]*65536+p[2]*256+ +p[3])>>>0};
+const toStr=n=>[n>>>24,n>>>16&255,n>>>8&255,n&255].join('.'),bin=n=>[...toStr(n).split('.')].map(x=>(+x).toString(2).padStart(8,'0')).join('.');
+const mask=p=>p===0?0:(0xFFFFFFFF<<(32-p))>>>0;
+for(let i=8;i<=30;i++)$('#sp').insertAdjacentHTML('beforeend',`<option value="${i}">/${i}</option>`);
+function info(ip,p){const m=mask(p),net=(ip&m)>>>0,bc=(net|~m)>>>0,hosts=p>=31?(p===32?1:2):2**(32-p)-2,first=p>=31?net:net+1,last=p>=31?bc:bc-1,a=ip>>>24;
+  const cls=a<128?'A':a<192?'B':a<224?'C':a<240?'D (multicast)':'E (reserved)',priv=(a===10||(ip>>>20)===0xAC1||(ip>>>16)===0xC0A8)?'Private (RFC 1918)':a===127?'Loopback':(ip>>>16)===0xA9FE?'Link-local':'Public';return{m,net,bc,hosts,first,last,cls,priv}}
+function run(){$('#er').textContent='';let ip,p;try{const[a,b]=$('#ip').value.trim().split('/');ip=toInt(a);p=b===undefined?24:+b;if(!(p>=0&&p<=32)||!Number.isInteger(p))throw Error('Prefix must be 0–32')}catch(e){$('#res').innerHTML='';$('#splitc').classList.add('hide');return $('#er').textContent=e.message}
+  const r=info(ip,p),rows=[['Network',toStr(r.net)+'/'+p],['Subnet mask',toStr(r.m)],['Wildcard',toStr(~r.m>>>0)],['Broadcast',toStr(r.bc)],['First host',toStr(r.first)],['Last host',toStr(r.last)],['Usable hosts',r.hosts.toLocaleString()],['Total addresses',(2**(32-p)).toLocaleString()],['Class / type',`${r.cls} · ${r.priv}`],['Mask (binary)',bin(r.m)]];
+  $('#res').innerHTML=`<table>${rows.map(([k,v])=>`<tr><td class="mut" style="width:150px">${k}</td><td class="mono">${v}</td><td class="r"><button class="x" data-v="${v}">Copy</button></td></tr>`).join('')}</table>`;
+  const sp=+$('#sp').value;if(sp&&sp>p){const n=2**(sp-p),step=2**(32-sp),L=Math.min(n,256);$('#splitc').classList.remove('hide');$('#sh').textContent=`${n.toLocaleString()} subnets of /${sp}${n>256?' (showing first 256)':''}`;
+    $('#st').innerHTML='<tr><th>#</th><th>Network</th><th>First–last host</th><th>Broadcast</th></tr>'+Array.from({length:L},(_,i)=>{const nn=(r.net+i*step)>>>0,x=info(nn,sp);return`<tr><td>${i+1}</td><td class="mono">${toStr(nn)}/${sp}</td><td class="mono">${toStr(x.first)} – ${toStr(x.last)}</td><td class="mono">${toStr(x.bc)}</td></tr>`}).join('')}else $('#splitc').classList.add('hide')}
+$('#res').onclick=e=>{if(e.target.dataset.v)copy(e.target.dataset.v,e.target)};$('#ip').oninput=$('#sp').onchange=run;savedBar($('#sv'),{get:()=>({ip:$('#ip').value}),set:d=>{$('#ip').value=d.ip;run()}});remember().then(run);
+</script>

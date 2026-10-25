@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Number to Words</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#0d9488;--w:860px}.w{font-size:22px;line-height:1.4;min-height:40px}</style>
+<div class="wrap"><h1>Number to Words</h1><p class="sub">Spell out any number in English: for cheques, contracts and invoices. Handles negatives, decimals and up to the quadrillions.</p>
+<div class="card"><label>Number</label><input id="n" value="1234567.89" style="font-size:24px" data-keep><div class="err" id="er"></div></div>
+<div class="card"><h2>In words</h2><div class="w" id="w"></div><div class="row gap"><button class="s" id="c1">Copy</button><button class="s" id="c2">Copy capitalised</button></div></div>
+<div class="g2"><div class="card"><h2>Cheque style</h2><div class="w" id="ck" style="font-size:18px"></div><button class="s gap" id="c3">Copy</button></div><div class="card"><h2>Ordinal</h2><div class="w" id="or" style="font-size:18px"></div></div></div></div>
+<script>
+const ONES='zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen'.split(' '),TENS='_ _ twenty thirty forty fifty sixty seventy eighty ninety'.split(' '),SC=['','thousand','million','billion','trillion','quadrillion'];
+const under1000=n=>{const h=Math.floor(n/100),r=n%100;let s=h?ONES[h]+' hundred':'';if(r){if(h)s+=' ';s+=r<20?ONES[r]:TENS[Math.floor(r/10)]+(r%10?'-'+ONES[r%10]:'')}return s};
+function words(intStr){if(/^0+$/.test(intStr))return 'zero';const g=[];let s=intStr.replace(/^0+/,'');while(s.length){g.unshift(+s.slice(-3));s=s.slice(0,-3)}if(g.length>SC.length)throw Error('Too large (max 999 quadrillion).');return g.map((v,i)=>v?under1000(v)+(SC[g.length-1-i]?' '+SC[g.length-1-i]:''):'').filter(Boolean).join(' ')}
+const ordinal=w=>{const m={one:'first',two:'second',three:'third',five:'fifth',eight:'eighth',nine:'ninth',twelve:'twelfth'},p=w.split(/([ -])/),l=p.pop();return p.join('')+(m[l]||(l.endsWith('y')?l.slice(0,-1)+'ieth':l+'th'))};
+function run(){$('#er').textContent='';const raw=$('#n').value.replace(/[,\s$]/g,'');if(!/^-?\d*\.?\d*$/.test(raw)||!/\d/.test(raw)){['#w','#ck','#or'].forEach(i=>$(i).textContent='');return raw?$('#er').textContent='Enter digits, optionally with a minus sign and a decimal point.':0}
+  try{const neg=raw.startsWith('-'),[i='0',f='']=raw.replace('-','').split('.'),iw=words(i||'0'),dec=f?' point '+[...f].map(d=>ONES[d]).join(' '):'',w=(neg?'minus ':'')+iw+dec;$('#w').textContent=w;
+    const cents=(f+'00').slice(0,2),dollars=words(i||'0');$('#ck').textContent=`${dollars.charAt(0).toUpperCase()+dollars.slice(1)} and ${cents}/100 dollars`;$('#or').textContent=f?'(ordinals need a whole number)':ordinal(iw)}catch(e){$('#er').textContent=e.message}}
+$('#n').oninput=run;$('#c1').onclick=e=>copy($('#w').textContent,e.target);$('#c2').onclick=e=>{const t=$('#w').textContent;copy(t.charAt(0).toUpperCase()+t.slice(1),e.target)};$('#c3').onclick=e=>copy($('#ck').textContent,e.target);remember().then(run);
+</script>

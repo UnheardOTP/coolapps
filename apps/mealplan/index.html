@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Meal Planner</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#ea580c;--w:1100px}.g{display:grid;grid-template-columns:90px repeat(7,1fr);gap:6px}.g>div{min-width:0}.hd{text-align:center;font-weight:700;padding:6px 0}.hd small{display:block;color:var(--mut);font-weight:400}.hd.today{color:var(--a)}.rl{display:flex;align-items:center;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}.g textarea{min-height:76px;font-family:inherit;font-size:13px;padding:6px 8px;resize:none}.nav{display:flex;align-items:center;gap:12px;margin-bottom:14px}@media print{.nav button,.sub,h1{display:none}}</style>
+<div class="wrap"><h1>Meal Planner</h1><p class="sub">Plan the week's breakfasts, lunches and dinners. Each week is saved separately.</p>
+<div class="nav"><button class="s" id="pv">‹</button><b id="wk" style="min-width:230px;text-align:center"></b><button class="s" id="nx">›</button><button class="s" id="td">This week</button><button class="s right" id="pr">Print</button></div><div class="card"><div class="g" id="g"></div></div></div>
+<script>
+let start,store={};const M=['Breakfast','Lunch','Dinner'];
+const monday=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};start=monday(new Date());
+const key=()=>dkey(start);
+function paint(){const days=Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return d}),t=dkey(new Date()),w=store[key()]?.cells||{};
+  $('#wk').textContent=`${days[0].toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${days[6].toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}`;
+  $('#g').innerHTML='<div></div>'+days.map(d=>`<div class="hd ${dkey(d)===t?'today':''}">${d.toLocaleDateString(undefined,{weekday:'short'})}<small>${d.getDate()}</small></div>`).join('')+M.map((m,mi)=>`<div class="rl">${m}</div>`+days.map((d,di)=>`<div><textarea data-k="${mi}-${di}" placeholder="—">${esc(w[`${mi}-${di}`]||'')}</textarea></div>`).join('')).join('')}
+let t;$('#g').oninput=e=>{const k=e.target.dataset.k;if(!k)return;const wk=key();store[wk]??={kind:'wk',week:wk,cells:{}};store[wk].cells[k]=e.target.value;clearTimeout(t);t=setTimeout(async()=>{const s=store[wk];if(s.id)api.upd(s.id,{cells:s.cells});else{const n=await api.add({kind:'wk',week:wk,cells:s.cells});s.id=n.id}},500)};
+const go=n=>{start.setDate(start.getDate()+n*7);paint()};$('#pv').onclick=()=>go(-1);$('#nx').onclick=()=>go(1);$('#td').onclick=()=>{start=monday(new Date());paint()};$('#pr').onclick=()=>print();api.list().then(d=>{only(d,'wk').forEach(w=>store[w.week]=w);paint()});
+</script>

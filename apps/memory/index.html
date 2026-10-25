@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>Memory</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:radial-gradient(#4b2fa8,#1f1250);color:#fff;font-family:system-ui;display:flex;flex-direction:column;align-items:center;padding-top:34px}
+h1{margin:0;font-size:40px;letter-spacing:.2em;font-weight:200}.s{color:#b9a6ff;margin:8px 0 22px}#g{display:grid;grid-template-columns:repeat(4,104px);gap:12px}
+.c{height:124px;border-radius:14px;background:repeating-linear-gradient(45deg,#6a4bd6 0 8px,#5a3cc4 8px 16px);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:54px;box-shadow:0 6px 0 #2a1a70;transition:transform .15s}
+.c:hover{transform:translateY(-3px)}.c.up{background:#fff;color:#4b2fa8}.c.done{background:#ffd23f;color:#4b2fa8;box-shadow:0 6px 0 #b8941a}
+button{margin-top:22px;font:inherit;padding:10px 26px;border:none;border-radius:22px;background:#ffd23f;color:#2a1a70;font-weight:700;cursor:pointer}</style>
+<h1>MEMORY</h1><div class="s" id="s"></div><div id="g"></div><button id="n">New game</button>
+<script>
+const SYM=['★','♦','♣','♠','♥','●','▲','■'];let deck,open=[],moves=0,lock=false,best=[];
+function deal(){deck=[...SYM,...SYM].sort(()=>Math.random()-.5).map(s=>({s,up:false,done:false}));open=[];moves=0;lock=false;render()}
+function render(){const b=best.length?Math.min(...best.map(x=>x.moves)):'–';$('#s').textContent=`Moves ${moves} · Best ${b}`;
+$('#g').innerHTML=deck.map((c,i)=>`<div class="c ${c.up?'up':''} ${c.done?'done':''}" data-i="${i}">${c.up||c.done?c.s:''}</div>`).join('')}
+// Flip two cards; if they match they stay lit, otherwise flip back after a beat. Finishing saves the move count.
+$('#g').onclick=async e=>{const el=e.target.closest('.c');if(!el||lock)return;const c=deck[+el.dataset.i];if(c.up||c.done)return;c.up=true;open.push(c);render();
+if(open.length<2)return;moves++;const[a,b]=open;open=[];
+if(a.s===b.s){a.done=b.done=true;a.up=b.up=false;render();if(deck.every(x=>x.done))best.push(await api.add({moves}))&&render()}
+else{lock=true;setTimeout(()=>{a.up=b.up=false;lock=false;render()},700)}};
+$('#n').onclick=deal;api.list().then(d=>{best=d;deal()});
+</script>

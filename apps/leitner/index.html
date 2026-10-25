@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>Leitner Boxes</title><script src="/shared/lib.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#efe6d2;color:#3a2a14;font-family:Georgia,serif;display:flex;flex-direction:column;align-items:center;padding-top:26px}h1{margin:0;font-weight:400;font-size:34px;letter-spacing:.1em}.sub{color:#8a7650;font-style:italic;margin:4px 0 18px}
+.boxes{display:flex;gap:14px}.bx{width:130px;height:110px;background:linear-gradient(#c9a066,#a77c40);border-radius:4px 4px 10px 10px;position:relative;padding:10px;text-align:center;box-shadow:0 6px 0 #6e4c1f;color:#fff;cursor:default}.bx b{font-size:40px;display:block;line-height:1.1}.bx small{opacity:.8}.bx.has{outline:3px solid #ffd23f}.bx::before{content:attr(data-n);position:absolute;top:-10px;left:50%;margin-left:-14px;width:28px;height:28px;background:#3a2a14;border-radius:50%;line-height:28px;font-size:14px}
+.card{width:480px;height:240px;margin:28px 0 14px;background:#fffdf5;border:2px solid #3a2a14;box-shadow:6px 6px 0 #3a2a14;display:flex;align-items:center;justify-content:center;padding:30px;text-align:center;font-size:30px;cursor:pointer;position:relative}.card small{position:absolute;bottom:10px;color:#a99;font-size:13px}
+.act{display:flex;gap:12px;min-height:46px}.act button{font:inherit;font-size:18px;padding:10px 28px;border:2px solid #3a2a14;cursor:pointer}.ok{background:#8fd6a0}.no{background:#f0a0a0}form{display:flex;gap:6px;margin-top:20px}input{font:inherit;padding:8px 12px;border:1px solid #a99;width:200px;background:#fffdf5}form button{background:#3a2a14;color:#fff;border:none;padding:8px 18px;cursor:pointer;font:inherit}</style>
+<h1>Leitner Boxes</h1><div class="sub">Right answers climb a box. Wrong answers drop back to box 1. Higher boxes appear less often.</div>
+<div class="boxes" id="bx"></div><div class="card" id="card"></div><div class="act" id="act"></div>
+<form id="f"><input id="a" placeholder="Front" required><input id="b" placeholder="Back" required><button>Add card</button></form>
+<script>
+let cards=[],cur=null,flip=false,turn=0;
+// Box n is studied every 2^(n-1) turns, so box 1 shows up most and box 5 only occasionally.
+function pick(){turn++;const due=cards.filter(c=>turn%(2**(c.box-1))===0||c.box===1);cur=due.length?due[Math.floor(Math.random()*due.length)]:cards[Math.floor(Math.random()*cards.length)]||null;flip=false}
+function render(){$('#bx').innerHTML=[1,2,3,4,5].map(n=>{const k=cards.filter(c=>c.box===n).length;return`<div class="bx ${cur&&cur.box===n?'has':''}" data-n="${n}"><b>${k}</b><small>card${k===1?'':'s'}</small></div>`}).join('');
+$('#card').innerHTML=cur?`${esc(flip?cur.b:cur.a)}<small>${flip?'answer':'click to reveal'}</small>`:'Add a card to begin.';$('#act').innerHTML=cur&&flip?'<button class="no" data-r="0">Missed it</button><button class="ok" data-r="1">Got it</button>':''}
+$('#card').onclick=()=>{if(cur){flip=true;render()}};
+$('#act').onclick=e=>{if(e.target.dataset.r===undefined)return;cur.box=e.target.dataset.r==='1'?Math.min(5,cur.box+1):1;api.upd(cur.id,{box:cur.box});pick();render()};
+$('#f').onsubmit=async e=>{e.preventDefault();const c=await api.add({a:$('#a').value,b:$('#b').value,box:1});cards.push(c);$('#a').value=$('#b').value='';if(!cur)pick();render()};
+api.list().then(d=>{cards=d;pick();render()});
+</script>

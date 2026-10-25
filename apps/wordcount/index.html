@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Word Counter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#2563eb;--w:960px}</style>
+<div class="wrap"><h1>Word Counter</h1><p class="sub">Words, characters, sentences, reading time and the keywords you lean on. Your text is remembered.</p>
+<div class="card"><textarea id="t" style="min-height:260px;font-family:inherit;font-size:16px" data-keep placeholder="Paste or type your text…"></textarea>
+<div class="row gap"><div class="col"><label>Character limit (optional)</label><input id="lim" type="number" placeholder="e.g. 280" data-keep></div><div class="col"><label>Reading speed (wpm)</label><input id="wpm" type="number" value="230" data-keep></div></div><div class="bar gap hide" id="lb"><i id="li" style="width:0"></i></div><div class="mut" id="ls"></div></div>
+<div class="g4" id="kp"></div><div class="card gap"><h2>Most used words</h2><div class="chips" id="kw"></div></div></div>
+<script>
+const STOP=new Set('a an and are as at be but by for from has have he her his i if in is it its me my not of on or our she so that the their them they this to was we were what when which who will with you your'.split(' '));
+function run(){const t=$('#t').value,words=t.match(/[\p{L}\p{N}'’-]+/gu)||[],sent=(t.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g)||[]).filter(s=>s.trim()).length,paras=t.split(/\n\s*\n/).filter(s=>s.trim()).length,wpm=num('wpm')||230;
+  $('#kp').innerHTML=[['Words',words.length.toLocaleString()],['Characters',t.length.toLocaleString()],['No spaces',t.replace(/\s/g,'').length.toLocaleString()],['Sentences',sent],['Paragraphs',paras],['Reading time',words.length?Math.max(1,Math.round(words.length/wpm*60))+' s':'–'],['Speaking time',words.length?Math.max(1,Math.round(words.length/130*60))+' s':'–'],['Avg word length',words.length?fmt(words.join('').length/words.length,1):'–']].map(([k,v])=>`<div class="kpi"><small>${k}</small><b>${v}</b></div>`).join('');
+  const f={};words.forEach(w=>{w=w.toLowerCase();if(w.length>2&&!STOP.has(w))f[w]=(f[w]||0)+1});$('#kw').innerHTML=Object.entries(f).sort((a,b)=>b[1]-a[1]).slice(0,24).map(([w,n])=>`<span class="chip" style="cursor:default">${esc(w)} <b>${n}</b></span>`).join('')||'<span class="mut">Nothing yet.</span>';
+  const lim=num('lim');$('#lb').classList.toggle('hide',!lim);if(lim){const p=t.length/lim*100;$('#li').style.width=Math.min(100,p)+'%';$('#li').style.background=p>100?'var(--bad)':p>90?'#f59e0b':'var(--a)';$('#ls').textContent=t.length>lim?`${t.length-lim} over the limit`:`${lim-t.length} characters left`}else $('#ls').textContent=''}
+document.addEventListener('input',run);remember().then(run);
+</script>

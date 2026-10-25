@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><title>Random Picker</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#f59e0b;--w:900px}.win{font-size:42px;font-weight:800;text-align:center;padding:26px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--a) 22%,var(--card)),var(--card));min-height:100px;word-break:break-word}.tm{background:var(--soft);border-radius:12px;padding:12px 14px}.tm h2{color:var(--a)}.tm div{padding:2px 0}</style>
+<div class="wrap"><h1>Random Picker</h1><p class="sub">Draw winners from a list, or split people into fair teams.</p>
+<div class="card"><label>Names / items (one per line)</label><textarea id="in" data-keep style="min-height:140px" placeholder="Ana&#10;Ben&#10;Cara&#10;Dev&#10;Eli"></textarea><div class="mut" id="cn"></div></div>
+<div class="g2"><div class="card"><h2>Pick winners</h2><div class="row"><div class="col"><label>How many</label><input id="k" type="number" min="1" value="1" data-keep></div><label style="margin:0 0 9px"><input type="checkbox" id="rm" data-keep> remove winners from list</label><button id="pick">🎲 Pick</button></div><div class="win gap" id="win">?</div></div>
+<div class="card"><h2>Make teams</h2><div class="row"><div class="col"><label>Number of teams</label><input id="tn" type="number" min="2" value="2" data-keep></div><button id="mt">Split</button></div><div class="g2 gap" id="tms"></div></div></div>
+<div class="card"><h2>Past draws</h2><div id="hs"></div></div></div>
+<script>
+let hist=[];const items=()=>$('#in').value.split('\n').map(s=>s.trim()).filter(Boolean);
+const rnd=n=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n};const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+const count=()=>$('#cn').textContent=`${items().length} item${items().length===1?'':'s'}`;
+async function pick(){const l=items(),k=Math.max(1,Math.min(+$('#k').value||1,l.length));if(!l.length)return;const el=$('#win');
+  // A short "slot machine" shuffle before landing on the real, pre-drawn result.
+  const win=shuffle(l).slice(0,k);for(let i=0;i<14;i++){el.textContent=l[rnd(l.length)];await new Promise(r=>setTimeout(r,40+i*12))}el.textContent=win.join(' · ');
+  if($('#rm').checked){const left=[...l];win.forEach(w=>left.splice(left.indexOf(w),1));$('#in').value=left.join('\n');count();$('#in').dispatchEvent(new Event('input',{bubbles:true}))}
+  hist.unshift(await api.add({kind:'draw',win,from:l.length}));paint()}
+function teams(){const l=shuffle(items()),n=Math.max(2,+$('#tn').value||2),T=Array.from({length:n},()=>[]);l.forEach((x,i)=>T[i%n].push(x));$('#tms').innerHTML=T.map((t,i)=>`<div class="tm"><h2>Team ${i+1} · ${t.length}</h2>${t.map(x=>`<div>${esc(x)}</div>`).join('')}</div>`).join('')}
+function paint(){$('#hs').innerHTML=hist.slice(0,10).map(h=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)" data-id="${h.id}"><span class="mut">${new Date(h.createdAt).toLocaleString()}</span><b class="col">${esc(h.win.join(', '))}</b><span class="mut">of ${h.from}</span><button class="x" data-rm>✕</button></div>`).join('')||'<span class="mut">No draws yet.</span>'}
+$('#pick').onclick=pick;$('#mt').onclick=teams;$('#in').addEventListener('input',count);$('#hs').onclick=async e=>{if(!e.target.hasAttribute('data-rm'))return;const id=e.target.closest('[data-id]').dataset.id;await api.del(id);hist=hist.filter(x=>x.id!==id);paint()};
+api.list().then(d=>{hist=only(d,'draw').sort((a,b)=>b.createdAt-a.createdAt);paint();remember().then(count)});
+</script>

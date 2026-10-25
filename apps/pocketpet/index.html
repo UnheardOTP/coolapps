@@ -1,0 +1,57 @@
+<!doctype html><meta charset="utf-8"><title>Pocket Pet</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg, #ffd6e8, #d6e8ff); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; }
+  .dev { width: 420px; padding: 30px 30px 36px; background: linear-gradient(145deg, #7fd8c9, #46b3a5); border-radius: 40px 40px 100px 100px; box-shadow: 0 24px 50px #0004, inset 0 -8px 0 #0002, inset 0 6px 0 #fff5; text-align: center; }
+  .brand { color: #fff; letter-spacing: .4em; font-size: 14px; margin-bottom: 12px; font-weight: 700; text-shadow: 0 1px 0 #0004; }
+  .bezel { background: #4a4e5a; padding: 18px; border-radius: 16px 16px 40px 16px; box-shadow: inset 0 0 12px #000a; } canvas { display: block; width: 100%; image-rendering: pixelated; background: #9bbc0f; border: 3px solid #0f380f; }
+  .stats { display: flex; justify-content: space-around; margin: 14px 0 0; color: #cfe; font-size: 12px; letter-spacing: .1em; } .stats b { display: block; color: #9bbc0f; font-size: 16px; letter-spacing: 3px; }
+  .btns { display: flex; justify-content: center; gap: 22px; margin-top: 26px; } .btns button { width: 74px; height: 74px; border-radius: 50%; border: none; background: radial-gradient(circle at 35% 30%, #ff9ab5, #d63f6c); color: #fff; font: 700 13px 'Courier New'; cursor: pointer; box-shadow: 0 6px 0 #8c1f44, 0 10px 14px #0005; letter-spacing: .08em; } .btns button:active { transform: translateY(5px); box-shadow: 0 1px 0 #8c1f44; }
+  #egg { color: #0f380f; } #nm { font: 16px 'Courier New'; padding: 8px; text-align: center; border: 2px solid #0f380f; background: #cfe38a; width: 180px; } #hatch { font: inherit; padding: 8px 16px; background: #0f380f; color: #9bbc0f; border: none; cursor: pointer; }
+</style>
+<div class="dev"><div class="brand">POCKET PET</div><div class="bezel"><canvas id="c" width="160" height="128"></canvas>
+  <div class="stats" id="stats"></div></div><div class="btns"><button data-a="feed">FEED</button><button data-a="play">PLAY</button><button data-a="sleep">REST</button></div></div>
+<script>
+const HOUR = 36e5, INK = '#0f380f', LCD = '#9bbc0f', MID = '#306230';
+let pet = null, anim = null, t0 = 0;
+// Each need decays over real time since the last time you looked after it.
+const need = (at, hrs) => Math.max(0, Math.min(1, 1 - (Date.now() - (at || pet.createdAt)) / (hrs * HOUR)));
+const stat = () => ({ hunger: need(pet.fedAt, 8), fun: need(pet.playedAt, 6), energy: need(pet.restedAt, 12) });
+const mood = () => { const s = stat(), m = Math.min(s.hunger, s.fun, s.energy); return m > .6 ? 'happy' : m > .3 ? 'ok' : 'sad'; };
+const g = $('#c').getContext('2d');
+const px = (x, y, w = 1, h = 1, c = INK) => { g.fillStyle = c; g.fillRect(x * 8, y * 8, w * 8, h * 8); };
+
+// Draw the pet on a 20×16 pixel grid: bobbing body, mood-dependent face, and any active action animation.
+function draw(now) {
+  g.fillStyle = LCD; g.fillRect(0, 0, 160, 128);
+  if (!pet) { px(8, 5, 4, 6); px(7, 6, 6, 4); px(9, 7, 2, 1, LCD); px(9, 9, 1, 1, LCD); return; }
+  const m = mood(), bob = Math.floor(now / 450) % 2, a = anim && now < anim.until ? anim.kind : null;
+  const y0 = 4 + (a === 'play' ? Math.abs(Math.sin(now / 90)) * -2 | 0 : bob);
+  px(5, y0 + 2, 10, 8); px(6, y0 + 1, 8, 1); px(6, y0 + 10, 8, 1); px(4, y0 + 4, 1, 4); px(15, y0 + 4, 1, 4);   // body blob
+  px(6, y0 + 3, 8, 6, MID);
+  px(6, y0, 2, 1); px(12, y0, 2, 1);                                                          // ears
+  const sleepy = a === 'sleep' || (m === 'sad' && bob);
+  if (sleepy) { px(7, y0 + 5, 2, 1, LCD); px(11, y0 + 5, 2, 1, LCD); } else if (m === 'happy') { px(7, y0 + 4, 1, 1, LCD); px(8, y0 + 5, 1, 1, LCD); px(12, y0 + 4, 1, 1, LCD); px(11, y0 + 5, 1, 1, LCD); } else { px(7, y0 + 4, 2, 2, LCD); px(11, y0 + 4, 2, 2, LCD); }
+  if (m === 'happy' || a === 'feed') { px(8, y0 + 7, 4, 1, LCD); px(7, y0 + 6, 1, 1, LCD); px(12, y0 + 6, 1, 1, LCD); } else if (m === 'ok') px(8, y0 + 7, 4, 1, LCD); else { px(8, y0 + 6, 4, 1, LCD); px(7, y0 + 7, 1, 1, LCD); px(12, y0 + 7, 1, 1, LCD); }
+  if (a === 'feed') { const f = Math.floor((anim.until - now) / 120); px(16, 2 + (f % 4), 2, 2); px(17, 1 + (f % 4), 1, 1, LCD); }
+  if (a === 'sleep') { px(15, 1, 2, 1); px(16, 2, 1, 1); px(15, 3, 2, 1); px(17, 0, 1, 1); }
+  if (a === 'play') { px(2 + (now / 100 | 0) % 3, 12, 2, 2); px(16, 11, 2, 2); }
+  px(3, 14, 14, 1, MID);                                                                      // floor
+}
+(function loop(now) { draw(now); requestAnimationFrame(loop); })(0);
+function stats() {
+  if (!pet) return $('#stats').innerHTML = '<div id="egg">A mysterious egg…</div>';
+  const s = stat(), bar = v => '♥'.repeat(Math.ceil(v * 4)).padEnd(4, '·'), age = Math.floor((Date.now() - pet.createdAt) / (24 * HOUR));
+  $('#stats').innerHTML = `<div>HUNGER<b>${bar(s.hunger)}</b></div><div>FUN<b>${bar(s.fun)}</b></div><div>ENERGY<b>${bar(s.energy)}</b></div><div>${esc(pet.name).toUpperCase()}<b>${age}d old</b></div>`;
+}
+document.querySelector('.btns').onclick = async e => {
+  const a = e.target.dataset.a; if (!a || !pet) return; const k = { feed: 'fedAt', play: 'playedAt', sleep: 'restedAt' }[a];
+  pet[k] = Date.now(); anim = { kind: a, until: performance.now() + 1600 }; api.upd(pet.id, { [k]: pet[k] }); stats();
+};
+function hatch() {
+  $('#stats').innerHTML = '<div id="egg"><input id="nm" placeholder="Name your pet" maxlength="10"> <button id="hatch">HATCH</button></div>';
+  $('#hatch').onclick = async () => { const n = $('#nm').value.trim(); if (!n) return; const now = Date.now(); pet = await api.add({ name: n, fedAt: now, playedAt: now, restedAt: now }); stats(); };
+}
+api.list().then(d => { pet = d[d.length - 1] || null; pet ? stats() : hatch(); }); setInterval(() => pet && stats(), 5000);
+</script>

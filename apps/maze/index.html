@@ -1,0 +1,46 @@
+<!doctype html><meta charset="utf-8"><title>Labyrinth</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #e8dcc0; background-image: radial-gradient(ellipse at center, #f3e9d2, #d7c6a0); color: #2b2118; font-family: 'Palatino Linotype', Georgia, serif; display: flex; gap: 44px; align-items: center; justify-content: center; }
+  canvas { background: #f6edd8; border: 6px double #2b2118; box-shadow: 0 14px 30px #0004; } h1 { margin: 0 0 4px; font-size: 40px; font-variant: small-caps; letter-spacing: .08em; } .sub { color: #7a6548; font-style: italic; margin: 0 0 20px; }
+  #t { font: 700 56px 'Courier New', monospace; margin: 8px 0 16px; } .sizes { display: flex; gap: 8px; margin-bottom: 14px; } button { font: inherit; padding: 8px 16px; border: 2px solid #2b2118; background: #f6edd8; cursor: pointer; } button.on, button.p { background: #2b2118; color: #f6edd8; }
+  h3 { margin: 22px 0 6px; font-size: 12px; letter-spacing: .25em; text-transform: uppercase; color: #7a6548; } ol { margin: 0; padding-left: 22px; line-height: 1.7; } .side { width: 250px; }
+</style>
+<canvas id="c" width="624" height="624"></canvas>
+<div class="side"><h1>Labyrinth</h1><p class="sub">Find your way to the flag. Arrow keys or WASD.</p><div id="t">0.0</div>
+  <div class="sizes" id="sizes"></div><button class="p" id="new">New maze</button><h3>Best times</h3><ol id="best"></ol></div>
+<script>
+const SIZES = { S: 10, M: 16, L: 24 }; let size = 'M', n, grid, px, py, trail, t0 = 0, raf = 0, done = false, bests = [], T;
+const cv = $('#c'), g = cv.getContext('2d'), dim = () => 2 * n + 1;
+// Recursive-backtracker: carve a perfect maze (exactly one route between any two cells) on an odd-sized wall grid.
+function gen() {
+  n = SIZES[size]; const D = dim(); T = Math.floor(624 / D); cv.width = cv.height = T * D;
+  grid = Array.from({ length: D }, () => Array(D).fill(1)); const st = [[1, 1]]; grid[1][1] = 0;
+  while (st.length) {
+    const [x, y] = st[st.length - 1], nb = [[2, 0], [-2, 0], [0, 2], [0, -2]].map(([dx, dy]) => [x + dx, y + dy, dx / 2, dy / 2]).filter(([a, b]) => a > 0 && b > 0 && a < D && b < D && grid[b][a]);
+    if (!nb.length) { st.pop(); continue; }
+    const [a, b, hx, hy] = nb[Math.floor(Math.random() * nb.length)]; grid[y + hy][x + hx] = 0; grid[b][a] = 0; st.push([a, b]);
+  }
+  px = py = 1; trail = [[1, 1]]; t0 = 0; done = false; $('#t').textContent = '0.0'; cancelAnimationFrame(raf); draw();
+}
+function draw() {
+  const D = dim(); g.fillStyle = '#f6edd8'; g.fillRect(0, 0, cv.width, cv.height);
+  g.fillStyle = '#2b2118'; for (let y = 0; y < D; y++) for (let x = 0; x < D; x++) if (grid[y][x]) g.fillRect(x * T, y * T, T, T);
+  g.strokeStyle = '#d6453c88'; g.lineWidth = T * .3; g.lineCap = 'round'; g.beginPath(); trail.forEach(([x, y], i) => i ? g.lineTo((x + .5) * T, (y + .5) * T) : g.moveTo((x + .5) * T, (y + .5) * T)); g.stroke();
+  g.fillStyle = '#2f7d4f'; g.fillRect((D - 2) * T + T * .2, (D - 2) * T + T * .1, T * .12, T * .8); g.beginPath(); g.moveTo((D - 2) * T + T * .32, (D - 2) * T + T * .1); g.lineTo((D - 2) * T + T * .9, (D - 2) * T + T * .3); g.lineTo((D - 2) * T + T * .32, (D - 2) * T + T * .5); g.fill();
+  g.fillStyle = '#d6453c'; g.beginPath(); g.arc((px + .5) * T, (py + .5) * T, T * .36, 0, 7); g.fill();
+}
+const clock = () => { if (t0 && !done) { $('#t').textContent = ((performance.now() - t0) / 1000).toFixed(1); raf = requestAnimationFrame(clock); } };
+function move(dx, dy) {
+  if (done || grid[py + dy]?.[px + dx] !== 0) return; if (!t0) { t0 = performance.now(); clock(); }
+  px += dx; py += dy; const i = trail.findIndex(([x, y]) => x === px && y === py); i >= 0 ? trail.length = i + 1 : trail.push([px, py]); draw();
+  if (px === dim() - 2 && py === dim() - 2) win();
+}
+async function win() { done = true; const ms = Math.round(performance.now() - t0); $('#t').textContent = (ms / 1000).toFixed(1) + ' ✓'; bests.push(await api.add({ size, ms })); list(); }
+function list() { const s = bests.filter(b => b.size === size).sort((a, b) => a.ms - b.ms).slice(0, 5); $('#best').innerHTML = s.map(b => `<li>${(b.ms / 1000).toFixed(1)}s</li>`).join('') || '<li style="list-style:none;color:#a99">none yet</li>'; $('#sizes').innerHTML = Object.keys(SIZES).map(k => `<button data-k="${k}" class="${k === size ? 'on' : ''}">${k}</button>`).join(''); }
+const KEYS = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] };
+addEventListener('keydown', e => { const d = KEYS[e.key]; if (d) { e.preventDefault(); move(...d); } });
+$('#sizes').onclick = e => { if (e.target.dataset.k) { size = e.target.dataset.k; list(); gen(); } }; $('#new').onclick = gen;
+api.list().then(d => { bests = d; list(); }); gen();
+</script>

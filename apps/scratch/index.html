@@ -1,0 +1,57 @@
+<!doctype html><meta charset="utf-8"><title>Scratch-Off</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 0%, #3a1450, #170824 70%); color: #f5e7b8; font-family: Georgia, 'Times New Roman', serif; }
+  main { width: 680px; margin: 0 auto; padding: 44px 0 80px; }
+  h1 { margin: 0; text-align: center; font-size: 46px; letter-spacing: .06em; text-transform: uppercase; color: #ffd76a; text-shadow: 0 0 24px #ffb30055; }
+  .sub { text-align: center; color: #b79ac9; font-style: italic; margin: 6px 0 26px; }
+  form { display: flex; gap: 8px; margin-bottom: 26px; }
+  input { flex: 1; font: inherit; font-size: 17px; padding: 12px 14px; background: #ffffff10; border: 1px solid #ffd76a66; color: #fff; outline: none; border-radius: 4px; }
+  button { font: inherit; background: #ffd76a; color: #2a0f3a; border: none; padding: 12px 22px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; border-radius: 4px; }
+  .card { position: relative; margin-bottom: 16px; padding: 14px 16px 16px; border: 2px solid #ffd76a; border-radius: 6px; background: linear-gradient(135deg, #2c0f3f, #1a0a28); box-shadow: 0 8px 24px #0006; }
+  .card.done { background: linear-gradient(135deg, #5a3b00, #2c0f3f); }
+  .card h3 { margin: 0 0 10px; font-size: 20px; font-weight: 400; } .card i { position: absolute; top: 8px; right: 12px; font-style: normal; cursor: pointer; color: #8a6fa0; } .card i:hover { color: #ff6b6b; }
+  .under { position: relative; height: 64px; border-radius: 4px; background: repeating-linear-gradient(45deg, #ffd76a 0 10px, #ffbe3d 10px 20px); color: #2a0f3a; display: flex; align-items: center; justify-content: center; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; font-size: 18px; overflow: hidden; }
+  .under canvas { position: absolute; inset: 0; cursor: crosshair; transition: opacity .6s; touch-action: none; }
+</style>
+<main>
+  <h1>Scratch-Off</h1><p class="sub" id="sub"></p>
+  <form id="f"><input id="in" placeholder="Something you want to do before you die…" autocomplete="off"><button>Add</button></form>
+  <div id="list"></div>
+</main>
+<script>
+let items = [];
+const date = ms => new Date(ms).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+// Paint the silver foil: gradient, diagonal sheen, and a hint of text.
+function foil(c) {
+  const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, c.width, c.height);
+  gr.addColorStop(0, '#9a9aa4'); gr.addColorStop(.5, '#e8e8ee'); gr.addColorStop(1, '#8c8c96'); g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = '#ffffff55'; g.lineWidth = 2; for (let x = -64; x < c.width; x += 14) { g.beginPath(); g.moveTo(x, 64); g.lineTo(x + 64, 0); g.stroke(); }
+  g.fillStyle = '#6a6a76'; g.font = '700 15px Georgia'; g.textAlign = 'center'; g.fillText('SCRATCH WHEN YOU\'VE DONE IT', c.width / 2, 38);
+}
+function render() {
+  $('#sub').textContent = items.length ? `${items.filter(i => i.done).length} of ${items.length} scratched off` : 'Nothing here yet. Add your first dream.';
+  $('#list').innerHTML = [...items].sort((a, b) => !!a.done - !!b.done).map(i => `<div class="card ${i.done ? 'done' : ''}" data-id="${i.id}"><i>×</i><h3>${esc(i.text)}</h3>
+    <div class="under">${i.done ? '✦ Done ' + date(i.doneAt) + ' ✦' : 'Completed!<canvas width="648" height="64"></canvas>'}</div></div>`).join('');
+  document.querySelectorAll('.card:not(.done) canvas').forEach(setup);
+}
+// Scratching erases foil pixels; once ~45% is gone the item is marked done.
+function setup(c) {
+  foil(c); const g = c.getContext('2d'), id = c.closest('.card').dataset.id; let down = false;
+  const p = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
+  c.onpointerdown = e => { down = true; c.setPointerCapture(e.pointerId); scratch(e); };
+  c.onpointermove = e => down && scratch(e);
+  function scratch(e) { const [x, y] = p(e); g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.arc(x, y, 16, 0, 7); g.fill(); }
+  c.onpointerup = async () => {
+    down = false; const d = g.getImageData(0, 0, c.width, c.height).data; let clear = 0, n = 0;
+    for (let i = 3; i < d.length; i += 64) { n++; if (d[i] < 128) clear++; }
+    if (clear / n < .45) return;
+    c.style.opacity = 0; const it = items.find(x => x.id === id); it.done = true; it.doneAt = Date.now();
+    await api.upd(id, { done: true, doneAt: it.doneAt }); setTimeout(render, 650);
+  };
+}
+$('#f').onsubmit = async e => { e.preventDefault(); const t = $('#in').value.trim(); if (!t) return; items.unshift(await api.add({ text: t, done: false })); $('#in').value = ''; render(); };
+$('#list').onclick = async e => { if (e.target.tagName !== 'I') return; const id = e.target.closest('.card').dataset.id; await api.del(id); items = items.filter(i => i.id !== id); render(); };
+api.list().then(d => { items = d; render(); });
+</script>

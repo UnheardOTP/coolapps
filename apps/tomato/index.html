@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><title>Tomato</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:var(--bg,#ffe3df);transition:background .6s;color:#3a1410;font-family:'Avenir Next','Helvetica Neue',system-ui;display:flex;flex-direction:column;align-items:center;padding-top:34px}
+h1{margin:0;font-weight:300;letter-spacing:.3em;text-transform:uppercase;font-size:24px}.modes{display:flex;gap:8px;margin:18px 0}.modes button{border:none;background:#0001;padding:7px 16px;border-radius:18px;cursor:pointer;font:inherit;color:inherit}.modes button.on{background:#3a1410;color:#fff}
+.ring{position:relative;width:340px;height:340px}svg{transform:rotate(-90deg)}#time{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}#time b{font:200 76px 'Helvetica Neue';font-variant-numeric:tabular-nums}
+input#lab{border:none;border-bottom:2px solid #3a141055;background:none;text-align:center;font:inherit;padding:4px;outline:none;width:200px;color:inherit}button#go{margin-top:20px;font:inherit;font-size:18px;letter-spacing:.15em;text-transform:uppercase;border:none;background:#d6402f;color:#fff;padding:14px 48px;border-radius:30px;cursor:pointer;box-shadow:0 6px 0 #8c2519}button#go:active{transform:translateY(4px);box-shadow:0 2px 0 #8c2519}
+.log{margin-top:26px;width:360px;font-size:14px}.log h3{font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin:0 0 6px}.log div{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #3a141015}</style>
+<h1>Tomato</h1><div class="modes" id="modes"></div>
+<div class="ring"><svg width="340" height="340"><circle cx="170" cy="170" r="150" stroke="#0001" stroke-width="14" fill="none"/><circle id="arc" cx="170" cy="170" r="150" stroke="#d6402f" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="942.5" stroke-dashoffset="0"/></svg>
+<div id="time"><b id="t">25:00</b><input id="lab" placeholder="What are you working on?"></div></div>
+<button id="go">Start</button><div class="log"><h3 id="today"></h3><div id="list"></div></div>
+<script>
+const MODES={Focus:[25,'#ffe3df','#d6402f'],'Short break':[5,'#dff5e3','#2f9e5b'],'Long break':[15,'#dfe9ff','#2f5fd6']};let mode='Focus',left=25*60,iv=null,runs=[];
+const ci=942.5;
+function draw(){const tot=MODES[mode][0]*60,m=String(Math.floor(left/60)).padStart(2,'0'),s=String(left%60).padStart(2,'0');$('#t').textContent=`${m}:${s}`;$('#arc').style.strokeDashoffset=ci*(1-left/tot);$('#arc').style.stroke=MODES[mode][2];$('#go').style.background=MODES[mode][2];document.body.style.setProperty('--bg',MODES[mode][1]);document.title=iv?`${m}:${s} · Tomato`:'Tomato';
+$('#modes').innerHTML=Object.keys(MODES).map(k=>`<button data-k="${k}" class="${k===mode?'on':''}">${k}</button>`).join('')}
+function setMode(k){clearInterval(iv);iv=null;mode=k;left=MODES[k][0]*60;$('#go').textContent='Start';draw()}
+async function done(){clearInterval(iv);iv=null;$('#go').textContent='Start';if(mode==='Focus'){runs.unshift(await api.add({label:$('#lab').value||'Focus',mins:25}));list()}try{const a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.frequency.value=880;g.gain.setValueAtTime(.3,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+1);o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+1)}catch{}setMode(mode==='Focus'?'Short break':'Focus')}
+$('#go').onclick=()=>{if(iv){clearInterval(iv);iv=null;$('#go').textContent='Resume';return}$('#go').textContent='Pause';iv=setInterval(()=>{left--;draw();if(left<=0)done()},1000)};$('#modes').onclick=e=>e.target.dataset.k&&setMode(e.target.dataset.k);
+function list(){const d=new Date().toDateString(),t=runs.filter(r=>new Date(r.createdAt).toDateString()===d);$('#today').textContent=`Today: ${t.length} tomato${t.length===1?'':'es'} · ${t.reduce((n,r)=>n+r.mins,0)} min`;$('#list').innerHTML=runs.slice(0,6).map(r=>`<div><span>${esc(r.label)}</span><span>${new Date(r.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div>`).join('')}
+api.list().then(d=>{runs=d;list()});draw();
+</script>

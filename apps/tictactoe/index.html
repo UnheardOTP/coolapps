@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Tic-Tac-Toe</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#1f3a2e;background-image:repeating-linear-gradient(0deg,#0000 0 3px,#0001 3px 4px);color:#f1efe4;font-family:'Chalkboard SE','Comic Sans MS',cursive;display:flex;flex-direction:column;align-items:center;padding-top:34px}
+h1{margin:0;font-weight:400;font-size:48px;letter-spacing:.1em}#b{display:grid;grid-template-columns:repeat(3,130px);gap:0;margin:20px 0}
+.c{width:130px;height:130px;font-size:90px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:4px solid #f1efe4aa;border-width:0 4px 4px 0}.c:nth-child(3n){border-right:0}.c:nth-child(n+7){border-bottom:0}.c:hover{background:#ffffff0c}
+.c.x{color:#ffd9a0}.c.o{color:#a8e6cf}.c.w{background:#ffffff20}#m{height:36px;font-size:26px}.rec{display:flex;gap:30px;margin-top:10px;font-size:22px}button{font:inherit;font-size:18px;background:none;border:2px solid #f1efe4;color:inherit;padding:8px 22px;border-radius:6px;cursor:pointer;margin-top:12px}</style>
+<h1>Tic-Tac-Toe</h1><div id="m">Your move (X)</div><div id="b"></div><div class="rec" id="r"></div><button id="n">New game</button>
+<script>
+const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];let b,over,hist=[];
+const win=(b,p)=>L.find(l=>l.every(i=>b[i]===p));
+// Unbeatable computer: full minimax search of the (tiny) game tree.
+function mm(b,p){const w=win(b,'O')?1:win(b,'X')?-1:0;if(w||b.every(Boolean))return{s:w};let best={s:p==='O'?-9:9};b.forEach((v,i)=>{if(v)return;b[i]=p;const r=mm(b,p==='O'?'X':'O');b[i]='';if(p==='O'?r.s>best.s:r.s<best.s)best={s:r.s,i}});return best}
+function reset(){b=Array(9).fill('');over=false;$('#m').textContent='Your move (X)';draw()}
+function draw(){const w=win(b,'X')||win(b,'O');$('#b').innerHTML=b.map((v,i)=>`<div class="c ${v.toLowerCase()} ${w&&w.includes(i)?'w':''}" data-i="${i}">${v}</div>`).join('');
+const c=k=>hist.filter(h=>h.r===k).length;$('#r').innerHTML=`<span>You ${c('win')}</span><span>Draw ${c('draw')}</span><span>Computer ${c('loss')}</span>`}
+async function fin(){const r=win(b,'X')?'win':win(b,'O')?'loss':b.every(Boolean)?'draw':null;if(!r)return false;over=true;$('#m').textContent={win:'You win!',loss:'Computer wins',draw:'A draw'}[r];hist.push(await api.add({r}));draw();return true}
+$('#b').onclick=async e=>{const c=e.target.closest('.c');if(!c||over||b[+c.dataset.i])return;b[+c.dataset.i]='X';draw();if(await fin())return;const m=mm(b,'O');b[m.i]='O';draw();fin()};
+$('#n').onclick=reset;api.list().then(d=>{hist=d;reset()});
+</script>

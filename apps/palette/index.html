@@ -1,0 +1,76 @@
+<!doctype html><meta charset="utf-8"><title>Palette</title>
+<script src="/shared/lib.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  body { display: flex; flex-direction: column; background: #fff; }
+  header { height: 60px; display: flex; align-items: center; gap: 18px; padding: 0 28px; border-bottom: 1px solid #eee; }
+  header h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.03em; }
+  header span { color: #999; font-size: 13px; flex: 1; }
+  kbd { background: #f2f2f2; border-radius: 4px; padding: 2px 8px; font: 12px monospace; }
+  button { font: inherit; font-weight: 600; border: 1px solid #ddd; background: #fff; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+  button.dark { background: #111; color: #fff; border-color: #111; }
+  #cols { flex: 1; display: flex; }
+  .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 14px; padding-bottom: 44px; transition: background .45s ease; }
+  .col .hex { font-size: 26px; font-weight: 800; letter-spacing: .02em; cursor: pointer; text-transform: uppercase; }
+  .col .lock { background: none; border: 1.5px solid currentColor; opacity: .5; font-size: 12px; padding: 5px 12px; border-radius: 20px; }
+  .col .lock.on { opacity: 1; background: currentColor; }
+  .col .lock.on span { color: var(--bg); }
+  #saved { height: 84px; border-top: 1px solid #eee; display: flex; align-items: center; gap: 14px; padding: 0 28px; overflow-x: auto; }
+  #saved em { color: #aaa; font-style: normal; font-size: 13px; }
+  .mini { flex: none; position: relative; width: 120px; height: 44px; display: flex; border-radius: 8px; overflow: hidden; cursor: pointer; box-shadow: 0 0 0 1px #0001; }
+  .mini i { flex: 1; }
+  .mini b { position: absolute; top: 2px; right: 4px; background: #fff; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; line-height: 16px; text-align: center; opacity: 0; }
+  .mini:hover b { opacity: 1; }
+</style>
+<header><h1>Palette</h1><span>Press <kbd>Space</kbd> to generate · lock the colors you love · click a hex to copy</span>
+  <button id="gen">Generate</button><button class="dark" id="save">Save palette</button></header>
+<div id="cols"></div>
+<div id="saved"></div>
+<script>
+let cols = Array.from({ length: 5 }, () => ({ hex: '#cccccc', lock: false })), saved = [];
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+// HSL → hex.
+function hex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return '#' + [f(0), f(8), f(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
+}
+// Build a palette from a random color-theory harmony, spread across lightness.
+function generate() {
+  const base = rand(0, 360);
+  const offs = pick([[-40, -20, 0, 20, 40], [0, 120, 240, 0, 120], [0, 180, 0, 180, 30], [0, 150, 210, 0, 30], [0, 8, -8, 16, -16]]);
+  const ls = [0, 1, 2, 3, 4].map(i => 22 + i * 15 + rand(-5, 5));
+  if (Math.random() < .5) ls.reverse();
+  const fresh = offs.map((o, i) => hex((base + o + 360) % 360, rand(40, 85), ls[i]));
+  cols.forEach((c, i) => { if (!c.lock) c.hex = fresh[i]; });
+  render();
+}
+// Pick readable text color for a swatch.
+const ink = h => { const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); return (r * .299 + g * .587 + b * .114) > 150 ? '#111' : '#fff'; };
+
+function render() {
+  $('#cols').innerHTML = cols.map((c, i) => `<div class="col" data-i="${i}" style="background:${c.hex};color:${ink(c.hex)};--bg:${c.hex}">
+    <div class="hex" data-act="copy">${c.hex.slice(1)}</div><button class="lock ${c.lock ? 'on' : ''}" data-act="lock"><span>${c.lock ? 'Locked' : 'Lock'}</span></button></div>`).join('');
+  $('#saved').innerHTML = saved.length ? saved.map(p => `<div class="mini" data-id="${p.id}" data-act="load">${p.colors.map(c => `<i style="background:${c}"></i>`).join('')}<b data-act="del">×</b></div>`).join('') : '<em>Saved palettes appear here.</em>';
+}
+$('#cols').onclick = e => {
+  const b = e.target.closest('[data-act]'), i = e.target.closest('.col')?.dataset.i;
+  if (!b) return;
+  if (b.dataset.act === 'lock') { cols[i].lock = !cols[i].lock; render(); }
+  else { navigator.clipboard.writeText('#' + b.textContent); const t = b.textContent; b.textContent = 'Copied'; setTimeout(() => b.textContent = t, 700); }
+};
+$('#saved').onclick = async e => {
+  const m = e.target.closest('[data-id]'); if (!m) return;
+  if (e.target.dataset.act === 'del') { await api.del(m.dataset.id); saved = saved.filter(p => p.id !== m.dataset.id); }
+  else cols = saved.find(p => p.id === m.dataset.id).colors.map(h => ({ hex: h, lock: false }));
+  render();
+};
+$('#gen').onclick = generate;
+$('#save').onclick = async () => { saved.unshift(await api.add({ colors: cols.map(c => c.hex) })); render(); };
+addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); generate(); } });
+api.list().then(d => { saved = d; generate(); });
+</script>

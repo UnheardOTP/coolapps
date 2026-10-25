@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>2048</title><script src="/shared/lib.js"></script>
+<style>body{margin:0;min-height:100vh;background:#faf8ef;color:#776e65;font-family:'Clear Sans','Helvetica Neue',Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding-top:30px}
+.top{width:420px;display:flex;justify-content:space-between;align-items:center}h1{margin:0;font-size:64px;color:#776e65}.sc{display:flex;gap:8px}.sc div{background:#bbada0;color:#eee4da;padding:6px 16px;border-radius:4px;text-align:center;font-size:12px}.sc b{display:block;color:#fff;font-size:22px}
+#b{position:relative;margin-top:16px;width:420px;height:420px;background:#bbada0;border-radius:8px;padding:10px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.t{border-radius:4px;background:#cdc1b4;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:38px;transition:background .1s}.t[data-v="2"]{background:#eee4da}.t[data-v="4"]{background:#ede0c8}.t[data-v="8"]{background:#f2b179;color:#fff}.t[data-v="16"]{background:#f59563;color:#fff}.t[data-v="32"]{background:#f67c5f;color:#fff}.t[data-v="64"]{background:#f65e3b;color:#fff}.t[data-v="128"],.t[data-v="256"],.t[data-v="512"]{background:#edcf72;color:#fff;font-size:32px}.t[data-v="1024"],.t[data-v="2048"]{background:#edc22e;color:#fff;font-size:26px}
+#ov{position:absolute;inset:0;background:#eee4dacc;display:none;align-items:center;justify-content:center;font-size:44px;font-weight:700;border-radius:8px}button{margin-top:18px;font:inherit;font-weight:700;background:#8f7a66;color:#fff;border:none;padding:10px 24px;border-radius:4px;cursor:pointer}</style>
+<div class="top"><h1>2048</h1><div class="sc"><div>SCORE<b id="s">0</b></div><div>BEST<b id="bs">0</b></div></div></div><div id="b"><div id="ov"></div></div><button id="n">New game</button><p>Arrow keys or swipe the tiles together.</p>
+<script>
+let g,score=0,runs=[],over=false;
+const add=()=>{const e=[];g.forEach((v,i)=>v||e.push(i));if(e.length)g[e[Math.floor(Math.random()*e.length)]]=Math.random()<.9?2:4};
+function start(){g=Array(16).fill(0);score=0;over=false;add();add();draw()}
+function draw(){$('#b').innerHTML='<div id="ov"></div>'+g.map(v=>`<div class="t" data-v="${v}">${v||''}</div>`).join('');$('#s').textContent=score;$('#bs').textContent=Math.max(score,0,...runs.map(r=>r.score))}
+// Slide every line toward the move direction, merging equal neighbours once per move.
+function slide(line){const a=line.filter(Boolean),o=[];for(let i=0;i<a.length;i++){if(a[i]===a[i+1]){o.push(a[i]*2);score+=a[i]*2;i++}else o.push(a[i])}while(o.length<4)o.push(0);return o}
+async function move(d){if(over)return;const before=g.join();
+  for(let k=0;k<4;k++){const idx=[0,1,2,3].map(j=>d==='L'||d==='R'?k*4+j:j*4+k);if(d==='R'||d==='D')idx.reverse();const out=slide(idx.map(i=>g[i]));idx.forEach((i,j)=>g[i]=out[j])}
+  if(g.join()===before)return;add();draw();
+  const stuck=!g.includes(0)&&g.every((v,i)=>v!==g[i+1]||i%4===3)&&g.every((v,i)=>v!==g[i+4]);
+  if(stuck){over=true;$('#ov').style.display='flex';$('#ov').textContent='Game over';runs.push(await api.add({score}))}}
+const MAP={ArrowLeft:'L',ArrowRight:'R',ArrowUp:'U',ArrowDown:'D'};addEventListener('keydown',e=>{if(MAP[e.key]){e.preventDefault();move(MAP[e.key])}});
+let sx,sy;$('#b').onpointerdown=e=>{sx=e.clientX;sy=e.clientY};$('#b').onpointerup=e=>{const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<30)return;move(Math.abs(dx)>Math.abs(dy)?dx>0?'R':'L':dy>0?'D':'U')};
+$('#n').onclick=start;api.list().then(d=>{runs=d;start()});
+</script>

@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>Symbol Picker</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#c026d3;--w:900px}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px}.g div{aspect-ratio:1;background:var(--soft);border:1px solid var(--line);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;user-select:none}.g div:hover{border-color:var(--a);transform:scale(1.08)}#bar{font-size:22px;min-height:50px}</style>
+<div class="wrap"><h1>Symbol Picker</h1><p class="sub">Click symbols to collect them in the box, then copy the lot. Recently used symbols are remembered.</p>
+<div class="card"><div class="row"><div class="col"><input id="bar" placeholder="Click symbols to add them…"></div><button id="cp">Copy</button><button class="s" id="cl">Clear</button></div></div>
+<div class="card"><div class="tabs" id="tabs"></div><div class="g" id="g"></div></div></div>
+<script>
+const S={'Recent':'','Arrows':'← → ↑ ↓ ↔ ↕ ↖ ↗ ↘ ↙ ⇐ ⇒ ⇑ ⇓ ⇔ ↩ ↪ ↺ ↻ ➜ ➔ ➤ ➥ ⟵ ⟶','Math':'± × ÷ ≈ ≠ ≤ ≥ ∞ √ ∑ ∏ ∫ ∂ ∆ ∇ ∈ ∉ ∩ ∪ ⊂ ⊃ ∴ ∵ ¬ ∧ ∨ ⊕ ⊗ ° ‰ µ π','Currency':'$ € £ ¥ ¢ ₹ ₽ ₩ ₪ ฿ ₫ ₺ ₴ ₦ ₱ ₡ ₿','Punctuation':'… – — ‘ ’ “ ” « » ‹ › † ‡ • · ¶ § © ® ™ ¡ ¿ ※ ‽ № ⁂','Shapes':'■ □ ▪ ▫ ▲ △ ▼ ▽ ◆ ◇ ○ ● ◎ ◐ ◑ ★ ☆ ✦ ✧ ♠ ♣ ♥ ♦ ♡ ♢ ✓ ✔ ✗ ✘ ✚ ✖','Greek':'α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω Α Β Γ Δ Θ Λ Ξ Π Σ Φ Ψ Ω','Fractions':'½ ⅓ ⅔ ¼ ¾ ⅕ ⅖ ⅗ ⅘ ⅙ ⅚ ⅛ ⅜ ⅝ ⅞ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ⁰ ₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉','Box drawing':'─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼ ═ ║ ╔ ╗ ╚ ╝ ╠ ╣ ╦ ╩ ╬ ░ ▒ ▓ █ ▀ ▄','Music & misc':'♩ ♪ ♫ ♬ ♭ ♮ ♯ ☀ ☁ ☂ ☃ ☎ ☑ ☒ ☕ ☘ ☠ ☮ ☯ ☺ ☹ ⚑ ⚐ ⚡ ⚙ ⚠ ⌘ ⌥ ⇧ ⌫ ⏎'};
+let cat='Arrows',recent=[],doc=null;
+function paint(){S.Recent=recent.join(' ');$('#tabs').innerHTML=Object.keys(S).map(c=>`<button data-c="${c}" class="${c===cat?'on':''}">${c}</button>`).join('');$('#g').innerHTML=(S[cat]?S[cat].split(' '):[]).map(s=>`<div data-s="${esc(s)}" title="U+${s.codePointAt(0).toString(16).toUpperCase()}">${esc(s)}</div>`).join('')||'<span class="mut">Nothing used yet.</span>'}
+$('#tabs').onclick=e=>{if(e.target.dataset.c){cat=e.target.dataset.c;paint()}};
+$('#g').onclick=async e=>{const s=e.target.dataset.s;if(!s)return;$('#bar').value+=s;recent=[s,...recent.filter(x=>x!==s)].slice(0,30);const d={kind:'recent',list:recent};if(doc)api.upd(doc.id,d);else doc=await api.add(d);if(cat==='Recent')paint()};
+$('#cp').onclick=e=>copy($('#bar').value,e.target);$('#cl').onclick=()=>$('#bar').value='';api.list().then(d=>{doc=d.find(x=>x.kind==='recent')||null;if(doc)recent=doc.list;paint()});
+</script>

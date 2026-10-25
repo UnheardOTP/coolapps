@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>Currency Converter</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#ca8a04;--w:820px}</style>
+<div class="wrap"><h1>Currency Converter</h1><p class="sub">Works offline with rates you control. The built-in rates are only examples — edit them to today's values and they are remembered.</p>
+<div class="card"><div class="row"><div class="col"><label>Amount</label><input id="a" type="number" value="100" step="any" style="font-size:22px" data-keep></div><div class="col"><label>From</label><select id="f" data-keep></select></div><button class="s" id="sw" style="margin-bottom:1px">⇄</button><div class="col"><label>To</label><select id="t" data-keep></select></div></div><div class="big gap" id="res"></div><div class="mut" id="rt"></div></div>
+<div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0">Rates (units per 1 USD)</h2><button class="x right" id="rs">Reset to examples</button></div><div class="g3" id="rates"></div><div class="mut gap" id="upd"></div></div></div>
+<script>
+const DEF={USD:1,EUR:.92,GBP:.79,JPY:150,CAD:1.36,AUD:1.52,CHF:.88,CNY:7.2,INR:83,MXN:17,BRL:5,KRW:1330,SEK:10.5,NOK:10.6,NZD:1.64,SGD:1.34,HKD:7.8,ZAR:18.7,TRY:32,PLN:4};
+let rates={...DEF},doc=null;
+const fill=()=>{for(const id of['f','t']){const v=$('#'+id).value;$('#'+id).innerHTML=Object.keys(rates).map(c=>`<option>${c}</option>`).join('');if(v)$('#'+id).value=v}};
+function run(){const a=num('a'),f=$('#f').value,t=$('#t').value,r=rates[t]/rates[f];$('#res').textContent=`${fmt(a*r,a*r<1?4:2)} ${t}`;$('#rt').textContent=`1 ${f} = ${fmt(r,r<1?5:4)} ${t} · 1 ${t} = ${fmt(1/r,1/r<1?5:4)} ${f}`}
+function grid(){$('#rates').innerHTML=Object.entries(rates).map(([c,v])=>`<div><label>${c}</label><input data-c="${c}" type="number" step="any" value="${v}"></div>`).join('');$('#upd').textContent=doc?`Custom rates saved ${new Date(doc.at).toLocaleString()}`:'Using built-in example rates.'}
+$('#rates').oninput=e=>{const c=e.target.dataset.c;if(!c||!(+e.target.value>0))return;rates[c]=+e.target.value;run();clearTimeout(grid.t);grid.t=setTimeout(async()=>{const d={kind:'rates',rates,at:Date.now()};if(doc)Object.assign(doc,await api.upd(doc.id,d));else doc=await api.add(d);$('#upd').textContent='Saved '+new Date().toLocaleTimeString()},600)};
+$('#sw').onclick=()=>{const f=$('#f').value;$('#f').value=$('#t').value;$('#t').value=f;run();$('#f').dispatchEvent(new Event('input',{bubbles:true}))};
+$('#rs').onclick=async()=>{rates={...DEF};if(doc){await api.upd(doc.id,{rates,at:Date.now()});doc.at=Date.now()}grid();run()};
+document.addEventListener('input',e=>{if(!e.target.dataset.c)run()});
+api.list().then(async d=>{doc=d.find(x=>x.kind==='rates')||null;if(doc)rates={...DEF,...doc.rates};fill();await remember();if($('#f').value===$('#t').value){$('#f').value='USD';$('#t').value='EUR'}fill();grid();run()});
+</script>
