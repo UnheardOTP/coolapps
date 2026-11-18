@@ -1,0 +1,37 @@
+<!doctype html><meta charset="utf-8"><title>Steam Compare</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared/util.css"><script src="/shared/lib.js"></script><script src="/shared/util.js"></script><style>:root{--a:#2a6f97}
+.user{display:flex;gap:12px;align-items:center}.user img{width:48px;height:48px;border-radius:8px}.user a{color:var(--fg);font-weight:600;text-decoration:none}
+.game{display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}.game:last-child{border-bottom:none}
+.game img{width:92px;height:43px;object-fit:cover;border-radius:4px;background:var(--soft)}.game .n{flex:1}.game .t{text-align:right;font-size:13px;color:var(--mut);white-space:nowrap}
+</style>
+<div class="wrap"><h1>Steam Compare</h1><p class="sub">Enter two Steam profiles to see which games you both own. Both need Game details set to Public.</p>
+<div class="card"><div class="g2">
+<div><label for="a">Profile 1 (URL or 17-digit ID)</label><input id="a" data-keep placeholder="76561197983584385"></div>
+<div><label for="b">Profile 2 (URL or 17-digit ID)</label><input id="b" data-keep placeholder="https://steamcommunity.com/id/name"></div></div>
+<div id="keybox" class="gap"><label for="key">Steam Web API key (<a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener">get one free</a>)</label><input id="key" type="password" data-keep autocomplete="off"><div class="mut">Stored only in this browser and sent to Steam via this server; never saved on it.</div></div>
+<div class="row gap"><button id="go">Compare</button><div class="err" id="err"></div></div></div>
+<div id="res" class="hide"><div class="g2" id="users"></div>
+<div class="card gap"><div class="row"><div class="col"><input id="q" type="search" placeholder="Filter shared games"></div><div class="mut" id="count"></div></div><div id="list" class="gap"></div></div></div></div>
+<script>
+const hrs=m=>m?(m/60).toFixed(m<600?1:0)+' h':'never played';
+let shared=[];
+function draw(){
+  const q=$('#q').value.toLowerCase();
+  $('#list').innerHTML=shared.filter(g=>g.name.toLowerCase().includes(q)).map(g=>`<div class="game"><img loading="lazy" alt="" src="https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/capsule_184x69.jpg" onerror="this.style.visibility='hidden'"><span class="n">${esc(g.name)}</span><span class="t">${hrs(g.minutesA)}<br>${hrs(g.minutesB)}</span></div>`).join('')||'<p class="mut">No matches.</p>';
+}
+async function go(){
+  $('#err').textContent='';$('#go').disabled=true;
+  try{
+    const p=new URLSearchParams({a:$('#a').value,b:$('#b').value});
+    const d=await fetch('api/compare?'+p,{headers:{'X-Steam-Key':$('#key').value.trim()}}).then(r=>r.json());
+    if(d.error)throw new Error(d.error);
+    shared=d.shared;
+    $('#users').innerHTML=[d.a,d.b].map(u=>`<div class="card user"><img alt="" src="${esc(u.avatar)}"><div><a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.name)}</a><div class="mut">${u.total} games</div></div></div>`).join('');
+    $('#count').textContent=shared.length+' shared games';
+    $('#res').classList.remove('hide');draw();
+  }catch(e){$('#err').textContent=e.message;$('#res').classList.add('hide')}
+  $('#go').disabled=false;
+}
+$('#go').onclick=go;$('#q').oninput=draw;
+remember();
+</script>

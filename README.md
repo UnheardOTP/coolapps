@@ -21,6 +21,12 @@ adds `copy()`, `remember()` (restore inputs marked `data-keep`), `savedBar()` (n
 `compile()`, a safe expression parser used by the calculator and function plotter. `app.json` takes an optional
 `"cat": "Utilities" | "Play"` that drives the tabs on the index page.
 
+## Steam Compare (bring your own key)
+
+`apps/steamcompare` calls Steam through `shared/steam.js` (mounted at `/steamcompare/api`), not the items API.
+No key is configured on the server: each visitor pastes their own free key from https://steamcommunity.com/dev/apikey
+(kept in their browser, sent per request in an `X-Steam-Key` header, never stored server-side).
+
 ## Add an app (live immediately, no rebuild)
 
 ```bash

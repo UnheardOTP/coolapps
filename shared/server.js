@@ -56,6 +56,8 @@ if (SINGLE) {
   });
   app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
 
+  // steamcompare has its own API (it calls Steam, no database); everything else gets the generic items API.
+  app.use('/steamcompare/api', require('./steam'));
   app.use('/:id/api', (req, res, next) => dirOf(req.params.id) ? (routers[req.params.id] ||= itemsRouter(req.params.id))(req, res, next) : next());
   app.use('/:id', (req, res, next) => {
     const dir = dirOf(req.params.id);
