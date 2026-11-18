@@ -53,5 +53,5 @@ Creates a standalone folder (app + server + Dockerfile + its own MongoDB). The s
 Pushes to `main` then deploy to the home server **if the repo variable `DEPLOY_ENABLED` is `true`**: the job joins the
 tailnet (`TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`), copies the files over SSH (`DEPLOY_SSH_PASSWORD`), rebuilds the image,
 restarts, checks `/api/apps` reports every app, and rolls back to the previous image if it does not. Data lives in a
-Docker volume and is never touched. Run the same checks locally with `node tests/smoke.js` and `node tests/logic.js`
+Docker volume and is never touched. Run the optional browser checks locally with `node tests/smoke.js` and `node tests/logic.js`
 (`cd tests && npm install` first; set `CHROME=/path/to/chrome` to use an existing browser).

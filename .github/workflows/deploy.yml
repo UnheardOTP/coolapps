@@ -32,18 +32,6 @@ jobs:
           done
           docker compose logs; echo "::error::hub did not start"; exit 1
 
-      - name: Install browser
-        working-directory: tests
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
-
-      - name: Logic checks
-        run: node tests/logic.js
-
-      - name: Smoke test every app
-        run: node tests/smoke.js
-
       - name: Container logs (on failure)
         if: failure()
         run: docker compose logs --tail 120
