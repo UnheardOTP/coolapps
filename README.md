@@ -47,8 +47,8 @@ Creates a standalone folder (app + server + Dockerfile + its own MongoDB). The s
 `.github/workflows/deploy.yml` runs on every push and pull request:
 
 1. `tests/static.py` — manifests, ids and every inline script's syntax.
-2. Starts the stack with Docker Compose, then `tests/logic.js` (numeric spot-checks listed in `tests/logic.json`)
-   and `tests/smoke.js` (loads every app in headless Chromium, types and clicks, fails on any console error).
+2. Starts the stack with Docker Compose and checks it comes up. The apps are one-off prototypes, so CI runs no per-app
+   browser tests; `tests/smoke.js` and `tests/logic.js` remain for running by hand.
 
 Pushes to `main` then deploy to the home server **if the repo variable `DEPLOY_ENABLED` is `true`**: the job joins the
 tailnet (`TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`), copies the files over SSH (`DEPLOY_SSH_PASSWORD`), rebuilds the image,
